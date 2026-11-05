@@ -3522,7 +3522,7 @@ export function drawJoinedDeskIsland(
   const tagIso = worldToIso(midX, tableWy - 2, 36.5);
   const shortIsl =
     island.islandRow >= 4
-      ? island.title.split('•')[0].trim()
+      ? island.label.split('•')[0].trim()
       : `CỤM ${island.islandRow}.${island.islandCol}`;
   if (showIslandHeatmap && islandHeatStat) {
     const heatIcon =

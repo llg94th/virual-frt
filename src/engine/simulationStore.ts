@@ -3102,7 +3102,8 @@ export class OfficeSimulationEngine {
 
   /**
    * Cử một kỹ sư (`TienHK`, `SonNA2`, `ChienND22`, `ManhPT13`, `BaoNAT`, `ThanhDQ13`...)
-   * đứng dậy từ bàn làm việc, đi bộ theo đường A* tới Trạm Máy Tính Server Jenkins (`oneclickv4-build-ci`)
+   * đứng dậy từ bàn làm việc, đi bộ theo đường A* tới 1 trong 3 Cụm Máy Tính Server Jenkins
+   * (`oneclickv4-build-ci`, `oneclickv4-build-uat`, hoặc `oneclickv4-build-release`)
    * và đứng gõ bàn phím chạy bản build.
    */
   public triggerJenkinsBuild = (params?: {
@@ -3111,6 +3112,7 @@ export class OfficeSimulationEngine {
     ticketKey?: string;
     buildNumber?: number;
     statusText?: string;
+    jobName?: string;
   }): ActiveJenkinsBuildTask | null => {
     const busyTransferIds = new Set(
       this.state.activeTransfers.map((t) => t.fromEmployeeId)
@@ -3152,6 +3154,29 @@ export class OfficeSimulationEngine {
     }
     if (!chosenEmp) return null;
 
+    // Đảm bảo kỹ sư được Check-in ghế làm việc đầu ngày (hoặc ra Giếng trời hút thuốc nếu đã full chỗ)
+    const checkInResult = this.ensureEmployeeCheckedInOrSmoking(
+      chosenEmp,
+      params?.ticketKey || 'JENKINS'
+    );
+    if (checkInResult === 'SMOKING') {
+      this.emitChange(true);
+      return null;
+    }
+
+    // Xác định Cụm Server Build mục tiêu dựa trên `jobName` (`CI`, `UAT`, hay `RELEASE`)
+    const requestedJob = (
+      params?.jobName || JENKINS_SERVER_STATION.jobName
+    ).trim();
+    const targetStation =
+      JENKINS_SERVER_CLUSTERS.find((c) =>
+        requestedJob.toLowerCase().includes('uat')
+          ? c.id === 'UAT'
+          : requestedJob.toLowerCase().includes('release')
+            ? c.id === 'RELEASE'
+            : c.id === 'CI'
+      ) ?? JENKINS_SERVER_STATION;
+
     // Nếu đang có người khác đứng build dở, đưa người cũ về lại bàn trước khi bắt đầu lượt build mới
     if (
       this.state.activeJenkinsBuild &&
@@ -3179,7 +3204,7 @@ export class OfficeSimulationEngine {
       DESK_BY_EMPLOYEE_ID[chosenEmp.id] ?? DESK_BY_ID[chosenEmp.deskId] ?? PM_DESK;
     const { outboundPath: rawOutbound, returnPath } = findDeskToDeskPath(
       fromDesk.id,
-      'DESK-JENKINS-SERVER'
+      targetStation.deskId
     );
 
     // Cho phép đi tiếp từ vị trí hiện tại của kỹ sư nếu họ đang trên hành lang
@@ -3188,7 +3213,7 @@ export class OfficeSimulationEngine {
         ? [{ ...chosenEmp.currentPosition }, ...rawOutbound.slice(1)]
         : [
             { ...chosenEmp.currentPosition },
-            { ...JENKINS_SERVER_STATION.operatorPosition },
+            { ...targetStation.operatorPosition },
           ];
 
     const buildNum = params?.buildNumber ?? this.nextJenkinsBuildNumber++;
@@ -3208,7 +3233,9 @@ export class OfficeSimulationEngine {
       employeeId: chosenEmp.id,
       employeeAccount: chosenEmp.account || chosenEmp.displayName,
       employeeSeatCode: chosenEmp.seatCode || '1.318',
-      jobName: JENKINS_SERVER_STATION.jobName,
+      jobName: targetStation.jobName,
+      clusterId: targetStation.id as 'CI' | 'UAT' | 'RELEASE',
+      serverDeskId: targetStation.deskId,
       buildNumber: buildNum,
       ticketKey,
       phase: 'WALKING_TO_SERVER',
@@ -3254,15 +3281,15 @@ export class OfficeSimulationEngine {
       fromEmployeeId: chosenEmp.id,
       fromEmployeeName: `${buildTask.employeeAccount} (${buildTask.employeeSeatCode})`,
       toEmployeeId: chosenEmp.id,
-      toEmployeeName: 'JENKINS CI • oneclickv4-build-ci',
+      toEmployeeName: `${targetStation.shortTitle} • ${buildTask.jobName}`,
       isReturnToPM: false,
-      message: `⚙️ ${buildTask.employeeAccount} (${buildTask.employeeSeatCode}) đi bộ tới Trạm Máy Tính Server chạy Build Jenkins #${buildNum} (${buildTask.jobName}) cho [${ticketKey}]!`,
+      message: `⚙️ ${buildTask.employeeAccount} (${buildTask.employeeSeatCode}) đi bộ tới ${targetStation.title} chạy Build Jenkins #${buildNum} (${buildTask.jobName}) cho [${ticketKey}]!`,
       type: 'HANDOFF',
     });
 
     this.addSpeechBubble(
       chosenEmp.id,
-      `🚀 Ra Trạm Server chạy Jenkins CI #${buildNum} (${buildTask.jobName}) cho ${ticketKey}!`,
+      `🚀 Ra ${targetStation.shortTitle} chạy #${buildNum} (${buildTask.jobName}) cho ${ticketKey}!`,
       'info'
     );
 
@@ -3281,6 +3308,7 @@ export class OfficeSimulationEngine {
     account?: string;
     ticketKey?: string;
     brokenBuildNumber?: number;
+    jobName?: string;
   }): ActiveJenkinsBuildTask | null => {
     const brokenNum = params?.brokenBuildNumber ?? this.nextJenkinsBuildNumber++;
     const rescueNum =
@@ -3317,23 +3345,34 @@ export class OfficeSimulationEngine {
     }
     if (!rescuer) return null;
 
+    const targetJobName = params?.jobName || JENKINS_SERVER_STATION.jobName;
+    const targetStation =
+      JENKINS_SERVER_CLUSTERS.find((c) =>
+        targetJobName.toLowerCase().includes('uat')
+          ? c.id === 'UAT'
+          : targetJobName.toLowerCase().includes('release')
+            ? c.id === 'RELEASE'
+            : c.id === 'CI'
+      ) ?? JENKINS_SERVER_STATION;
+
     // Ghi nhận bản build FAILURE (broken) vào đầu danh sách `jenkinsBuilds`
     const brokenJob: JenkinsBuildJobItem = {
       id: `JENKINS-BROKEN-${brokenNum}-${Date.now()}`,
       buildNumber: brokenNum,
-      jobName: JENKINS_SERVER_STATION.jobName,
+      jobName: targetStation.jobName,
+      clusterId: targetStation.id as 'CI' | 'UAT' | 'RELEASE',
       status: 'FAILURE',
       statusText: 'broken',
       timeAgo: 'just now',
       triggeredByAccount: rescuer.account || rescuer.displayName,
       ticketKey,
-      url: `${JENKINS_SERVER_STATION.rssUrl.replace('/rssAll', '')}/${brokenNum}/`,
+      url: `${targetStation.rssUrl.replace('/rssAll', '')}/${brokenNum}/`,
     };
 
     const existingWithoutSame = this.state.jenkinsBuilds.filter(
-      (b) => b.buildNumber !== brokenNum
+      (b) => b.buildNumber !== brokenNum || b.jobName !== targetStation.jobName
     );
-    this.state.jenkinsBuilds = [brokenJob, ...existingWithoutSame].slice(0, 6);
+    this.state.jenkinsBuilds = [brokenJob, ...existingWithoutSame].slice(0, 8);
     this.state.isJenkinsBrokenAlert = true;
     this.state.brokenBuildNumber = brokenNum;
 
@@ -3343,6 +3382,7 @@ export class OfficeSimulationEngine {
       ticketKey,
       buildNumber: rescueNum,
       statusText: 'broken -> hotfix',
+      jobName: targetStation.jobName,
     });
 
     if (task) {
@@ -3553,6 +3593,7 @@ export class OfficeSimulationEngine {
           account: newest.triggeredByAccount,
           ticketKey: newest.ticketKey,
           brokenBuildNumber: newest.buildNumber,
+          jobName: newest.jobName,
         });
       } else {
         this.triggerJenkinsBuild({
@@ -3560,6 +3601,7 @@ export class OfficeSimulationEngine {
           ticketKey: newest.ticketKey,
           buildNumber: newest.buildNumber,
           statusText: newest.statusText,
+          jobName: newest.jobName,
         });
       }
     }
@@ -3771,6 +3813,7 @@ export class OfficeSimulationEngine {
                   account: ev.triggeredByAccount,
                   ticketKey: ev.ticketKey,
                   brokenBuildNumber: buildNum,
+                  jobName: ev.jobName,
                 });
               } else {
                 this.triggerJenkinsBuild({
@@ -3778,6 +3821,7 @@ export class OfficeSimulationEngine {
                   ticketKey: ev.ticketKey,
                   buildNumber: buildNum,
                   statusText: ev.statusText || ev.status,
+                  jobName: ev.jobName,
                 });
               }
             }
@@ -3912,16 +3956,19 @@ export class OfficeSimulationEngine {
 
     let jiraXml = '';
     let jenkinsXml = '';
+    let jenkinsUatXml = '';
     let jiraOk = false;
     let jenkinsOk = false;
+    let jenkinsUatOk = false;
     let jiraError: string | null = null;
     let jenkinsError: string | null = null;
     let httpStatus: number | null = null;
 
     try {
-      const [jiraResp, jenkinsResp] = await Promise.allSettled([
+      const [jiraResp, jenkinsResp, jenkinsUatResp] = await Promise.allSettled([
         fetch(jiraProxyUrl, { headers }),
         fetch(jenkinsProxyUrl, { headers }),
+        fetch(FRT_JENKINS_UAT_RSS_PROXY_URL, { headers }),
       ]);
 
       if (jiraResp.status === 'fulfilled') {
@@ -3975,18 +4022,36 @@ export class OfficeSimulationEngine {
       } else {
         jenkinsError = `Không kết nối được /api/frt-jenkins-rss (jenkins-osp.frt.vn).`;
       }
+
+      if (jenkinsUatResp.status === 'fulfilled' && jenkinsUatResp.value.ok) {
+        const uatText = await jenkinsUatResp.value.text();
+        if (
+          uatText.includes('<entry') ||
+          uatText.includes('<feed') ||
+          uatText.includes('<item') ||
+          uatText.includes('<rss')
+        ) {
+          jenkinsUatXml = uatText;
+          jenkinsUatOk = true;
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       jiraError = `Lỗi ngoại lệ khi gọi Proxy FRT: ${msg}`;
     }
 
-    const usedLive = jiraOk || jenkinsOk;
+    const usedLive = jiraOk || jenkinsOk || jenkinsUatOk;
     const prevDropped = this.clientDedupStats.duplicatesDropped;
 
     if (isLiveMode) {
       const jiraCount = jiraOk && jiraXml ? this.ingestJiraActivityXml(jiraXml, true) : 0;
-      const jenkinsCount =
+      const jenkinsCiCount =
         jenkinsOk && jenkinsXml ? this.ingestJenkinsRssXml(jenkinsXml, true) : 0;
+      const jenkinsUatCount =
+        jenkinsUatOk && jenkinsUatXml
+          ? this.ingestJenkinsRssXml(jenkinsUatXml, true)
+          : 0;
+      const jenkinsCount = jenkinsCiCount + jenkinsUatCount;
       const droppedNow = this.clientDedupStats.duplicatesDropped - prevDropped;
 
       const combinedError =
@@ -4051,9 +4116,14 @@ export class OfficeSimulationEngine {
     if (!jenkinsXml) {
       jenkinsXml = SAMPLE_FRT_JENKINS_RSS_XML;
     }
+    if (!jenkinsUatXml) {
+      jenkinsUatXml = SAMPLE_FRT_JENKINS_UAT_RSS_XML;
+    }
 
     const jiraCount = this.ingestJiraActivityXml(jiraXml, true);
-    const jenkinsCount = this.ingestJenkinsRssXml(jenkinsXml, true);
+    const jenkinsCount =
+      this.ingestJenkinsRssXml(jenkinsXml, true) +
+      this.ingestJenkinsRssXml(jenkinsUatXml, true);
     const droppedNow = this.clientDedupStats.duplicatesDropped - prevDropped;
     const totalNew = jiraCount + jenkinsCount;
 
@@ -4288,6 +4358,9 @@ export function useOfficeSimulation(): OfficeSimulationStoreValue {
     setDataSourceMode: engine.setDataSourceMode,
     updateLiveConfig: engine.updateLiveConfig,
     clearMockData: engine.clearMockData,
+    resetNewDayEmptyDesks: engine.resetNewDayEmptyDesks,
+    triggerTestFullSeatsSmoking: engine.triggerTestFullSeatsSmoking,
+    setMaxOpenSeats: engine.setMaxOpenSeats,
     triggerSprintRush: engine.triggerSprintRush,
     stopSprintRush: engine.stopSprintRush,
     toggleSprintRush: engine.toggleSprintRush,

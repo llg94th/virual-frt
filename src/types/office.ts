@@ -489,6 +489,7 @@ export type JenkinsClusterId = 'CI' | 'UAT' | 'RELEASE';
 /** Cấu hình không gian của Cụm Máy Chủ Build 3D (`JENKINS SERVER CLUSTERS`) trên Bản đồ */
 export interface JenkinsServerStation {
   id: string;
+  deskId: string;
   clusterId?: JenkinsClusterId;
   ledColor?: string;
   wingLabel?: string;
@@ -574,6 +575,7 @@ export interface ActiveJenkinsBuildTask {
   jobName: string;
   clusterId?: JenkinsClusterId;
   stationId?: string;
+  serverDeskId?: string;
   employeeId: string;
   employeeAccount: string;
   employeeSeatCode: string;

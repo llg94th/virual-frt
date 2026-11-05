@@ -232,7 +232,12 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
           brokenBuildNumber={sim.brokenBuildNumber}
           jenkinsHotfixCelebrationAt={sim.jenkinsHotfixCelebrationAt}
           onTriggerJenkinsBuild={() => sim.triggerJenkinsBuild()}
+          onTriggerUatBuild={() => sim.triggerJenkinsBuild({ jobName: 'oneclickv4-build-uat' })}
           onTriggerJenkinsBrokenHotfix={() => sim.triggerJenkinsBrokenHotfix()}
+          onResetNewDay={() => sim.resetNewDayEmptyDesks()}
+          onTriggerTestFullSeatsSmoking={() => sim.triggerTestFullSeatsSmoking()}
+          checkedInCount={sim.checkedInCount}
+          smokingCount={sim.smokingCount}
           mvpLeaderboard={sim.mvpLeaderboard}
           islandHeatmap={sim.islandHeatmap}
           isHudHidden={isHudHidden}
@@ -434,14 +439,44 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
               <span>Bước tiếp ➔</span>
             </button>
 
-            {/* Trigger Jenkins Build */}
+            {/* Trigger Jenkins Build CI */}
             <button
               type="button"
               onClick={() => sim.triggerJenkinsBuild()}
               className="px-2.5 py-1 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold transition shadow-sm flex items-center gap-1"
               title="Cử kỹ sư đi bộ tới Trạm Server Jenkins chạy build oneclickv4-build-ci"
             >
-              <span>🚀 Build Jenkins</span>
+              <span>🚀 Build CI</span>
+            </button>
+
+            {/* Trigger Jenkins Build UAT (oneclickv4-build-uat) */}
+            <button
+              type="button"
+              onClick={() => sim.triggerJenkinsBuild({ jobName: 'oneclickv4-build-uat' })}
+              className="px-2.5 py-1 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold transition shadow-sm flex items-center gap-1"
+              title="Cử kỹ sư đi bộ tới Trạm Server UAT chạy build oneclickv4-build-uat"
+            >
+              <span>🟣 Build UAT</span>
+            </button>
+
+            {/* Reset New Day (100% Empty Desks) */}
+            <button
+              type="button"
+              onClick={() => sim.resetNewDayEmptyDesks()}
+              className="px-2.5 py-1 rounded-full bg-teal-600 hover:bg-teal-500 text-white text-[11px] font-bold transition shadow-sm flex items-center gap-1"
+              title="Reset Ngày Mới — Toàn bộ bàn làm việc trống 100%, ai có event trước sẽ vào chiếm 1 chỗ ngồi"
+            >
+              <span>🌅 Reset Ngày Mới ({sim.checkedInCount} ngồi)</span>
+            </button>
+
+            {/* Test Full Seats -> Atrium Smoking */}
+            <button
+              type="button"
+              onClick={() => sim.triggerTestFullSeatsSmoking()}
+              className="px-2.5 py-1 rounded-full bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-extrabold transition shadow-sm flex items-center gap-1"
+              title="Giả lập Kịch bản Full Chỗ Ngồi — Thành viên có event sau sẽ tụ tập ở Giếng trời hút thuốc (🚬 💨)"
+            >
+              <span>🚬 Test Full Chỗ ({sim.smokingCount} hút thuốc)</span>
             </button>
 
             {/* Simulate Jenkins Build Broken / Hotfix Rescue */}

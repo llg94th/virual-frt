@@ -665,8 +665,8 @@ export function parseJenkinsRssXml(xmlText: string): JenkinsBuildJobItem[] {
             ? '28m ago'
             : formatRelativeTimeFromIso(publishedAt);
 
-        const isUatJob = /oneclickv4-build-uat/i.test(`${title} ${link} ${rawId}`);
-        const isReleaseJob = /oneclickv4-build-release/i.test(`${title} ${link} ${rawId}`);
+        const isUatJob = /oneclickv4-build-uat/i.test(`${rawTitle} ${link} ${rawId}`);
+        const isReleaseJob = /oneclickv4-build-release/i.test(`${rawTitle} ${link} ${rawId}`);
         const jobName = isUatJob
           ? 'oneclickv4-build-uat'
           : isReleaseJob

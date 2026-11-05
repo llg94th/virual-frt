@@ -18,17 +18,26 @@ import {
   Waypoint,
 } from '../types/office';
 import {
+  BOSS_ROTATION_IDS,
   EMPLOYEES,
   EMPLOYEE_BY_ID,
   FEMALE_MANAGER_ID,
+  MANAGER_DOANNT19_ID,
+  MANAGER_TOANLBK_ID,
+  MANAGER_VANLTB8_ID,
   ROLE_METADATA,
 } from '../data/employees';
 import {
+  ALL_JOINED_DESK_ISLANDS,
+  ALL_OFFICE_SEAT_SLOTS,
   DEFAULT_SIMULATION_CONFIG,
   DESK_BY_EMPLOYEE_ID,
   DESK_BY_ID,
   DESK_POSITIONS,
+  JENKINS_SERVER_CLUSTERS,
   JENKINS_SERVER_STATION,
+  JENKINS_UAT_SERVER_STATION,
+  JenkinsServerStationMeta,
   NHA_THUOC_BAY_BOUNDS,
   NHA_THUOC_ISLANDS,
   NHA_THUOC_SEAT_SLOTS,
@@ -77,18 +86,19 @@ import {
   worldVecToIsoVec,
 } from './isometricRenderer';
 
-const EXTRA_NHA_THUOC_SLOTS: NhaThuocSeatSlot[] = NHA_THUOC_SEAT_SLOTS.filter(
+const EXTRA_NHA_THUOC_SLOTS: NhaThuocSeatSlot[] = ALL_OFFICE_SEAT_SLOTS.filter(
   (s) => !s.deskId
 );
 const OCCUPIED_EXTRA_NHA_THUOC_SLOTS: NhaThuocSeatSlot[] = EXTRA_NHA_THUOC_SLOTS.filter(
   (s) => s.kind === 'OCCUPIED'
 );
 const ISLAND_BY_ID: Record<string, NhaThuocIslandMeta> = Object.fromEntries(
-  NHA_THUOC_ISLANDS.map((isl) => [isl.id, isl])
+  ALL_JOINED_DESK_ISLANDS.map((isl) => [isl.id, isl])
 );
 const ISLAND_DESK_ID_SET = new Set<string>(
-  NHA_THUOC_SEAT_SLOTS.flatMap((slot) => (slot.deskId ? [slot.deskId] : []))
+  ALL_OFFICE_SEAT_SLOTS.flatMap((slot) => (slot.deskId ? [slot.deskId] : []))
 );
+const BOSS_ID_SET = new Set<string>(BOSS_ROTATION_IDS as readonly string[]);
 
 export interface OfficeCanvas2DProps {
   /** Danh sách 30 nhân viên (runtime state) */
@@ -117,10 +127,20 @@ export interface OfficeCanvas2DProps {
   brokenBuildNumber?: number | null;
   /** Thời điểm hoàn tất Hotfix cứu bản build Jenkins để nổ pháo hoa xanh lá ăn mừng */
   jenkinsHotfixCelebrationAt?: number | null;
-  /** Callback kích hoạt kỹ sư đi bộ lại Trạm Server chạy Build Jenkins */
+  /** Callback kích hoạt kỹ sư đi bộ lại Trạm Server chạy Build Jenkins (`oneclickv4-build-ci`) */
   onTriggerJenkinsBuild?: () => void;
+  /** Callback kích hoạt kỹ sư đi bộ lại Trạm Server UAT chạy Build Jenkins (`oneclickv4-build-uat`) */
+  onTriggerUatBuild?: () => void;
   /** Callback giả lập sự kiện Jenkins Build Broken & Hotfix Rescue (`⚡ HOTFIX SPRINT`) */
   onTriggerJenkinsBrokenHotfix?: () => void;
+  /** Callback Reset Ngày Mới — làm trống 100% bàn làm việc */
+  onResetNewDay?: () => void;
+  /** Callback Test nhanh Kịch bản Full Chỗ -> Ra Giếng Trời Hút Thuốc (`🚬 💨`) */
+  onTriggerTestFullSeatsSmoking?: () => void;
+  /** Số nhân viên đã Check-in chiếm chỗ ngồi trong ngày */
+  checkedInCount?: number;
+  /** Số nhân viên đến muộn hết chỗ đang tụ tập ở Giếng trời hút thuốc */
+  smokingCount?: number;
   /** Top 3 Chiến Thần Giao Việc & Build CI (MVP Podium) */
   mvpLeaderboard?: MvpLeaderboardEntry[];
   /** Bản đồ nhiệt 9 Cụm bàn Khoang Nhà Thuốc */
@@ -330,10 +350,12 @@ function computeEmployeeWorldPosition(
   moveVec: Point2D;
 } {
   const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
-  const isFemaleManager = Boolean(emp.isFemaleManager || emp.id === FEMALE_MANAGER_ID);
+  const isPatrolManager = Boolean(
+    emp.isFemaleManager || emp.isManager || emp.id === FEMALE_MANAGER_ID
+  );
 
-  // Xử lý riêng cho Sếp Nữ ThuNDM luôn đi bộ tuần tra thả tim dọc hành lang 9 cụm bàn Khoang NHÀ THUỐC
-  if (isFemaleManager) {
+  // Xử lý riêng cho 4 vị Sếp đi tuần tra 4 phòng khác nhau (ThuNDM, ToanLBK, doannt19, vanltb8) hoặc nhân viên đang đi dạo hút thuốc ở Giếng trời
+  if (isPatrolManager || emp.isSmokingAtAtrium) {
     const drawPos: Point2D = emp.currentPosition || desk?.seatPosition || { x: 1065, y: 435 };
     const isWalking = emp.roamingPhase !== 'CHEERING';
     let isoDirection: IsoDirection = emp.isoDirection ?? 'SW';
@@ -383,14 +405,20 @@ function computeEmployeeWorldPosition(
     };
   }
 
-  // Xử lý riêng cho Kỹ sư đang đi bộ tới hoặc đứng gõ bàn phím tại Trạm Máy Tính Server Jenkins (`oneclickv4-build-ci`)
+  // Xử lý riêng cho Kỹ sư đang đi bộ tới hoặc đứng gõ bàn phím tại 1 trong 3 Cụm Server Build Jenkins (CI / UAT / RELEASE)
   if (
     activeJenkinsBuild &&
     activeJenkinsBuild.employeeId === emp.id &&
     activeJenkinsBuild.phase !== 'COMPLETED'
   ) {
+    const targetCluster =
+      JENKINS_SERVER_CLUSTERS.find(
+        (c) =>
+          c.deskId === activeJenkinsBuild.serverDeskId ||
+          c.id === activeJenkinsBuild.clusterId
+      ) ?? JENKINS_SERVER_STATION;
     if (activeJenkinsBuild.phase === 'BUILDING_AT_SERVER') {
-      const opPos = { ...JENKINS_SERVER_STATION.operatorPosition };
+      const opPos = { ...targetCluster.operatorPosition };
       return {
         pos: opPos,
         activeTask: undefined,
@@ -403,7 +431,7 @@ function computeEmployeeWorldPosition(
     }
 
     const drawPos: Point2D =
-      emp.currentPosition || desk?.seatPosition || { ...JENKINS_SERVER_STATION.operatorPosition };
+      emp.currentPosition || desk?.seatPosition || { ...targetCluster.operatorPosition };
     const pathToUse =
       activeJenkinsBuild.phase === 'RETURNING_TO_DESK'
         ? activeJenkinsBuild.returnPath
@@ -452,6 +480,7 @@ function computeEmployeeWorldPosition(
 
   let drawPos: Point2D = emp.currentPosition || desk?.seatPosition || { x: 165, y: 135 };
   const isWalking =
+    Boolean(emp.isWalkingFromEntrance) ||
     emp.status === 'CARRYING_DOCS' ||
     emp.status === 'WALKING_BACK' ||
     Boolean(
@@ -608,7 +637,12 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   brokenBuildNumber = null,
   jenkinsHotfixCelebrationAt = null,
   onTriggerJenkinsBuild,
+  onTriggerUatBuild,
   onTriggerJenkinsBrokenHotfix,
+  onResetNewDay,
+  onTriggerTestFullSeatsSmoking,
+  checkedInCount,
+  smokingCount,
   mvpLeaderboard = [],
   islandHeatmap = {},
   config: configProp,
@@ -663,13 +697,21 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   const [roleFilter, setRoleFilter] = useState<Role | 'ALL'>('ALL');
 
   // ============================================================================
-  // SMART EVENT-FOLLOW CAMERA DIRECTOR STATE (AUTO-FOCUS ON ACTIVE TRANSFER)
+  // SMART EVENT-FOLLOW CAMERA DIRECTOR STATE (AUTO-FOCUS ON ACTIVE TRANSFER & 30S BOSS ROTATION)
   // ============================================================================
   const [autoFollowEvent, setAutoFollowEvent] = useState<boolean>(true);
   const [isFreeCamera, setIsFreeCamera] = useState<boolean>(false);
   const [focusedTransferId, setFocusedTransferId] = useState<string | null>(null);
   const [hudZoomPercent, setHudZoomPercent] = useState<number>(Math.round(EVENT_FOCUS_ZOOM * 100));
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [bossCycleNow, setBossCycleNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setBossCycleNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const cameraRef = useRef<CameraState>({
     x: ISO_ORIGIN_X,
@@ -1106,30 +1148,36 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
     setHudZoomPercent(Math.round(NHA_THUOC_BAY_BOUNDS.cameraFocusWorld.zoom * 100));
   }, []);
 
-  /** 1-Click Bay thẳng tới Sếp Nữ ThuNDM đang đi thả tim quanh văn phòng */
-  const focusManagerCamera = useCallback(() => {
-    setFocusedTransferId(null);
-    setInternalSelectedEmpId(FEMALE_MANAGER_ID);
-    const mgr =
-      employeesRef.current.find((e) => e.id === FEMALE_MANAGER_ID || e.isFemaleManager) ||
-      EMPLOYEE_BY_ID[FEMALE_MANAGER_ID];
-    if (mgr) {
-      onSelectEmployee?.(mgr);
-      const { pos } = computeEmployeeWorldPosition(
-        mgr,
-        transfersRef.current,
-        employeesRef.current,
-        activeJenkinsBuildRef.current
-      );
-      const focusIso = worldToIso(pos.x, pos.y, 24);
-      cameraRef.current.targetX = focusIso.x;
-      cameraRef.current.targetY = focusIso.y - 10;
-    }
-    setAutoFollowEvent(true);
-    setIsFreeCamera(false);
-    cameraRef.current.targetZoom = MANAGER_FOCUS_ZOOM;
-    setHudZoomPercent(Math.round(MANAGER_FOCUS_ZOOM * 100));
-  }, [onSelectEmployee]);
+  /** 1-Click Bay thẳng tới Sếp đang đi tuần tra (hoặc Sếp hiện tại trong chu kỳ 30s) */
+  const focusManagerCamera = useCallback(
+    (bossId?: string) => {
+      setFocusedTransferId(null);
+      const activeCycleBossId =
+        bossId ??
+        BOSS_ROTATION_IDS[Math.floor(Date.now() / 30000) % BOSS_ROTATION_IDS.length];
+      setInternalSelectedEmpId(activeCycleBossId);
+      const mgr =
+        employeesRef.current.find((e) => e.id === activeCycleBossId) ||
+        EMPLOYEE_BY_ID[activeCycleBossId];
+      if (mgr) {
+        onSelectEmployee?.(mgr);
+        const { pos } = computeEmployeeWorldPosition(
+          mgr,
+          transfersRef.current,
+          employeesRef.current,
+          activeJenkinsBuildRef.current
+        );
+        const focusIso = worldToIso(pos.x, pos.y, 24);
+        cameraRef.current.targetX = focusIso.x;
+        cameraRef.current.targetY = focusIso.y - 10;
+      }
+      setAutoFollowEvent(true);
+      setIsFreeCamera(false);
+      cameraRef.current.targetZoom = MANAGER_FOCUS_ZOOM;
+      setHudZoomPercent(Math.round(MANAGER_FOCUS_ZOOM * 100));
+    },
+    [onSelectEmployee]
+  );
 
   useEffect(() => {
     if (focusBaySignal && focusBaySignal > 0) {
@@ -1256,10 +1304,15 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
           (activeBuild.phase === 'WALKING_TO_SERVER' ||
             activeBuild.phase === 'BUILDING_AT_SERVER')
         ) {
-          // ƯU TIÊN 1B: Có kỹ sư đang đi bộ lại hoặc đứng chạy Build tại Trạm Máy Tính Server Jenkins
+          // ƯU TIÊN 1B: Có kỹ sư đang đi bộ lại hoặc đứng chạy Build tại 1 trong 3 Cụm Server Jenkins (CI / UAT / RELEASE)
           const builderEmp =
             emps.find((e) => e.id === activeBuild.employeeId) ||
             EMPLOYEE_BY_ID[activeBuild.employeeId];
+          const buildCluster =
+            JENKINS_SERVER_CLUSTERS.find(
+              (c) =>
+                c.deskId === activeBuild.serverDeskId || c.id === activeBuild.clusterId
+            ) ?? JENKINS_SERVER_STATION;
           if (builderEmp) {
             const { pos } = computeEmployeeWorldPosition(
               builderEmp,
@@ -1269,10 +1322,10 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
             );
             const focusIso = worldToIso(
               activeBuild.phase === 'BUILDING_AT_SERVER'
-                ? JENKINS_SERVER_STATION.cameraFocusWorld.x
+                ? buildCluster.cameraFocusWorld.x
                 : pos.x,
               activeBuild.phase === 'BUILDING_AT_SERVER'
-                ? JENKINS_SERVER_STATION.cameraFocusWorld.y
+                ? buildCluster.cameraFocusWorld.y
                 : pos.y,
               28
             );
@@ -1280,7 +1333,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
             cam.targetY = focusIso.y - 14;
             cam.targetZoom = 1.56;
           }
-        } else if (selEmpId && selEmpId !== FEMALE_MANAGER_ID) {
+        } else if (selEmpId && !BOSS_ID_SET.has(selEmpId)) {
           const selEmp = emps.find((e) => e.id === selEmpId) || EMPLOYEE_BY_ID[selEmpId];
           if (selEmp) {
             const { pos } = computeEmployeeWorldPosition(
@@ -1296,13 +1349,14 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
           }
         } else {
           // ƯU TIÊN 2 (MẶC ĐỊNH KHI KHÔNG CÓ EVENT BÀN GIAO HỒ SƠ):
-          // Tự động Focus & đi theo (Smooth Track & Zoom ~152%) Sếp Nữ ThuNDM đi vòng vòng thả tim!
-          const femaleMgr =
-            emps.find((e) => e.id === FEMALE_MANAGER_ID || e.isFemaleManager) ||
-            EMPLOYEE_BY_ID[FEMALE_MANAGER_ID];
-          if (femaleMgr) {
+          // Lần lượt xoay tua Focus 4 Sếp (mỗi Sếp 30 giây): ThuNDM (30s) -> ToanLBK (30s) -> doannt19 (30s) -> vanltb8 (30s)!
+          const bossIdx = Math.floor(Date.now() / 30000) % BOSS_ROTATION_IDS.length;
+          const activeBossId = BOSS_ROTATION_IDS[bossIdx];
+          const currentBoss =
+            emps.find((e) => e.id === activeBossId) || EMPLOYEE_BY_ID[activeBossId];
+          if (currentBoss) {
             const { pos } = computeEmployeeWorldPosition(
-              femaleMgr,
+              currentBoss,
               activeTasks,
               emps,
               activeBuild
@@ -1521,7 +1575,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       type RenderablesItem =
         | { kind: 'tree'; depthY: number; tree: (typeof CAMPUS_TREES)[number] }
         | { kind: 'prop'; depthY: number; prop: (typeof CAMPUS_STREET_PROPS)[number] }
-        | { kind: 'jenkinsServer'; depthY: number }
+        | { kind: 'jenkinsServer'; depthY: number; station: JenkinsServerStationMeta }
         | { kind: 'deskIsland'; depthY: number; island: NhaThuocIslandMeta }
         | { kind: 'desk'; depthY: number; desk: DeskPosition }
         | { kind: 'extraSlot'; depthY: number; slot: NhaThuocSeatSlot }
@@ -1550,19 +1604,22 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         renderQueue.push({ kind: 'prop', depthY: iso.y, prop });
       }
 
-      // Trạm Máy Tính Server Jenkins (`JENKINS_SERVER_STATION`)
-      const srvIso = worldToIso(
-        JENKINS_SERVER_STATION.wx + JENKINS_SERVER_STATION.ww * 0.5,
-        JENKINS_SERVER_STATION.wy + JENKINS_SERVER_STATION.wh * 0.5,
-        0
-      );
-      renderQueue.push({
-        kind: 'jenkinsServer',
-        depthY: srvIso.y - 6,
-      });
+      // 3 Cụm Server Build Jenkins (`CI` oneclickv4-build-ci, `UAT` oneclickv4-build-uat, `RELEASE` oneclickv4-build-release)
+      for (const station of JENKINS_SERVER_CLUSTERS) {
+        const srvIso = worldToIso(
+          station.wx + station.ww * 0.5,
+          station.wy + station.wh * 0.5,
+          0
+        );
+        renderQueue.push({
+          kind: 'jenkinsServer',
+          depthY: srvIso.y - 6,
+          station,
+        });
+      }
 
-      // 9 Cụm Bàn Ghép 6 Chỗ (`2x3 Contiguous Face-to-Face Bench Workstation Islands`)
-      for (const island of NHA_THUOC_ISLANDS) {
+      // 16 Cụm Bàn Ghép 6 Chỗ phủ kín 4 Khoang (`ALL_JOINED_DESK_ISLANDS` = 96 chỗ ngồi)
+      for (const island of ALL_JOINED_DESK_ISLANDS) {
         const islandCenterIso = worldToIso(
           island.partitionWx,
           island.tableWy + island.tableWh * 0.5,
@@ -1575,31 +1632,44 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         });
       }
 
-      // Các bàn đơn lẻ nằm ngoài 9 cụm đảo (nếu có)
+      // Các bàn đơn lẻ nằm ngoài 16 cụm đảo (VD: Bàn PM DongNQ6 hoặc bàn Sếp)
       for (const desk of allDesks) {
         if (ISLAND_DESK_ID_SET.has(desk.id)) continue;
         const iso = worldToIso(desk.x, desk.y, 0);
         renderQueue.push({ kind: 'desk', depthY: iso.y, desk });
       }
 
-      // Đồng nghiệp ngồi tại các khoang bổ sung (`OCCUPIED_EXTRA_NHA_THUOC_SLOTS`):
-      // Painter's Algorithm theo cụm bàn 2x3:
-      // - Cột Trái (`side === 'LEFT'`): vẽ TRƯỚC mặt bàn ghép (`islandDepthY - 18 + subRow * 2`) để mặt bàn & vách ngăn che bụng dưới/chân
-      // - Cột Phải (`side === 'RIGHT'`): vẽ SAU mặt bàn ghép (`islandDepthY + 12 + subRow * 2`) để người ngồi quay lưng NW nằm phía trước màn hình dãy Phải
-      for (const slot of OCCUPIED_EXTRA_NHA_THUOC_SLOTS) {
-        const island = ISLAND_BY_ID[slot.islandId];
-        const islandDepthY = island
-          ? worldToIso(island.partitionWx, island.tableWy + island.tableWh * 0.5, 0).y
-          : worldToIso(slot.wx, slot.wy, 0).y;
-        const slotDepthY =
-          slot.side === 'LEFT'
-            ? islandDepthY - 18 + slot.subRow * 2
-            : islandDepthY + 12 + slot.subRow * 2;
-        renderQueue.push({ kind: 'extraSlot', depthY: slotDepthY, slot });
+      // Chỉ vẽ đồng nghiệp phụ tĩnh khi đã có đông nhân viên check-in (>= 18 người), để đầu ngày 100% bàn làm việc trống trơn!
+      const currentCheckedInCount = emps.filter(
+        (e) => !e.isManager && !e.isFemaleManager && e.isCheckedIn
+      ).length;
+      if (cfg.maxOpenSeats === 'FULL' && currentCheckedInCount >= 18) {
+        for (const slot of OCCUPIED_EXTRA_NHA_THUOC_SLOTS) {
+          const island = ISLAND_BY_ID[slot.islandId];
+          const islandDepthY = island
+            ? worldToIso(island.partitionWx, island.tableWy + island.tableWh * 0.5, 0).y
+            : worldToIso(slot.wx, slot.wy, 0).y;
+          const slotDepthY =
+            slot.side === 'LEFT'
+              ? islandDepthY - 18 + slot.subRow * 2
+              : islandDepthY + 12 + slot.subRow * 2;
+          renderQueue.push({ kind: 'extraSlot', depthY: slotDepthY, slot });
+        }
       }
 
       for (const emp of emps) {
         const state = computeEmployeeWorldPosition(emp, activeTasks, emps, activeBuild);
+        const isBoss = Boolean(emp.isManager || emp.isFemaleManager || emp.id === FEMALE_MANAGER_ID);
+        // Đầu ngày toàn bộ bàn trống: chỉ vẽ 4 vị Sếp tuần tra HOẶC nhân viên đã có Event (đã check-in ngồi bàn / đang đi từ cổng vào / đang hút thuốc ở giếng trời)
+        if (
+          !isBoss &&
+          !emp.isCheckedIn &&
+          !emp.isSmokingAtAtrium &&
+          !emp.isWalkingFromEntrance &&
+          !state.isWalking
+        ) {
+          continue;
+        }
         const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
         const iso = worldToIso(state.pos.x, state.pos.y, 0);
         const deskIsoY = desk ? worldToIso(desk.x, desk.y, 0).y : iso.y;
@@ -1608,15 +1678,27 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
           ? worldToIso(island.partitionWx, island.tableWy + island.tableWh * 0.5, 0).y
           : deskIsoY;
         const subRowOrder = (desk?.rowIndex ?? 1) + 1;
-        const isAtJenkinsServer =
+        const activeBuildCluster =
           activeBuild &&
           activeBuild.employeeId === emp.id &&
-          activeBuild.phase === 'BUILDING_AT_SERVER';
+          activeBuild.phase === 'BUILDING_AT_SERVER'
+            ? JENKINS_SERVER_CLUSTERS.find(
+                (c) =>
+                  c.deskId === activeBuild.serverDeskId || c.id === activeBuild.clusterId
+              ) ?? JENKINS_SERVER_STATION
+            : null;
+        const activeSrvIsoY = activeBuildCluster
+          ? worldToIso(
+              activeBuildCluster.wx + activeBuildCluster.ww * 0.5,
+              activeBuildCluster.wy + activeBuildCluster.wh * 0.5,
+              0
+            ).y
+          : iso.y;
         // Painter's Algorithm khi ngồi tại Cụm Bàn Ghép 2x3:
         // - Dãy Trái (`colIndex = 0`, `isoDirection === 'SE'`): vẽ TRƯỚC khối bàn ghép (`islandDepthY - 18 + subRowOrder * 2`) để mặt bàn che phần đùi/chân dưới gầm bàn
         // - Dãy Phải (`colIndex = 1`, `isoDirection === 'NW'`): vẽ SAU khối bàn ghép (`islandDepthY + 12 + subRowOrder * 2`) để nhân vật quay lưng 3/4 hướng NW nhìn vào màn hình dãy Phải
-        const seatedDepthY = isAtJenkinsServer
-          ? srvIso.y + 12
+        const seatedDepthY = activeBuildCluster
+          ? activeSrvIsoY + 12
           : island
             ? state.isoDirection === 'NW' || state.isoDirection === 'NE' || desk?.colIndex === 1
               ? islandDepthY + 12 + subRowOrder * 2
@@ -1626,7 +1708,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
               : deskIsoY - 8;
         renderQueue.push({
           kind: 'employee',
-          depthY: state.isWalking ? iso.y + 6 : seatedDepthY,
+          depthY: state.isWalking || emp.isSmokingAtAtrium || isBoss ? iso.y + 6 : seatedDepthY,
           emp,
           ...state,
         });
@@ -1656,12 +1738,18 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         }
 
         if (item.kind === 'jenkinsServer') {
-          drawJenkinsServerStation3D(ctx, JENKINS_SERVER_STATION, {
+          const isThisClusterBuilding =
+            activeBuild &&
+            (activeBuild.serverDeskId === item.station.deskId ||
+              activeBuild.clusterId === item.station.id)
+              ? activeBuild
+              : null;
+          drawJenkinsServerStation3D(ctx, item.station, {
             time,
-            activeBuild,
+            activeBuild: isThisClusterBuilding,
             isHovered: isHoveredServer,
             isRecentlyCompleted: isRecentlyCompletedBuild,
-            isBrokenAlert,
+            isBrokenAlert: item.station.id === JENKINS_SERVER_STATION.id ? isBrokenAlert : false,
             brokenBuildNumber: brokenBuildNum,
           });
           continue;
@@ -1812,17 +1900,27 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       drawFlezimercuriaZoneCallouts(ctx);
 
       // ------------------------------------------------------------------------
-      // 8B. HOLOGRAM JOBS BOARD (`⚙️ JENKINS CI: oneclickv4-build-ci`) EAST-SOUTHEAST OF SERVER
+      // 8B. HOLOGRAM JOBS BOARD FOR ALL 3 JENKINS SERVER CLUSTERS (`CI`, `UAT`, `RELEASE`)
       // ------------------------------------------------------------------------
-      drawJenkinsServerHologramOverlay(ctx, JENKINS_SERVER_STATION, {
-        time,
-        activeBuild,
-        recentBuilds,
-        isHovered: isHoveredServer,
-        isRecentlyCompleted: isRecentlyCompletedBuild,
-        isBrokenAlert,
-        brokenBuildNumber: brokenBuildNum,
-      });
+      for (const station of JENKINS_SERVER_CLUSTERS) {
+        const isThisClusterBuilding =
+          activeBuild &&
+          (activeBuild.serverDeskId === station.deskId || activeBuild.clusterId === station.id)
+            ? activeBuild
+            : null;
+        const clusterRecentBuilds = recentBuilds.filter(
+          (b) => !b.jobName || b.jobName === station.jobName
+        );
+        drawJenkinsServerHologramOverlay(ctx, station, {
+          time,
+          activeBuild: isThisClusterBuilding,
+          recentBuilds: clusterRecentBuilds.length > 0 ? clusterRecentBuilds : recentBuilds,
+          isHovered: isHoveredServer,
+          isRecentlyCompleted: isRecentlyCompletedBuild,
+          isBrokenAlert: station.id === JENKINS_SERVER_STATION.id ? isBrokenAlert : false,
+          brokenBuildNumber: brokenBuildNum,
+        });
+      }
 
       // ------------------------------------------------------------------------
       // 9. SMART ANTI-OVERLAP `● WINA` DARK NAVY PILL BADGES OVER ACTIVE CHARACTERS
@@ -2002,11 +2100,17 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   }, [currentTransfers, inspectedEmployee]);
 
   // Thông tin hiển thị trên thanh Flezimercuria LIVE Camera HUD & Mini Floating Pill
-  const femaleManagerEmp = useMemo(
+  // Xoay vòng 30 giây / Sếp khi không có Event: ThuNDM (30s) -> ToanLBK (30s) -> doannt19 (30s) -> vanltb8 (30s)
+  const activeIdleBossIndex = Math.floor(bossCycleNow / 30000) % BOSS_ROTATION_IDS.length;
+  const activeIdleBossId = BOSS_ROTATION_IDS[activeIdleBossIndex];
+  const remainingBossSec = 30 - (Math.floor(bossCycleNow / 1000) % 30);
+
+  const currentIdleBossEmp = useMemo(
     () =>
-      employees.find((e) => e.id === FEMALE_MANAGER_ID || e.isFemaleManager) ??
+      employees.find((e) => e.id === activeIdleBossId) ??
+      EMPLOYEE_BY_ID[activeIdleBossId] ??
       EMPLOYEE_BY_ID[FEMALE_MANAGER_ID],
-    [employees]
+    [employees, activeIdleBossId]
   );
 
   const focusedEventSummary = useMemo(() => {
@@ -2033,18 +2137,22 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       if (activeJenkinsBuild.phase === 'BUILDING_AT_SERVER') {
         return `⚙️ Build Jenkins #${activeJenkinsBuild.buildNumber} ${activeJenkinsBuild.jobName} (${Math.round(activeJenkinsBuild.buildProgress)}%) — by ${activeJenkinsBuild.employeeAccount} [${activeJenkinsBuild.ticketKey}]`;
       }
-      return `⚙️ ${activeJenkinsBuild.employeeAccount} đang đi tới Trạm Server chạy Build Jenkins #${activeJenkinsBuild.buildNumber} [${activeJenkinsBuild.ticketKey}]`;
+      return `⚙️ ${activeJenkinsBuild.employeeAccount} đang đi tới Trạm Server chạy Build Jenkins #${activeJenkinsBuild.buildNumber} ${activeJenkinsBuild.jobName} [${activeJenkinsBuild.ticketKey}]`;
     }
-    const targetEmp = femaleManagerEmp?.roamingTargetEmployeeId
-      ? EMPLOYEE_BY_ID[femaleManagerEmp.roamingTargetEmployeeId]
-      : undefined;
-    const targetAcc = targetEmp?.account ?? 'Team Nhà Thuốc';
-    const targetSeat = targetEmp?.seatCode?.replace('FT3.III2A.', '') ?? '';
-    return `👑 Sếp ThuNDM thả tim ❤️ ${targetAcc}${targetSeat ? ` (${targetSeat})` : ''}`;
+    const moodEmoji =
+      currentIdleBossEmp?.managerMood === 'angry'
+        ? '💢😡 (1.5x)'
+        : currentIdleBossEmp?.managerMood === 'happy'
+          ? '😄✨'
+          : currentIdleBossEmp?.managerMood === 'worried'
+            ? '😰💧'
+            : '❤️💖';
+    return `🎥 Auto-Focus Sếp (còn ${remainingBossSec}s): 👑 ${currentIdleBossEmp?.account ?? 'ThuNDM'} ${moodEmoji} — ${currentIdleBossEmp?.roamingSpeechText ?? 'Đang đi tuần tra phòng'}`;
   }, [
     primaryActiveTransfer,
     activeJenkinsBuild,
-    femaleManagerEmp,
+    currentIdleBossEmp,
+    remainingBossSec,
     isJenkinsBrokenAlert,
     brokenBuildNumber,
   ]);
@@ -2176,7 +2284,42 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                 className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 shadow-sm shadow-indigo-600/40 transition flex items-center gap-1"
                 title="Cử kỹ sư đi bộ lại Trạm Máy Tính Server để chạy Build Jenkins (oneclickv4-build-ci)"
               >
-                <span>🚀 Trigger Build</span>
+                <span>🚀 Build CI</span>
+              </button>
+            )}
+
+            {onTriggerUatBuild && (
+              <button
+                type="button"
+                onClick={() => {
+                  onTriggerUatBuild();
+                }}
+                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-purple-600 hover:bg-purple-500 text-white border border-purple-400 shadow-sm shadow-purple-600/40 transition flex items-center gap-1"
+                title="Cử kỹ sư đi bộ lại Trạm Server UAT để chạy Build Jenkins (oneclickv4-build-uat)"
+              >
+                <span>🟣 Build UAT</span>
+              </button>
+            )}
+
+            {onResetNewDay && (
+              <button
+                type="button"
+                onClick={onResetNewDay}
+                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-teal-600 hover:bg-teal-500 text-white border border-teal-400 shadow-sm transition flex items-center gap-1"
+                title="Reset Ngày Mới — Làm trống 100% bàn làm việc (0 người ngồi)"
+              >
+                <span>🌅 Reset Ngày Mới ({checkedInCount ?? 0} ngồi)</span>
+              </button>
+            )}
+
+            {onTriggerTestFullSeatsSmoking && (
+              <button
+                type="button"
+                onClick={onTriggerTestFullSeatsSmoking}
+                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-amber-600 hover:bg-amber-500 text-white border border-amber-400 shadow-sm transition flex items-center gap-1"
+                title="Giả lập Kịch bản Full Chỗ Ngồi — Các thành viên có event sau sẽ ra Giếng trời hút thuốc (🚬 💨)"
+              >
+                <span>🚬 Test Full Chỗ ({smokingCount ?? 0} hút thuốc)</span>
               </button>
             )}
 
@@ -2227,11 +2370,35 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
 
             <button
               type="button"
-              onClick={focusManagerCamera}
-              className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 shadow-sm shadow-rose-600/40 transition flex items-center gap-1"
-              title="Bay thẳng tới Sếp Nữ ThuNDM đang đi vòng vòng thả tim khích lệ anh em"
+              onClick={() => focusManagerCamera(FEMALE_MANAGER_ID)}
+              className="px-2 py-1 rounded-md text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 shadow-sm transition flex items-center gap-1"
+              title="Focus Sếp ThuNDM (Khoang Đông — Thả tim ❤️)"
             >
-              <span>💖 Focus Sếp ThuNDM</span>
+              <span>👑 ThuNDM ❤️</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => focusManagerCamera(MANAGER_TOANLBK_ID)}
+              className="px-2 py-1 rounded-md text-xs font-extrabold bg-red-800 hover:bg-red-700 text-amber-200 border border-red-400 shadow-sm transition flex items-center gap-1"
+              title="Focus Sếp ToanLBK (Khoang Bắc — Tốc độ 1.5x, Giận dữ 💢)"
+            >
+              <span>👑 ToanLBK 💢(1.5x)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => focusManagerCamera(MANAGER_DOANNT19_ID)}
+              className="px-2 py-1 rounded-md text-xs font-extrabold bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-400 shadow-sm transition flex items-center gap-1"
+              title="Focus Sếp doannt19 (Khoang Tây-Trung — Luôn vui vẻ cười 😄)"
+            >
+              <span>👑 doannt19 😄</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => focusManagerCamera(MANAGER_VANLTB8_ID)}
+              className="px-2 py-1 rounded-md text-xs font-extrabold bg-sky-700 hover:bg-sky-600 text-white border border-sky-400 shadow-sm transition flex items-center gap-1"
+              title="Focus Sếp vanltb8 (Khoang Nam — Luôn lo lắng 😰)"
+            >
+              <span>👑 vanltb8 😰</span>
             </button>
 
             <button
@@ -2478,11 +2645,11 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                     </span>
                   ) : activeJenkinsBuild ? (
                     <span className="text-sky-300 font-semibold normal-case tracking-normal">
-                      ⚙️ JENKINS CI BUILD · #{activeJenkinsBuild.buildNumber} oneclickv4-build-ci
+                      ⚙️ JENKINS BUILD · #{activeJenkinsBuild.buildNumber} {activeJenkinsBuild.jobName}
                     </span>
                   ) : (
                     <span className="text-rose-300 font-semibold normal-case tracking-normal">
-                      💖 DEFAULT MANAGER FOCUS · 👑 Sếp ThuNDM thả tim ❤️
+                      🎥 Auto-Focus Sếp (còn {remainingBossSec}s): 👑 {currentIdleBossEmp?.account ?? 'ThuNDM'}
                     </span>
                   )}
                 </div>
@@ -2539,7 +2706,40 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                     className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 shadow-sm shadow-indigo-500/30"
                     title="Cử kỹ sư đi bộ lại Trạm Máy Tính Server để chạy Build Jenkins (oneclickv4-build-ci)"
                   >
-                    <span>🚀 Trigger Build</span>
+                    <span>🚀 Build CI</span>
+                  </button>
+                )}
+
+                {onTriggerUatBuild && (
+                  <button
+                    type="button"
+                    onClick={onTriggerUatBuild}
+                    className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-purple-600 hover:bg-purple-500 text-white border-purple-400 shadow-sm shadow-purple-500/30"
+                    title="Cử kỹ sư đi bộ lại Trạm Server UAT để chạy Build Jenkins (oneclickv4-build-uat)"
+                  >
+                    <span>🟣 Build UAT</span>
+                  </button>
+                )}
+
+                {onResetNewDay && (
+                  <button
+                    type="button"
+                    onClick={onResetNewDay}
+                    className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-teal-600 hover:bg-teal-500 text-white border-teal-400 shadow-sm"
+                    title="Reset Ngày Mới — Làm trống 100% bàn làm việc"
+                  >
+                    <span>🌅 Reset Ngày Mới ({checkedInCount ?? 0} ngồi)</span>
+                  </button>
+                )}
+
+                {onTriggerTestFullSeatsSmoking && (
+                  <button
+                    type="button"
+                    onClick={onTriggerTestFullSeatsSmoking}
+                    className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-amber-600 hover:bg-amber-500 text-white border-amber-400 shadow-sm"
+                    title="Test Kịch bản Full Chỗ Ngồi — Thành viên đến sau ra Giếng trời hút thuốc (🚬 💨)"
+                  >
+                    <span>🚬 Test Full Chỗ ({smokingCount ?? 0} hút thuốc)</span>
                   </button>
                 )}
 
@@ -2590,11 +2790,11 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
 
                 <button
                   type="button"
-                  onClick={focusManagerCamera}
+                  onClick={() => focusManagerCamera()}
                   className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-rose-600 hover:bg-rose-500 text-white border-rose-400 shadow-sm shadow-rose-500/30"
-                  title="Bay thẳng tới chỗ Sếp Nữ ThuNDM đang đi thả tim khích lệ anh em"
+                  title="Bay thẳng tới Sếp đang trong chu kỳ Auto-Focus 30s"
                 >
-                  <span>💖 Focus Sếp ThuNDM</span>
+                  <span>👑 Focus Sếp ({currentIdleBossEmp?.account ?? 'ThuNDM'})</span>
                 </button>
 
                 <button

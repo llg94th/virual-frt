@@ -1589,7 +1589,7 @@ export const MANAGER_TOANLBK_STATION: DeskPosition = {
 export const MANAGER_DOANNT19_STATION: DeskPosition = {
   id: 'DESK-MANAGER-DOANNT19',
   label: 'CENTRAL.VIP • doannt19 (Sếp Nữ 😄 - Khoang Tây-Trung)',
-  zoneId: 'ZONE-BA',
+  zoneId: 'ZONE-PM',
   assignedEmployeeId: 'EMP-MANAGER-DOANNT19',
   position: gridToPixel(20, 14),
   x: gridToPixel(20, 14).x,
@@ -1835,12 +1835,15 @@ export const ALL_OFFICE_SEAT_SLOTS: NhaThuocSeatSlot[] = [
 // 6C. 3 CỤM SERVER BUILD 3D (`JENKINS_SERVER_CLUSTERS`: CI + UAT + RELEASE)
 // ============================================================================
 
+export type JenkinsServerStationMeta = JenkinsServerStation;
+
 /**
  * Cluster #1 — `🖥️ JENKINS CI CLUSTER (oneclickv4-build-ci)` (Đèn LED Cyan `#38bdf8`)
  * Đặt tại Khoang Đông / Khoang NHÀ THUỐC (`FT3.III2A.1`).
  */
 export const JENKINS_SERVER_STATION: JenkinsServerStation = {
   id: 'JENKINS-CI-STATION',
+  deskId: 'DESK-JENKINS-SERVER',
   clusterId: 'CI',
   ledColor: '#38bdf8',
   wingLabel: 'CLUSTER #1 • CI PIPELINE',
@@ -1870,6 +1873,7 @@ export const JENKINS_SERVER_STATION: JenkinsServerStation = {
  */
 export const JENKINS_UAT_SERVER_STATION: JenkinsServerStation = {
   id: 'JENKINS-UAT-STATION',
+  deskId: 'DESK-JENKINS-UAT',
   clusterId: 'UAT',
   ledColor: '#a855f7',
   wingLabel: 'CLUSTER #2 • UAT PIPELINE',
@@ -1899,6 +1903,7 @@ export const JENKINS_UAT_SERVER_STATION: JenkinsServerStation = {
  */
 export const JENKINS_RELEASE_SERVER_STATION: JenkinsServerStation = {
   id: 'JENKINS-RELEASE-STATION',
+  deskId: 'DESK-JENKINS-RELEASE',
   clusterId: 'RELEASE',
   ledColor: '#10b981',
   wingLabel: 'CLUSTER #3 • PROD RELEASE',
@@ -2030,35 +2035,37 @@ export const ENTRANCE_DOOR_DESK: DeskPosition = {
 /** Danh sách các vị trí đứng tụ tập hút thuốc (`🚬 💨`) trên hành lang đá xám quanh Hồ Hoa Súng của 3 Giếng Trời */
 export const ATRIUM_SMOKING_SPOTS: {
   atriumId: 'ATRIUM-NORTH' | 'ATRIUM-CENTRAL' | 'ATRIUM-SOUTH';
+  atriumName: string;
   spot: Point2D;
+  position: Point2D;
   grid: GridCoord;
   facing: Direction;
 }[] = [
   // Quanh Giếng Trời Trung Tâm (Central Grand Atrium: wx 585..780, wy 368..512)
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 598, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 648, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 705, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 572, y: 405 }, grid: { col: 20, row: 14 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 572, y: 455 }, grid: { col: 20, row: 15 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 572, y: 498 }, grid: { col: 20, row: 17 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 635, y: 524 }, grid: { col: 20, row: 18 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-CENTRAL', spot: { x: 715, y: 524 }, grid: { col: 20, row: 18 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 598, y: 356 }, position: { x: 598, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 648, y: 356 }, position: { x: 648, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 705, y: 356 }, position: { x: 705, y: 356 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 572, y: 405 }, position: { x: 572, y: 405 }, grid: { col: 20, row: 14 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 572, y: 455 }, position: { x: 572, y: 455 }, grid: { col: 20, row: 15 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 572, y: 498 }, position: { x: 572, y: 498 }, grid: { col: 20, row: 17 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 635, y: 524 }, position: { x: 635, y: 524 }, grid: { col: 20, row: 18 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 715, y: 524 }, position: { x: 715, y: 524 }, grid: { col: 20, row: 18 }, facing: 'UP' },
 
   // Quanh Giếng Trời Bắc (North Sky Atrium: wx 385..585, wy 138..246)
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 425, y: 126 }, grid: { col: 14, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 495, y: 126 }, grid: { col: 16, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 555, y: 126 }, grid: { col: 18, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 374, y: 185 }, grid: { col: 12, row: 6 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 455, y: 256 }, grid: { col: 15, row: 7 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-NORTH', spot: { x: 535, y: 256 }, grid: { col: 18, row: 7 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 425, y: 126 }, position: { x: 425, y: 126 }, grid: { col: 14, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 495, y: 126 }, position: { x: 495, y: 126 }, grid: { col: 16, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 555, y: 126 }, position: { x: 555, y: 126 }, grid: { col: 18, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 374, y: 185 }, position: { x: 374, y: 185 }, grid: { col: 12, row: 6 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 455, y: 256 }, position: { x: 455, y: 256 }, grid: { col: 15, row: 7 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 535, y: 256 }, position: { x: 535, y: 256 }, grid: { col: 18, row: 7 }, facing: 'UP' },
 
   // Quanh Giếng Trời Nam (South Garden Atrium: wx 475..675, wy 630..780)
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 515, y: 618 }, grid: { col: 17, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 585, y: 618 }, grid: { col: 19, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 645, y: 618 }, grid: { col: 21, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 462, y: 685 }, grid: { col: 15, row: 23 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 535, y: 790 }, grid: { col: 18, row: 26 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-SOUTH', spot: { x: 615, y: 790 }, grid: { col: 20, row: 26 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 515, y: 618 }, position: { x: 515, y: 618 }, grid: { col: 17, row: 20 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 585, y: 618 }, position: { x: 585, y: 618 }, grid: { col: 19, row: 20 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 645, y: 618 }, position: { x: 645, y: 618 }, grid: { col: 21, row: 20 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 462, y: 685 }, position: { x: 462, y: 685 }, grid: { col: 15, row: 23 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 535, y: 790 }, position: { x: 535, y: 790 }, grid: { col: 18, row: 26 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 615, y: 790 }, position: { x: 615, y: 790 }, grid: { col: 20, row: 26 }, facing: 'UP' },
 ];
 
 /** Map tra cứu nhanh bàn làm việc theo deskId */

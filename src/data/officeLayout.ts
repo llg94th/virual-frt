@@ -1633,6 +1633,30 @@ export const MANAGER_VANLTB8_STATION: DeskPosition = {
 
 /** Lộ trình tuần tra vòng quanh phòng riêng của 3 vị Sếp mới (Khoang Bắc, Khoang Tây-Trung, Khoang Nam) */
 export const BOSS_WING_PATROL_LOOPS: Record<string, Point2D[]> = {
+  NORTH: [
+    gridToPixel(12, 4),
+    gridToPixel(20, 4),
+    gridToPixel(20, 9),
+    gridToPixel(12, 9),
+    gridToPixel(11, 7),
+    gridToPixel(12, 4),
+  ],
+  WEST_CENTRAL: [
+    gridToPixel(19, 11),
+    gridToPixel(26, 11),
+    gridToPixel(26, 18),
+    gridToPixel(19, 18),
+    gridToPixel(19, 14),
+    gridToPixel(19, 11),
+  ],
+  SOUTH: [
+    gridToPixel(15, 20),
+    gridToPixel(23, 20),
+    gridToPixel(23, 28),
+    gridToPixel(15, 28),
+    gridToPixel(15, 26),
+    gridToPixel(15, 20),
+  ],
   'EMP-MANAGER-TOANLBK': [
     gridToPixel(12, 4),
     gridToPixel(20, 4),

@@ -156,16 +156,16 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'PM Command Center',
     code: 'PMC • CENTRAL SPINE',
     subtitle: 'Nghiệm thu Ticket DONE',
-    wx: 454,
-    wy: 340,
-    ww: 116,
+    wx: 380,
+    wy: 344,
+    ww: 166,
     wh: 172,
     rimColor: '#ea580c',
     wallAccent: '#c2410c',
     floorTileA: '#ffffff',
     floorTileB: '#fffbeb',
     badgeColor: '#c2410c',
-    pinAnchor: { wx: 512, wy: 425, height: 96 },
+    pinAnchor: { wx: 462, wy: 425, height: 96 },
   },
   {
     id: 'ISO-ZONE-02',
@@ -173,10 +173,10 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'BA & Design Studio',
     code: 'BAD • CENTER-SOUTH BAY',
     subtitle: 'Phân tích SRS & User Story',
-    wx: 585,
-    wy: 552,
+    wx: 590,
+    wy: 538,
     ww: 150,
-    wh: 50,
+    wh: 106,
     rimColor: '#eab308',
     wallAccent: '#a16207',
     floorTileA: '#ffffff',
@@ -190,36 +190,36 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'Tech Lead Hub',
     code: 'TLH • NORTH-CENTER L-WING',
     subtitle: 'System Design & Code Review',
-    wx: 630,
-    wy: 188,
-    ww: 105,
+    wx: 632,
+    wy: 184,
+    ww: 112,
     wh: 146,
     subBays: [
-      { wx: 630, wy: 188, ww: 86, wh: 62 },
-      { wx: 630, wy: 250, ww: 105, wh: 84 },
+      { wx: 632, wy: 184, ww: 112, wh: 66 },
+      { wx: 632, wy: 250, ww: 112, wh: 80 },
     ],
     rimColor: '#7c3aed',
     wallAccent: '#5b21b6',
     floorTileA: '#ffffff',
     floorTileB: '#faf5ff',
     badgeColor: '#6d28d9',
-    pinAnchor: { wx: 682, wy: 285, height: 90 },
+    pinAnchor: { wx: 684, wy: 285, height: 90 },
   },
   {
     id: 'ISO-ZONE-04',
     num: '04',
     title: 'North Loop Bays',
     code: 'NORTH WING • ATRIUM NORTH',
-    subtitle: 'Cánh Bắc Tòa Nhà 3 Giếng Trời',
-    wx: 244,
-    wy: 40,
-    ww: 472,
-    wh: 292,
+    subtitle: 'Cánh Bắc Mở Rộng Quanh Giếng Trời Bắc',
+    wx: 190,
+    wy: 20,
+    ww: 558,
+    wh: 364,
     subBays: [
-      { wx: 244, wy: 40, ww: 218, wh: 62 },
-      { wx: 502, wy: 40, ww: 214, wh: 62 },
-      { wx: 244, wy: 188, ww: 100, wh: 88 },
-      { wx: 244, wy: 276, ww: 258, wh: 56 },
+      { wx: 190, wy: 20, ww: 316, wh: 104 },
+      { wx: 608, wy: 20, ww: 140, wh: 104 },
+      { wx: 190, wy: 184, ww: 148, wh: 114 },
+      { wx: 356, wy: 278, ww: 148, wh: 106 },
     ],
     rimColor: '#2563eb',
     wallAccent: '#1e40af',
@@ -250,37 +250,35 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     num: '06',
     title: 'Mobile Lab',
     code: 'MOB • SOUTH-WEST L-WING',
-    subtitle: '4 Kỹ sư iOS / Android / Flutter',
-    wx: 334,
+    subtitle: 'Cánh Tây-Nam Mở Rộng Quanh Giếng Trời Nam',
+    wx: 260,
     wy: 520,
-    ww: 168,
-    wh: 214,
-    // Khoang chữ L ngược phía Tây-Bắc & Tây của Giếng trời Nam
+    ww: 172,
+    wh: 252,
     subBays: [
-      { wx: 334, wy: 520, ww: 168, wh: 76 },
-      { wx: 334, wy: 596, ww: 100, wh: 138 },
+      { wx: 260, wy: 520, ww: 172, wh: 126 },
+      { wx: 260, wy: 646, ww: 162, wh: 126 },
     ],
     rimColor: '#db2777',
     wallAccent: '#9d174d',
     floorTileA: '#ffffff',
     floorTileB: '#fdf2f8',
     badgeColor: '#be185d',
-    pinAnchor: { wx: 384, wy: 625, height: 92 },
+    pinAnchor: { wx: 340, wy: 625, height: 92 },
   },
   {
     id: 'ISO-ZONE-07',
     num: '07',
     title: 'QA Testing Center',
     code: 'QA • SOUTH-EAST BAYS',
-    subtitle: '4 Kỹ sư Automation & SIT/UAT',
-    wx: 595,
-    wy: 650,
-    ww: 226,
-    wh: 210,
-    // Khoang Đông Giếng trời Nam & Khoang Đáy Đông-Nam
+    subtitle: 'Cánh Đông-Nam Mở Rộng Quanh Giếng Trời Nam',
+    wx: 590,
+    wy: 646,
+    ww: 238,
+    wh: 296,
     subBays: [
-      { wx: 720, wy: 650, ww: 101, wh: 84 },
-      { wx: 595, wy: 808, ww: 226, wh: 52 },
+      { wx: 724, wy: 646, ww: 104, wh: 94 },
+      { wx: 590, wy: 818, ww: 238, wh: 124 },
     ],
     rimColor: '#ea580c',
     wallAccent: '#9a3412',
@@ -295,47 +293,47 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'Meeting & Pantry',
     code: 'MPN • SOUTH-WEST LOUNGE',
     subtitle: 'War Room & Espresso Bar',
-    wx: 334,
-    wy: 808,
-    ww: 221,
-    wh: 52,
+    wx: 260,
+    wy: 820,
+    ww: 292,
+    wh: 122,
     rimColor: '#4f46e5',
     wallAccent: '#3730a3',
     floorTileA: '#ffffff',
     floorTileB: '#f5f3ff',
     badgeColor: '#4338ca',
-    pinAnchor: { wx: 444, wy: 834, height: 84 },
+    pinAnchor: { wx: 410, wy: 860, height: 84 },
   },
 ];
 
 // Cây xanh 3D Low-Poly trồng TRONG lòng 3 Giếng trời (Atriums), Vườn tiểu cảnh SE & Khuôn viên ngoài tòa nhà
 export const CAMPUS_TREES: { wx: number; wy: number; scale: number; variant: 'pine' | 'round' | 'cypress' }[] = [
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Bắc (ATRIUM-NORTH: 385..585, 138..246) ---
-  { wx: 435, wy: 185, scale: 0.96, variant: 'round' },
-  { wx: 535, wy: 195, scale: 0.88, variant: 'cypress' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Bắc (ATRIUM-NORTH) ---
+  { wx: 438, wy: 185, scale: 0.96, variant: 'round' },
+  { wx: 530, wy: 195, scale: 0.88, variant: 'cypress' },
 
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Trung tâm lớn (ATRIUM-CENTRAL: 585..780, 368..512) ---
-  { wx: 635, wy: 430, scale: 1.02, variant: 'round' },
-  { wx: 730, wy: 440, scale: 1.08, variant: 'pine' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Trung tâm lớn (ATRIUM-CENTRAL) ---
+  { wx: 642, wy: 432, scale: 1.02, variant: 'round' },
+  { wx: 725, wy: 442, scale: 1.08, variant: 'pine' },
 
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Nam (ATRIUM-SOUTH: 475..675, 630..780) ---
-  { wx: 535, wy: 685, scale: 0.98, variant: 'round' },
-  { wx: 615, wy: 730, scale: 0.92, variant: 'cypress' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Nam (ATRIUM-SOUTH) ---
+  { wx: 538, wy: 688, scale: 0.98, variant: 'round' },
+  { wx: 612, wy: 728, scale: 0.92, variant: 'cypress' },
 
-  // --- 2 Cây tròn tại Góc Vườn treo Đông-Nam (PATIO-SE: 720..821, 606..650) đúng y hệt ký hiệu bản vẽ CAD! ---
+  // --- 2 Cây tròn tại Góc Vườn treo Đông-Nam (PATIO-SE) ---
   { wx: 758, wy: 628, scale: 0.82, variant: 'round' },
   { wx: 796, wy: 628, scale: 0.85, variant: 'round' },
 
-  // --- Cây xanh cảnh quan bao quanh mặt ngoài tòa nhà ---
-  { wx: 185, wy: 75, scale: 1.12, variant: 'round' },
-  { wx: 185, wy: 245, scale: 0.98, variant: 'pine' },
-  { wx: 775, wy: 110, scale: 1.06, variant: 'round' },
+  // --- Cây xanh cảnh quan bao quanh mặt ngoài tòa nhà & Bãi xe mềm mại ---
+  { wx: 138, wy: 65, scale: 1.12, variant: 'round' },
+  { wx: 138, wy: 245, scale: 0.98, variant: 'pine' },
+  { wx: 785, wy: 105, scale: 1.06, variant: 'round' },
   { wx: 1605, wy: 235, scale: 1.05, variant: 'cypress' },
   { wx: 1610, wy: 450, scale: 1.14, variant: 'round' },
   { wx: 1605, wy: 680, scale: 1.02, variant: 'pine' },
-  { wx: 380, wy: 425, scale: 0.96, variant: 'round' }, // Ở hốc chữ C bên trái Central Spine
-  { wx: 270, wy: 610, scale: 1.08, variant: 'round' },
-  { wx: 270, wy: 790, scale: 0.96, variant: 'pine' },
+  { wx: 315, wy: 425, scale: 0.96, variant: 'round' }, // Ở hốc chữ C bên trái Central Spine
+  { wx: 205, wy: 610, scale: 1.08, variant: 'round' },
+  { wx: 205, wy: 790, scale: 0.96, variant: 'pine' },
   { wx: 960, wy: 875, scale: 1.08, variant: 'round' },
   { wx: 1260, wy: 875, scale: 0.96, variant: 'cypress' },
 ];
@@ -345,16 +343,22 @@ export const CAMPUS_STREET_PROPS: {
   wy: number;
   kind: 'lamp' | 'bench' | 'containers';
 }[] = [
-  // Ghế nghỉ gỗ trong lòng 3 Giếng trời
-  { wx: 485, wy: 215, kind: 'bench' },
-  { wx: 682, wy: 478, kind: 'bench' },
-  { wx: 575, wy: 745, kind: 'bench' },
+  // Ghế nghỉ gỗ dài dọc hành lang rộng bao quanh 3 Giếng trời (North, Central, South Atriums)
+  { wx: 445, wy: 132, kind: 'bench' },
+  { wx: 525, wy: 132, kind: 'bench' },
+  { wx: 484, wy: 254, kind: 'bench' },
+  { wx: 642, wy: 364, kind: 'bench' },
+  { wx: 722, wy: 364, kind: 'bench' },
+  { wx: 684, wy: 518, kind: 'bench' },
+  { wx: 536, wy: 626, kind: 'bench' },
+  { wx: 616, wy: 626, kind: 'bench' },
+  { wx: 576, wy: 784, kind: 'bench' },
   // Đèn cảnh quan & cụm module trang trí ngoài tòa nhà
-  { wx: 210, wy: 365, kind: 'lamp' },
-  { wx: 765, wy: 145, kind: 'lamp' },
+  { wx: 158, wy: 365, kind: 'lamp' },
+  { wx: 775, wy: 145, kind: 'lamp' },
   { wx: 1590, wy: 350, kind: 'lamp' },
   { wx: 1120, wy: 865, kind: 'lamp' },
-  { wx: 175, wy: 425, kind: 'containers' },
+  { wx: 135, wy: 425, kind: 'containers' },
   { wx: 1595, wy: 580, kind: 'containers' },
 ];
 
@@ -531,10 +535,72 @@ export function shadeHexColor(hex: string, percent: number): string {
 // 4. 3-COURTYARD INTERLOCKING BUILDING ENVELOPE, RING CORRIDORS, ATRIUMS & CORES
 // ============================================================================
 
+export type ParkedVehicleKind = 'sedan' | 'suv' | 'hatchback' | 'shuttle' | 'pickup';
+
 /**
- * Vẽ 1 chiếc Xe Ô Tô 2.5D Isometric đỗ dọc đường bao quanh tòa nhà (`drawIsometricParkedCar`):
- * - Có bóng đổ mềm, 4 bánh xe đen có mâm bạc, thân xe 3D sơn bóng, mui kính chắn gió / cửa sổ trời,
- *   đèn pha vàng sáng, đèn hậu đỏ và gương chiếu hậu hai bên.
+ * Helper vẽ khối 3D bo tròn góc mềm mại (Soft Rounded Stadium Extrusion)
+ * dùng cho thân xe ô tô, mui xe vát nghiêng, bồn cỏ cảnh quan và ghế sofa nghỉ chân.
+ */
+function drawSoftRoundedExtrusion(
+  ctx: CanvasRenderingContext2D,
+  wx: number,
+  wy: number,
+  ww: number,
+  wh: number,
+  cornerRadius: number,
+  z0: number,
+  z1: number,
+  topColor: string,
+  sideColorA: string,
+  sideColorB: string,
+  strokeColor?: string,
+  lineWidth = 0.7
+) {
+  const botPts = buildIsoStadiumPoints(wx, wy, ww, wh, cornerRadius, z0);
+  const topPts = buildIsoStadiumPoints(wx, wy, ww, wh, cornerRadius, z1);
+
+  // Vẽ các mặt bên bo tròn chuyển sắc mượt mà
+  const half = Math.floor(botPts.length * 0.55);
+  for (let i = 0; i < botPts.length; i++) {
+    const next = (i + 1) % botPts.length;
+    const b0 = botPts[i];
+    const b1 = botPts[next];
+    const t1 = topPts[next];
+    const t0 = topPts[i];
+    ctx.beginPath();
+    ctx.moveTo(t0.x, t0.y);
+    ctx.lineTo(t1.x, t1.y);
+    ctx.lineTo(b1.x, b1.y);
+    ctx.lineTo(b0.x, b0.y);
+    ctx.closePath();
+    ctx.fillStyle = i < half ? sideColorA : sideColorB;
+    ctx.fill();
+  }
+
+  // Vẽ mặt trên bo tròn
+  tracePolygonPath(ctx, topPts);
+  const grad = ctx.createLinearGradient(
+    topPts[0].x,
+    topPts[0].y,
+    topPts[Math.floor(topPts.length / 2)].x,
+    topPts[Math.floor(topPts.length / 2)].y
+  );
+  grad.addColorStop(0, shadeHexColor(topColor, 10));
+  grad.addColorStop(1, shadeHexColor(topColor, -6));
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  if (strokeColor) {
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
+/**
+ * Vẽ đa dạng các loại Xe 2.5D Isometric mềm mại, bo tròn khí động học (`drawIsometricParkedCar`):
+ * - Hỗ trợ 5 dòng xe: `'sedan'`, `'suv'`, `'hatchback'` (xe điện mini bo tròn), `'shuttle'` (xe van 16 chỗ FRT), `'pickup'` (bán tải thể thao)
+ * - Thân xe & cabin bo góc mượt (`drawSoftRoundedExtrusion`), bóng đổ đa lớp êm dịu, kính chắn gió màu xanh băng, đèn pha ấm & đèn hậu LED mềm mại.
  */
 export function drawIsometricParkedCar(
   ctx: CanvasRenderingContext2D,
@@ -542,132 +608,286 @@ export function drawIsometricParkedCar(
   wy: number,
   axis: 'gx' | 'gy',
   bodyColor: string,
-  facingPositive = true
+  facingPositive = true,
+  kind: ParkedVehicleKind = 'sedan'
 ) {
   ctx.save();
-  const carLen = axis === 'gx' ? 38 : 19;
-  const carWid = axis === 'gx' ? 19 : 38;
+
+  // Kích thước từng dòng xe
+  const baseLen =
+    kind === 'shuttle'
+      ? 50
+      : kind === 'suv' || kind === 'pickup'
+        ? 41
+        : kind === 'hatchback'
+          ? 31
+          : 38;
+  const baseWid =
+    kind === 'shuttle'
+      ? 21
+      : kind === 'suv'
+        ? 20
+        : kind === 'hatchback'
+          ? 17.5
+          : 18.8;
+
+  const carLen = axis === 'gx' ? baseLen : baseWid;
+  const carWid = axis === 'gx' ? baseWid : baseLen;
   const x0 = wx - carLen / 2;
   const y0 = wy - carWid / 2;
 
-  // 1. Soft drop shadow on asphalt road
-  const shCenter = worldToIso(wx + 2.2, wy + 2.4, -1.8);
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.34)';
+  // 1. Bóng đổ 2 lớp siêu mềm (Soft Multi-Layer Ambient Drop Shadow)
+  const shCenter = worldToIso(wx + 2.0, wy + 2.2, -1.75);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
   ctx.beginPath();
   ctx.ellipse(
     shCenter.x,
     shCenter.y,
-    axis === 'gx' ? 23 : 19,
-    axis === 'gx' ? 11.5 : 13.5,
+    (axis === 'gx' ? baseLen * 0.66 : baseWid * 0.98) + 3,
+    (axis === 'gx' ? baseWid * 0.64 : baseLen * 0.36) + 2,
     axis === 'gx' ? 0.35 : -0.35,
     0,
     Math.PI * 2
   );
   ctx.fill();
 
-  // 2. 4 Wheels (3D dark rubber tires + alloy rims)
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.26)';
+  ctx.beginPath();
+  ctx.ellipse(
+    shCenter.x,
+    shCenter.y,
+    axis === 'gx' ? baseLen * 0.58 : baseWid * 0.86,
+    axis === 'gx' ? baseWid * 0.56 : baseLen * 0.31,
+    axis === 'gx' ? 0.35 : -0.35,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  // 2. Bánh xe tròn 3D có mâm hợp kim bạc (Soft Rounded Tires & Alloy Rims)
+  const wheelInsetL = baseLen * 0.21;
   const wheelPositions: [number, number][] =
     axis === 'gx'
       ? [
-          [x0 + 6, y0 - 0.8],
-          [x0 + carLen - 11, y0 - 0.8],
-          [x0 + 6, y0 + carWid - 2.6],
-          [x0 + carLen - 11, y0 + carWid - 2.6],
+          [x0 + wheelInsetL, y0 + 0.6],
+          [x0 + carLen - wheelInsetL, y0 + 0.6],
+          [x0 + wheelInsetL, y0 + carWid - 0.6],
+          [x0 + carLen - wheelInsetL, y0 + carWid - 0.6],
         ]
       : [
-          [x0 - 0.8, y0 + 6],
-          [x0 - 0.8, y0 + carWid - 11],
-          [x0 + carLen - 2.6, y0 + 6],
-          [x0 + carLen - 2.6, y0 + carWid - 11],
+          [x0 + 0.6, y0 + wheelInsetL],
+          [x0 + 0.6, y0 + carWid - wheelInsetL],
+          [x0 + carLen - 0.6, y0 + wheelInsetL],
+          [x0 + carLen - 0.6, y0 + carWid - wheelInsetL],
         ];
 
   for (const [whX, whY] of wheelPositions) {
-    drawIsoBox(
-      ctx,
-      whX,
-      whY,
-      axis === 'gx' ? 5.4 : 3.4,
-      axis === 'gx' ? 3.4 : 5.4,
-      -1.5,
-      3.2,
-      '#1e293b',
-      '#0f172a',
-      '#020617',
-      '#94a3b8',
-      0.55
-    );
+    const wIso = worldToIso(whX, whY, 0.8);
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(wIso.x, wIso.y, 4.1, 3.1, 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.ellipse(wIso.x, wIso.y, 2.0, 1.5, 0.25, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // 3. Lower 3D Car Chassis Body (z: 1.2 -> 8.2)
-  const topCol = shadeHexColor(bodyColor, 14);
+  // 3. Thân dưới xe bo tròn khí động học (Aerodynamic Rounded Lower Body)
+  const chassisZ1 = kind === 'suv' || kind === 'pickup' ? 8.8 : kind === 'shuttle' ? 9.5 : 7.6;
+  const cornerRad = kind === 'hatchback' || kind === 'shuttle' ? 7.5 : 6.5;
+  const topCol = shadeHexColor(bodyColor, 16);
   const leftCol = bodyColor;
-  const rightCol = shadeHexColor(bodyColor, -22);
-  drawIsoBox(
+  const rightCol = shadeHexColor(bodyColor, -18);
+
+  drawSoftRoundedExtrusion(
     ctx,
     x0,
     y0,
     carLen,
     carWid,
+    cornerRad,
     1.2,
-    8.2,
+    chassisZ1,
     topCol,
     leftCol,
     rightCol,
-    '#0f172a',
-    0.85
+    'rgba(15, 23, 42, 0.38)',
+    0.7
   );
 
-  // 4. Upper Glass Cabin & Roof (z: 8.2 -> 14.2)
-  const cabX = axis === 'gx' ? x0 + 8.5 : x0 + 2.4;
-  const cabY = axis === 'gx' ? y0 + 2.4 : y0 + 8.5;
-  const cabW = axis === 'gx' ? carLen - 17 : carLen - 4.8;
-  const cabH = axis === 'gx' ? carWid - 4.8 : carWid - 17;
+  // 4. Cabin kính & Mui xe bo tròn theo từng dòng xe
+  let cabX = x0;
+  let cabY = y0;
+  let cabW = carLen;
+  let cabH = carWid;
+  const cabTopZ =
+    kind === 'shuttle'
+      ? 16.5
+      : kind === 'suv'
+        ? 15.2
+        : kind === 'pickup'
+          ? 14.5
+          : kind === 'hatchback'
+            ? 13.6
+            : 13.4;
 
-  drawIsoBox(
+  if (axis === 'gx') {
+    if (kind === 'shuttle') {
+      cabX = x0 + 3.2;
+      cabW = carLen - 6.4;
+    } else if (kind === 'suv') {
+      cabX = facingPositive ? x0 + 3.5 : x0 + 8.5;
+      cabW = carLen - 12.0;
+    } else if (kind === 'pickup') {
+      cabX = facingPositive ? x0 + carLen * 0.42 : x0 + 5.5;
+      cabW = carLen * 0.44;
+    } else if (kind === 'hatchback') {
+      cabX = facingPositive ? x0 + 3.2 : x0 + 6.8;
+      cabW = carLen - 10.0;
+    } else {
+      cabX = x0 + 7.8;
+      cabW = carLen - 15.6;
+    }
+    cabY = y0 + 2.1;
+    cabH = carWid - 4.2;
+  } else {
+    if (kind === 'shuttle') {
+      cabY = y0 + 3.2;
+      cabH = carWid - 6.4;
+    } else if (kind === 'suv') {
+      cabY = facingPositive ? y0 + 3.5 : y0 + 8.5;
+      cabH = carWid - 12.0;
+    } else if (kind === 'pickup') {
+      cabY = facingPositive ? y0 + carWid * 0.42 : y0 + 5.5;
+      cabH = carWid * 0.44;
+    } else if (kind === 'hatchback') {
+      cabY = facingPositive ? y0 + 3.2 : y0 + 6.8;
+      cabH = carWid - 10.0;
+    } else {
+      cabY = y0 + 7.8;
+      cabH = carWid - 15.6;
+    }
+    cabX = x0 + 2.1;
+    cabW = carLen - 4.2;
+  }
+
+  // Vẽ khối kính cabin xanh đá đậm mềm mại
+  drawSoftRoundedExtrusion(
     ctx,
     cabX,
     cabY,
     cabW,
     cabH,
-    8.2,
-    14.0,
+    5.5,
+    chassisZ1 - 0.3,
+    cabTopZ,
     topCol,
     '#1e293b',
     '#0f172a',
-    '#38bdf8',
-    0.75
+    'rgba(125, 211, 252, 0.55)',
+    0.65
   );
 
-  // Panoramic dark sunroof on top of cabin
-  drawIsoBox(
-    ctx,
-    cabX + 2.5,
-    cabY + 2.2,
-    Math.max(4, cabW - 5),
-    Math.max(4, cabH - 4.4),
-    14.0,
-    14.4,
-    '#0f172a',
-    '#1e293b',
-    '#020617',
-    '#64748b',
-    0.5
-  );
+  // Nếu là dòng Pickup: vẽ lòng thùng xe phía sau (Cargo Bed)
+  if (kind === 'pickup') {
+    const bedX =
+      axis === 'gx'
+        ? facingPositive
+          ? x0 + 2.5
+          : x0 + carLen * 0.52
+        : x0 + 2.4;
+    const bedY =
+      axis === 'gy'
+        ? facingPositive
+          ? y0 + 2.5
+          : y0 + carWid * 0.52
+        : y0 + 2.4;
+    const bedW = axis === 'gx' ? carLen * 0.38 : carLen - 4.8;
+    const bedH = axis === 'gy' ? carWid * 0.38 : carWid - 4.8;
+    const bedPts = buildIsoStadiumPoints(bedX, bedY, bedW, bedH, 3.5, chassisZ1 + 0.25);
+    tracePolygonPath(ctx, bedPts);
+    ctx.fillStyle = '#1e293b';
+    ctx.fill();
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
 
-  // 5. Headlights (warm yellow-white) & Taillights (crimson red) + Side Mirrors
+  // Nếu là SUV hoặc Shuttle: vẽ thanh giá nóc thể thao hoặc cửa sổ trời панорама bo tròn
+  if (kind === 'suv') {
+    const r0 = worldToIso(cabX + 3, cabY + 2, cabTopZ + 0.5);
+    const r1 = worldToIso(
+      axis === 'gx' ? cabX + cabW - 3 : cabX + 3,
+      axis === 'gy' ? cabY + cabH - 3 : cabY + 2,
+      cabTopZ + 0.5
+    );
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(r0.x, r0.y);
+    ctx.lineTo(r1.x, r1.y);
+    ctx.stroke();
+  } else if (kind === 'shuttle') {
+    // Sọc thương hiệu cam-xanh FRT trên nóc xe Shuttle Bus đưa đón nhân viên
+    const roofStripePts = buildIsoStadiumPoints(
+      cabX + 4,
+      cabY + 3,
+      Math.max(4, cabW - 8),
+      Math.max(4, cabH - 6),
+      4,
+      cabTopZ + 0.25
+    );
+    tracePolygonPath(ctx, roofStripePts);
+    ctx.fillStyle = '#f97316';
+    ctx.fill();
+  } else {
+    // Cửa sổ trời панорама bo tròn mềm mại
+    const sunPts = buildIsoStadiumPoints(
+      cabX + 2.8,
+      cabY + 2.4,
+      Math.max(3.5, cabW - 5.6),
+      Math.max(3.5, cabH - 4.8),
+      3.5,
+      cabTopZ + 0.2
+    );
+    tracePolygonPath(ctx, sunPts);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.fill();
+  }
+
+  // 5. Đèn pha LED bo tròn ấm áp & Đèn hậu dải LED mềm mại
   if (axis === 'gx') {
-    const frontX = facingPositive ? x0 + carLen - 1.2 : x0 - 0.4;
-    const rearX = facingPositive ? x0 - 0.4 : x0 + carLen - 1.2;
-    for (const ly of [y0 + 2.4, y0 + carWid - 5.6]) {
-      drawIsoBox(ctx, frontX, ly, 1.6, 3.2, 3.2, 6.4, '#fef08a', '#facc15', '#eab308');
-      drawIsoBox(ctx, rearX, ly, 1.6, 3.2, 3.2, 6.4, '#f87171', '#ef4444', '#dc2626');
+    const frontX = facingPositive ? x0 + carLen - 0.6 : x0 + 0.6;
+    const rearX = facingPositive ? x0 + 0.6 : x0 + carLen - 0.6;
+    for (const ly of [y0 + 3.4, y0 + carWid - 3.4]) {
+      const fIso = worldToIso(frontX, ly, 4.6);
+      const rIso = worldToIso(rearX, ly, 4.8);
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.ellipse(fIso.x, fIso.y, 2.2, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(rIso.x, rIso.y, 2.2, 1.4, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   } else {
-    const frontY = facingPositive ? y0 + carWid - 1.2 : y0 - 0.4;
-    const rearY = facingPositive ? y0 - 0.4 : y0 + carWid - 1.2;
-    for (const lx of [x0 + 2.4, x0 + carLen - 5.6]) {
-      drawIsoBox(ctx, lx, frontY, 3.2, 1.6, 3.2, 6.4, '#fef08a', '#facc15', '#eab308');
-      drawIsoBox(ctx, lx, rearY, 3.2, 1.6, 3.2, 6.4, '#f87171', '#ef4444', '#dc2626');
+    const frontY = facingPositive ? y0 + carWid - 0.6 : y0 + 0.6;
+    const rearY = facingPositive ? y0 + 0.6 : y0 + carWid - 0.6;
+    for (const lx of [x0 + 3.4, x0 + carLen - 3.4]) {
+      const fIso = worldToIso(lx, frontY, 4.6);
+      const rIso = worldToIso(lx, rearY, 4.8);
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.ellipse(fIso.x, fIso.y, 2.2, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(rIso.x, rIso.y, 2.2, 1.4, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -675,173 +895,343 @@ export function drawIsometricParkedCar(
 }
 
 /**
- * Hệ thống Đường Nhựa 2 Làn & Vỉa Hè Lát Gạch Bao Quanh Toàn Bộ 4 Mặt Tòa Nhà Văn Phòng FRT
- * kèm Vạch Kẻ Sang Đường Zebra Crosswalk trước `🚪 CỬA RA VÀO` và Dãy 22 Xe Ô Tô Đỗ Dọc Đường
+ * Vẽ Khu Nhà Để Xe Máy Tay Ga Mái Vòm Cong Mềm Mại (`drawScooterParkingCanopy`):
+ * - Có dàn xe tay ga Vespa / SH / Vision nhiều màu pastel & rực rỡ đỗ ngay ngắn
+ * - Có mái vòm polycarbonate cong trong suốt dịu mắt che nắng phía trên.
+ */
+function drawScooterParkingCanopy(
+  ctx: CanvasRenderingContext2D,
+  wx: number,
+  wy: number,
+  ww: number,
+  wh: number,
+  axis: 'gx' | 'gy'
+) {
+  ctx.save();
+
+  // 1. Nền khu đỗ xe máy bo góc mềm
+  const padPts = buildIsoStadiumPoints(wx, wy, ww, wh, 8, -1.65);
+  tracePolygonPath(ctx, padPts);
+  ctx.fillStyle = 'rgba(30, 41, 59, 0.72)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
+
+  // 2. Dàn xe tay ga (Vespa / SH / Scooter) đỗ thành hàng
+  const scooterColors = [
+    '#38bdf8',
+    '#f43f5e',
+    '#facc15',
+    '#4ade80',
+    '#f8fafc',
+    '#a855f7',
+    '#fb923c',
+    '#2dd4bf',
+    '#e879f9',
+    '#60a5fa',
+  ];
+  const count = axis === 'gx' ? Math.floor((ww - 14) / 13) : Math.floor((wh - 14) / 13);
+  for (let i = 0; i < count; i++) {
+    const sx = axis === 'gx' ? wx + 11 + i * 13 : wx + ww * 0.5;
+    const sy = axis === 'gy' ? wy + 11 + i * 13 : wy + wh * 0.5;
+    const sCol = scooterColors[i % scooterColors.length];
+
+    // Bóng xe máy
+    const shIso = worldToIso(sx + 1, sy + 1, -1.5);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(shIso.x, shIso.y, 5.5, 3.2, axis === 'gx' ? -0.3 : 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Thân xe tay ga bo tròn
+    const bW = axis === 'gx' ? 6.5 : 13;
+    const bH = axis === 'gx' ? 13 : 6.5;
+    drawSoftRoundedExtrusion(
+      ctx,
+      sx - bW / 2,
+      sy - bH / 2,
+      bW,
+      bH,
+      3.2,
+      0.2,
+      4.8,
+      shadeHexColor(sCol, 12),
+      sCol,
+      shadeHexColor(sCol, -18)
+    );
+
+    // Yên xe màu nâu/đen mềm
+    const seatIso = worldToIso(sx, sy, 5.3);
+    ctx.fillStyle = i % 2 === 0 ? '#1e293b' : '#78350f';
+    ctx.beginPath();
+    ctx.ellipse(seatIso.x, seatIso.y, 2.8, 1.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Đầu xe + Gương & Đèn pha
+    const hx = axis === 'gx' ? sx : sx - 3.5;
+    const hy = axis === 'gx' ? sy - 3.5 : sy;
+    const hIso = worldToIso(hx, hy, 7.2);
+    ctx.fillStyle = sCol;
+    ctx.beginPath();
+    ctx.arc(hIso.x, hIso.y, 2.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.arc(hIso.x, hIso.y - 0.5, 1.0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 3. Cột đỡ & Mái vòm cong polycarbonate trong suốt mềm mại phía trên
+  const pillarCoords: [number, number][] = [
+    [wx + 6, wy + 5],
+    [wx + ww - 6, wy + 5],
+    [wx + 6, wy + wh - 5],
+    [wx + ww - 6, wy + wh - 5],
+  ];
+  for (const [px, py] of pillarCoords) {
+    const p0 = worldToIso(px, py, -1.2);
+    const p1 = worldToIso(px, py, 14.5);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+  }
+
+  const canopyPts = buildIsoStadiumPoints(wx - 2, wy - 2, ww + 4, wh + 4, 10, 15.0);
+  tracePolygonPath(ctx, canopyPts);
+  const canGrad = ctx.createLinearGradient(
+    canopyPts[0].x,
+    canopyPts[0].y,
+    canopyPts[10].x,
+    canopyPts[10].y
+  );
+  canGrad.addColorStop(0, 'rgba(224, 242, 254, 0.52)');
+  canGrad.addColorStop(0.5, 'rgba(186, 230, 253, 0.38)');
+  canGrad.addColorStop(1, 'rgba(125, 211, 252, 0.48)');
+  ctx.fillStyle = canGrad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Hệ thống Đường Nhựa Bo Tròn Mềm Mại, Đảo Cỏ Cảnh Quan, Bãi Xe Máy Mái Vòm & Đa Dạng Xe 2.5D Bao Quanh Tòa Nhà FRT
  */
 function drawPerimeterStreetAndSidewalk(ctx: CanvasRenderingContext2D, _time: number) {
   ctx.save();
 
-  // Tọa độ bao ngoài chu vi toàn khu đất (Outer Street Loop: wx = 128..1668, wy = -56..988)
-  const outMinX = 128;
+  // Tọa độ bao ngoài chu vi toàn khu đất (Outer Street Loop mở rộng: wx = 86..1668, wy = -64..1006)
+  const outMinX = 86;
   const outMaxX = 1668;
-  const outMinY = -56;
-  const outMaxY = 988;
-  const roadW = 68; // Bề rộng lòng đường nhựa 2 làn xe chạy
+  const outMinY = -64;
+  const outMaxY = 1006;
+  const roadW = 68;
 
-  // 1. Nền đường nhựa Asphalt tối màu bao quanh 4 mặt (`#1e293b` / `#334155`) ở cao độ z = -2.2
-  const streetBands: { wx: number; wy: number; ww: number; wh: number; label: string; axis: 'gx' | 'gy' }[] = [
-    { wx: outMinX, wy: outMinY, ww: outMaxX - outMinX, wh: roadW, label: 'NORTH PERIMETER STREET', axis: 'gx' },
-    { wx: outMinX, wy: outMaxY - roadW, ww: outMaxX - outMinX, wh: roadW, label: 'SOUTH BOULEVARD', axis: 'gx' },
-    { wx: outMinX, wy: outMinY + roadW, ww: roadW, wh: outMaxY - outMinY - roadW * 2, label: 'WEST AVENUE', axis: 'gy' },
-    { wx: outMaxX - roadW, wy: outMinY + roadW, ww: roadW, wh: outMaxY - outMinY - roadW * 2, label: 'EAST AVENUE', axis: 'gy' },
-    // Nhánh đường nối vào sảnh `🚪 CỬA RA VÀO` phía Bắc Khoang Nhà Thuốc (wx: 730..1575, wy: 96..162)
-    { wx: 735, wy: 96, ww: 865, wh: 64, label: 'FRT ENTRANCE DRIVEWAY', axis: 'gx' },
-  ];
-
-  // Vỉa hè lát gạch sáng (`#cbd5e1` / `#e2e8f0`) lót giữa lòng đường nhựa và chân tòa nhà
-  const swP0 = worldToIso(outMinX + roadW - 6, outMinY + roadW - 6, -2.0);
-  const swP1 = worldToIso(outMaxX - roadW + 6, outMinY + roadW - 6, -2.0);
-  const swP2 = worldToIso(outMaxX - roadW + 6, outMaxY - roadW + 6, -2.0);
-  const swP3 = worldToIso(outMinX + roadW - 6, outMaxY - roadW + 6, -2.0);
-  ctx.beginPath();
-  ctx.moveTo(swP0.x, swP0.y);
-  ctx.lineTo(swP1.x, swP1.y);
-  ctx.lineTo(swP2.x, swP2.y);
-  ctx.lineTo(swP3.x, swP3.y);
-  ctx.closePath();
-  ctx.fillStyle = '#e2e8f0';
+  // 1. Nền mặt đường nhựa tổng thể bo tròn góc ngoài mềm mại (Soft Rounded Outer Asphalt Ring)
+  const outerRoadPts = buildIsoStadiumPoints(
+    outMinX,
+    outMinY,
+    outMaxX - outMinX,
+    outMaxY - outMinY,
+    38,
+    -1.85
+  );
+  tracePolygonPath(ctx, outerRoadPts);
+  const roadGrad = ctx.createLinearGradient(
+    outerRoadPts[0].x,
+    outerRoadPts[0].y,
+    outerRoadPts[10].x,
+    outerRoadPts[10].y
+  );
+  roadGrad.addColorStop(0, '#334155');
+  roadGrad.addColorStop(0.5, '#1e293b');
+  roadGrad.addColorStop(1, '#334155');
+  ctx.fillStyle = roadGrad;
   ctx.fill();
-  ctx.strokeStyle = '#94a3b8';
+  ctx.strokeStyle = '#64748b';
   ctx.lineWidth = 1.4;
   ctx.stroke();
 
-  // Vẽ mặt đường nhựa 4 phía + nhánh đường đón khách trước cổng chính
-  for (const road of streetBands) {
-    drawIsoBox(
-      ctx,
-      road.wx,
-      road.wy,
-      road.ww,
-      road.wh,
-      -3.5,
-      -1.8,
-      '#334155',
-      '#1e293b',
-      '#0f172a',
-      '#64748b',
-      1.0
-    );
+  // 2. Vỉa hè lát đá sáng bo tròn góc mềm mại (`Soft Rounded Sidewalk Island`) lót dưới chân tòa nhà
+  const swPts = buildIsoStadiumPoints(
+    outMinX + roadW - 4,
+    outMinY + roadW - 4,
+    outMaxX - outMinX - (roadW - 4) * 2,
+    outMaxY - outMinY - (roadW - 4) * 2,
+    28,
+    -1.6
+  );
+  tracePolygonPath(ctx, swPts);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fill();
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
-    // Vạch kẻ phân làn nét đứt màu vàng/trắng ở tim đường
-    ctx.save();
-    ctx.strokeStyle = 'rgba(250, 204, 21, 0.72)';
-    ctx.lineWidth = 1.4;
-    ctx.setLineDash([9, 8]);
-    if (road.axis === 'gx') {
-      const midY = road.wy + road.wh * 0.5;
-      const a = worldToIso(road.wx + 24, midY, -1.6);
-      const b = worldToIso(road.wx + road.ww - 24, midY, -1.6);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    } else {
-      const midX = road.wx + road.ww * 0.5;
-      const a = worldToIso(midX, road.wy + 16, -1.6);
-      const b = worldToIso(midX, road.wy + road.wh - 16, -1.6);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-    ctx.restore();
+  // Nhánh đường bo góc mềm đón khách trước sảnh `🚪 CỬA RA VÀO` phía Bắc Khoang Nhà Thuốc
+  const drivePts = buildIsoStadiumPoints(755, 96, 825, 64, 18, -1.75);
+  tracePolygonPath(ctx, drivePts);
+  ctx.fillStyle = '#334155';
+  ctx.fill();
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 1.1;
+  ctx.stroke();
+
+  // Vạch kẻ phân làn nét đứt mềm mại ở tim đường 4 phía
+  const laneSegments: { x0: number; y0: number; x1: number; y1: number }[] = [
+    { x0: outMinX + 45, y0: outMinY + roadW * 0.5, x1: outMaxX - 45, y1: outMinY + roadW * 0.5 },
+    { x0: outMinX + 45, y0: outMaxY - roadW * 0.5, x1: outMaxX - 45, y1: outMaxY - roadW * 0.5 },
+    { x0: outMinX + roadW * 0.5, y0: outMinY + 45, x1: outMinX + roadW * 0.5, y1: outMaxY - 45 },
+    { x0: outMaxX - roadW * 0.5, y0: outMinY + 45, x1: outMaxX - roadW * 0.5, y1: outMaxY - 45 },
+    { x0: 780, y0: 128, x1: 1555, y1: 128 },
+  ];
+  ctx.save();
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.58)';
+  ctx.lineWidth = 1.3;
+  ctx.setLineDash([10, 9]);
+  for (const seg of laneSegments) {
+    const a = worldToIso(seg.x0, seg.y0, -1.65);
+    const b = worldToIso(seg.x1, seg.y1, -1.65);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // 3. Các bồn cỏ & hoa cảnh quan bo tròn (`Landscaped Green Curb Islands`) xen giữa các khu vực đỗ xe
+  const greenCurbIslands: { wx: number; wy: number; ww: number; wh: number }[] = [
+    { wx: 705, wy: -28, ww: 48, wh: 22 },
+    { wx: 1068, wy: 132, ww: 38, wh: 20 },
+    { wx: 1248, wy: 132, ww: 38, wh: 20 },
+    { wx: 855, wy: 954, ww: 52, wh: 22 },
+    { wx: 118, wy: 390, ww: 22, wh: 54 },
+  ];
+  for (const isl of greenCurbIslands) {
+    drawSoftRoundedExtrusion(
+      ctx,
+      isl.wx,
+      isl.wy,
+      isl.ww,
+      isl.wh,
+      8,
+      -1.6,
+      1.6,
+      '#22c55e',
+      '#16a34a',
+      '#15803d',
+      '#bbf7d0',
+      0.8
+    );
   }
 
-  // 2. Vạch kẻ sang đường đi bộ (Zebra Crosswalk) ngay trước `🚪 CỬA RA VÀO` (wx: 1118..1236, wy: 102..160)
+  // 4. Vạch kẻ sang đường đi bộ (Zebra Crosswalk) bo tròn góc trước `🚪 CỬA RA VÀO`
   const zebraStartWx = 1122;
   const zebraEndWx = 1232;
   for (let sy = 104; sy <= 154; sy += 8.5) {
-    const z0 = worldToIso(zebraStartWx, sy, -1.55);
-    const z1 = worldToIso(zebraEndWx, sy, -1.55);
-    const z2 = worldToIso(zebraEndWx, sy + 4.5, -1.55);
-    const z3 = worldToIso(zebraStartWx, sy + 4.5, -1.55);
-    ctx.beginPath();
-    ctx.moveTo(z0.x, z0.y);
-    ctx.lineTo(z1.x, z1.y);
-    ctx.lineTo(z2.x, z2.y);
-    ctx.lineTo(z3.x, z3.y);
-    ctx.closePath();
-    ctx.fillStyle = '#f8fafc';
+    const zPts = buildIsoStadiumPoints(zebraStartWx, sy, zebraEndWx - zebraStartWx, 4.5, 2, -1.55);
+    tracePolygonPath(ctx, zPts);
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.92)';
     ctx.fill();
   }
 
-  // 3. Kẻ ô đỗ xe dọc lề đường (`Parking Bays`) và vẽ 22 chiếc Xe Ô Tô 2.5D đỗ quanh 4 mặt tòa nhà
-  const parkedCars: {
+  // 5. 2 Khu Nhà Để Xe Máy Tay Ga Mái Vòm Cong Mềm Mại (Scooter Canopies)
+  drawScooterParkingCanopy(ctx, 835, -32, 165, 28, 'gx');
+  drawScooterParkingCanopy(ctx, 118, 465, 28, 145, 'gy');
+
+  // 6. Bãi đỗ xe đa dạng chủng loại (Sedan, SUV 7 chỗ, Hatchback/EV Mini, Shuttle Bus 16 chỗ FRT, Bán tải Pickup)
+  const parkedVehicles: {
     wx: number;
     wy: number;
     axis: 'gx' | 'gy';
     color: string;
     facingPositive: boolean;
+    kind: ParkedVehicleKind;
   }[] = [
-    // Dọc đường phía Bắc (North Street & FRT Entrance Driveway)
-    { wx: 285, wy: -12, axis: 'gx', color: '#ef4444', facingPositive: true },
-    { wx: 365, wy: -12, axis: 'gx', color: '#3b82f6', facingPositive: true },
-    { wx: 455, wy: -12, axis: 'gx', color: '#f8fafc', facingPositive: true },
-    { wx: 545, wy: -12, axis: 'gx', color: '#f59e0b', facingPositive: true },
-    { wx: 640, wy: -12, axis: 'gx', color: '#10b981', facingPositive: true },
+    // Dọc đường phía Bắc (North Street)
+    { wx: 225, wy: -18, axis: 'gx', color: '#38bdf8', facingPositive: true, kind: 'hatchback' },
+    { wx: 305, wy: -18, axis: 'gx', color: '#f43f5e', facingPositive: true, kind: 'sedan' },
+    { wx: 395, wy: -18, axis: 'gx', color: '#f8fafc', facingPositive: true, kind: 'suv' },
+    { wx: 490, wy: -18, axis: 'gx', color: '#f59e0b', facingPositive: true, kind: 'pickup' },
+    { wx: 585, wy: -18, axis: 'gx', color: '#10b981', facingPositive: true, kind: 'sedan' },
+    { wx: 665, wy: -18, axis: 'gx', color: '#a855f7', facingPositive: true, kind: 'hatchback' },
+    { wx: 1065, wy: -18, axis: 'gx', color: '#f8fafc', facingPositive: false, kind: 'shuttle' },
+    { wx: 1185, wy: -18, axis: 'gx', color: '#0ea5e9', facingPositive: false, kind: 'suv' },
+    { wx: 1285, wy: -18, axis: 'gx', color: '#facc15', facingPositive: false, kind: 'hatchback' },
+    { wx: 1385, wy: -18, axis: 'gx', color: '#fb7185', facingPositive: false, kind: 'sedan' },
+
     // Dọc đường nhánh trước Khoang Nhà Thuốc (chừa trống Zebra Crosswalk 1115..1239 trước Cửa Ra Vào)
-    { wx: 835, wy: 142, axis: 'gx', color: '#e11d48', facingPositive: true },
-    { wx: 925, wy: 142, axis: 'gx', color: '#0ea5e9', facingPositive: true },
-    { wx: 1015, wy: 142, axis: 'gx', color: '#f8fafc', facingPositive: true },
-    { wx: 1315, wy: 142, axis: 'gx', color: '#8b5cf6', facingPositive: false },
-    { wx: 1405, wy: 142, axis: 'gx', color: '#eab308', facingPositive: false },
-    { wx: 1495, wy: 142, axis: 'gx', color: '#14b8a6', facingPositive: false },
+    { wx: 825, wy: 142, axis: 'gx', color: '#f8fafc', facingPositive: true, kind: 'shuttle' },
+    { wx: 930, wy: 142, axis: 'gx', color: '#38bdf8', facingPositive: true, kind: 'suv' },
+    { wx: 1020, wy: 142, axis: 'gx', color: '#34d399', facingPositive: true, kind: 'hatchback' },
+    { wx: 1325, wy: 142, axis: 'gx', color: '#a78bfa', facingPositive: false, kind: 'sedan' },
+    { wx: 1415, wy: 142, axis: 'gx', color: '#fbbf24', facingPositive: false, kind: 'SUV' as ParkedVehicleKind },
+    { wx: 1505, wy: 142, axis: 'gx', color: '#2dd4bf', facingPositive: false, kind: 'hatchback' },
 
     // Dọc đại lộ phía Đông (East Avenue)
-    { wx: 1622, wy: 225, axis: 'gy', color: '#38bdf8', facingPositive: true },
-    { wx: 1622, wy: 325, axis: 'gy', color: '#f97316', facingPositive: true },
-    { wx: 1622, wy: 435, axis: 'gy', color: '#e2e8f0', facingPositive: true },
-    { wx: 1622, wy: 545, axis: 'gy', color: '#ec4899', facingPositive: true },
-    { wx: 1622, wy: 655, axis: 'gy', color: '#22c55e', facingPositive: true },
-    { wx: 1622, wy: 765, axis: 'gy', color: '#6366f1', facingPositive: true },
+    { wx: 1622, wy: 215, axis: 'gy', color: '#38bdf8', facingPositive: true, kind: 'sedan' },
+    { wx: 1622, wy: 315, axis: 'gy', color: '#fb923c', facingPositive: true, kind: 'suv' },
+    { wx: 1622, wy: 425, axis: 'gy', color: '#f8fafc', facingPositive: true, kind: 'shuttle' },
+    { wx: 1622, wy: 540, axis: 'gy', color: '#f472b6', facingPositive: true, kind: 'hatchback' },
+    { wx: 1622, wy: 645, axis: 'gy', color: '#4ade80', facingPositive: true, kind: 'pickup' },
+    { wx: 1622, wy: 755, axis: 'gy', color: '#818cf8', facingPositive: true, kind: 'sedan' },
 
     // Dọc đại lộ phía Nam (South Boulevard)
-    { wx: 410, wy: 946, axis: 'gx', color: '#f43f5e', facingPositive: false },
-    { wx: 525, wy: 946, axis: 'gx', color: '#06b6d4', facingPositive: false },
-    { wx: 645, wy: 946, axis: 'gx', color: '#facc15', facingPositive: false },
-    { wx: 775, wy: 946, axis: 'gx', color: '#a855f7', facingPositive: false },
-    { wx: 985, wy: 946, axis: 'gx', color: '#f8fafc', facingPositive: false },
-    { wx: 1185, wy: 946, axis: 'gx', color: '#ef4444', facingPositive: false },
-    { wx: 1385, wy: 946, axis: 'gx', color: '#3b82f6', facingPositive: false },
+    { wx: 325, wy: 964, axis: 'gx', color: '#fb7185', facingPositive: false, kind: 'hatchback' },
+    { wx: 425, wy: 964, axis: 'gx', color: '#38bdf8', facingPositive: false, kind: 'suv' },
+    { wx: 535, wy: 964, axis: 'gx', color: '#fde047', facingPositive: false, kind: 'sedan' },
+    { wx: 645, wy: 964, axis: 'gx', color: '#c084fc', facingPositive: false, kind: 'pickup' },
+    { wx: 765, wy: 964, axis: 'gx', color: '#f8fafc', facingPositive: false, kind: 'sedan' },
+    { wx: 965, wy: 964, axis: 'gx', color: '#f8fafc', facingPositive: false, kind: 'shuttle' },
+    { wx: 1095, wy: 964, axis: 'gx', color: '#34d399', facingPositive: false, kind: 'suv' },
+    { wx: 1215, wy: 964, axis: 'gx', color: '#60a5fa', facingPositive: false, kind: 'hatchback' },
+    { wx: 1335, wy: 964, axis: 'gx', color: '#f97316', facingPositive: false, kind: 'sedan' },
 
     // Dọc đường phía Tây (West Avenue)
-    { wx: 174, wy: 165, axis: 'gy', color: '#f59e0b', facingPositive: false },
-    { wx: 174, wy: 295, axis: 'gy', color: '#10b981', facingPositive: false },
-    { wx: 174, wy: 520, axis: 'gy', color: '#38bdf8', facingPositive: false },
-    { wx: 174, wy: 660, axis: 'gy', color: '#e11d48', facingPositive: false },
-    { wx: 174, wy: 795, axis: 'gy', color: '#f8fafc', facingPositive: false },
+    { wx: 130, wy: 145, axis: 'gy', color: '#fbbf24', facingPositive: false, kind: 'suv' },
+    { wx: 130, wy: 245, axis: 'gy', color: '#34d399', facingPositive: false, kind: 'hatchback' },
+    { wx: 130, wy: 335, axis: 'gy', color: '#60a5fa', facingPositive: false, kind: 'sedan' },
+    { wx: 130, wy: 665, axis: 'gy', color: '#f43f5e', facingPositive: false, kind: 'pickup' },
+    { wx: 130, wy: 775, axis: 'gy', color: '#f8fafc', facingPositive: false, kind: 'suv' },
+    { wx: 130, wy: 875, axis: 'gy', color: '#a78bfa', facingPositive: false, kind: 'hatchback' },
   ];
 
-  // Vẽ ô kẻ vạch đỗ xe màu trắng dưới mỗi xe trước, sau đó vẽ xe 3D
-  for (const car of parkedCars) {
-    const bayW = car.axis === 'gx' ? 46 : 24;
-    const bayH = car.axis === 'gx' ? 24 : 46;
-    const b0 = worldToIso(car.wx - bayW / 2, car.wy - bayH / 2, -1.65);
-    const b1 = worldToIso(car.wx + bayW / 2, car.wy - bayH / 2, -1.65);
-    const b2 = worldToIso(car.wx + bayW / 2, car.wy + bayH / 2, -1.65);
-    const b3 = worldToIso(car.wx - bayW / 2, car.wy + bayH / 2, -1.65);
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.52)';
-    ctx.lineWidth = 1.0;
-    ctx.beginPath();
-    ctx.moveTo(b0.x, b0.y);
-    ctx.lineTo(b1.x, b1.y);
-    ctx.lineTo(b2.x, b2.y);
-    ctx.lineTo(b3.x, b3.y);
-    ctx.closePath();
+  // Vẽ ô đỗ xe bo góc mềm dưới mỗi chiếc xe, sau đó vẽ xe 2.5D mềm mại
+  for (const v of parkedVehicles) {
+    const vKind: ParkedVehicleKind =
+      (v.kind.toLowerCase() as ParkedVehicleKind) || 'sedan';
+    const bayLen = vKind === 'shuttle' ? 56 : 46;
+    const bayW = v.axis === 'gx' ? bayLen : 24;
+    const bayH = v.axis === 'gx' ? 24 : bayLen;
+    const bayPts = buildIsoStadiumPoints(
+      v.wx - bayW / 2,
+      v.wy - bayH / 2,
+      bayW,
+      bayH,
+      5,
+      -1.65
+    );
+    tracePolygonPath(ctx, bayPts);
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.36)';
+    ctx.lineWidth = 0.9;
     ctx.stroke();
 
-    drawIsometricParkedCar(ctx, car.wx, car.wy, car.axis, car.color, car.facingPositive);
+    drawIsometricParkedCar(
+      ctx,
+      v.wx,
+      v.wy,
+      v.axis,
+      v.color,
+      v.facingPositive,
+      vKind
+    );
   }
 
   ctx.restore();
@@ -849,15 +1239,15 @@ function drawPerimeterStreetAndSidewalk(ctx: CanvasRenderingContext2D, _time: nu
 
 /**
  * Vẽ toàn bộ khối Đế Tòa Nhà 3 Giếng Trời (12-Vertex Interlocking Footprint),
- * Hệ thống Đường Nhựa Bao Quanh & Xe Ô Tô Đỗ Dọc Đường,
- * Hệ thống Hành lang vòng (Ring Corridors), 3 Giếng trời thực tế FRT (North, Central, South Atriums)
- * và 8 Lõi Thang máy / Kỹ thuật / WC đúng 100% theo bản vẽ mặt bằng của người dùng!
+ * Hệ thống Đường Nhựa Bao Quanh & Đa Dạng Xe Đỗ Mềm Mại,
+ * Hệ thống Hành lang vòng Mở Rộng (Wide Ring Corridors) quanh 3 Giếng trời thực tế FRT (North, Central, South Atriums)
+ * và 8 Lõi Thang máy / Kỹ thuật / WC.
  */
 export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   ctx.save();
 
   // --------------------------------------------------------------------------
-  // 0. PERIMETER STREET, TILED SIDEWALK, ZEBRA CROSSWALK & 2.5D PARKED CARS
+  // 0. PERIMETER STREET, TILED SIDEWALK, ZEBRA CROSSWALK & DIVERSE 2.5D VEHICLES
   // --------------------------------------------------------------------------
   drawPerimeterStreetAndSidewalk(ctx, time);
 
@@ -879,13 +1269,12 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   ctx.fill();
 
   // --------------------------------------------------------------------------
-  // 2. EXTRUDED 3D BUILDING BASE SLAB (z = 0 -> 8.5) FOR THE 3 INTERLOCKING LOOPS
+  // 2. EXTRUDED 3D BUILDING BASE SLAB (z = 0 -> 8.5) FOR THE 3 EXPANDED INTERLOCKING LOOPS
   // --------------------------------------------------------------------------
-  // Chia khối đế 12 đỉnh thành 3 khối hộp giao nhau để có thành vách 3D chính xác ở mọi cạnh bậc thang
   const slabBlocks: IsoSubRect[] = [
-    { wx: 240, wy: 36, ww: 480, wh: 300 },   // North Loop Slab
-    { wx: 450, wy: 168, ww: 1110, wh: 648 }, // Central-East Grand Wing & Spine Slab (expanded for Khoang NHÀ THUỐC)
-    { wx: 330, wy: 516, ww: 495, wh: 414 },  // South Loop Slab
+    { wx: 185, wy: 18, ww: 570, wh: 324 },   // Expanded North Loop Slab
+    { wx: 375, wy: 168, ww: 1185, wh: 648 }, // Expanded Central-East Grand Wing & Spine Slab
+    { wx: 255, wy: 516, ww: 580, wh: 436 },  // Expanded South Loop Slab
   ];
 
   for (const b of slabBlocks) {
@@ -906,13 +1295,12 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   // --------------------------------------------------------------------------
   // 3. UNIFIED ROUNDED BUILDING ENVELOPE & CONTINUOUS RING CORRIDOR FLOOR (z = 8.6)
   // --------------------------------------------------------------------------
-  // Lớp vỏ ngoài bo góc kép (Double-line rounded curtain wall envelope như bản vẽ CAD)
   const outerEnvelopeIso = BUILDING_FOOTPRINT_POLYGON.map((p) =>
     worldToIso(p.x, p.y, 8.6)
   );
-  traceRoundedPolygon(ctx, outerEnvelopeIso, 12);
-  const envTopLeft = worldToIso(260, 60, 8.6);
-  const envBotRight = worldToIso(1180, 840, 8.6);
+  traceRoundedPolygon(ctx, outerEnvelopeIso, 14);
+  const envTopLeft = worldToIso(200, 40, 8.6);
+  const envBotRight = worldToIso(1180, 860, 8.6);
   const envGrad = ctx.createLinearGradient(
     envTopLeft.x,
     envTopLeft.y,
@@ -922,7 +1310,7 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   envGrad.addColorStop(0, '#dbeafe');
   envGrad.addColorStop(0.5, '#bfdbfe');
   envGrad.addColorStop(1, '#93c5fd');
-  ctx.fillStyle = envGrad; // Màu nền hành lang chuyển sáng Global Illumination
+  ctx.fillStyle = envGrad;
   ctx.fill();
   ctx.strokeStyle = '#1e3a8a';
   ctx.lineWidth = 2.6;
@@ -934,44 +1322,40 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   ctx.stroke();
 
   // --------------------------------------------------------------------------
-  // 4. TEXTURED DOT/TILE PATTERN & GUIDELINE DASHES ON RING CORRIDORS
+  // 4. WIDENED RING CORRIDORS AROUND ALL 3 ATRIUMS (RỘNG HƠN, BO GÓC MỀM MẠI)
   // --------------------------------------------------------------------------
-  // Vẽ các dải hành lang vòng (Ring Corridors) lát gạch chấm bi kỹ thuật quanh 3 Giếng trời
   const corridorBands: IsoSubRect[] = [
-    // North Ring Corridor + Outer Spurs
-    { wx: 244, wy: 102, ww: 472, wh: 36 }, // North Top Corridor (extends to West facade)
-    { wx: 462, wy: 40, ww: 40, wh: 62 },   // North Top-Center Facade Spur
-    { wx: 344, wy: 138, ww: 41, wh: 138 }, // North West Corridor
-    { wx: 344, wy: 246, ww: 286, wh: 30 }, // North Bottom Corridor
-    { wx: 585, wy: 102, ww: 45, wh: 234 }, // North East Corridor
+    // North Atrium Wide Ring Corridor (rộng 46–60px bao quanh Giếng trời Bắc)
+    { wx: 190, wy: 120, ww: 558, wh: 32 }, // North Top Wide Corridor
+    { wx: 506, wy: 20, ww: 100, wh: 102 }, // North Top-Center Open Atrium Plaza
+    { wx: 336, wy: 120, ww: 60, wh: 164 }, // North West Wide Corridor
+    { wx: 336, wy: 238, ww: 300, wh: 44 }, // North Bottom Wide Corridor
+    { wx: 572, wy: 120, ww: 64, wh: 218 }, // North East Wide Corridor
 
-    // Central Grand Ring Corridor + Outer Spurs (Leading directly into Khoang NHÀ THUỐC FT3.III2A.1)
-    { wx: 570, wy: 336, ww: 242, wh: 29 },  // Central Top Corridor
-    { wx: 780, wy: 180, ww: 460, wh: 36 },  // North Entrance Corridor feeding 🚪 CỬA RA VÀO (NHÀ THUỐC)
-    { wx: 570, wy: 336, ww: 45, wh: 266 },  // Central West Spine Corridor (Main Spine col=20)
-    { wx: 570, wy: 515, ww: 242, wh: 35 },  // Central Bottom Corridor
-    { wx: 780, wy: 180, ww: 34, wh: 625 },  // Central East Corridor bordering Khoang NHÀ THUỐC
+    // Central Grand Atrium Wide Ring Corridor (rộng 48–60px bao quanh Giếng trời Trung tâm)
+    { wx: 544, wy: 326, ww: 268, wh: 54 }, // Central Top Wide Corridor
+    { wx: 755, wy: 180, ww: 485, wh: 40 }, // North Entrance Corridor feeding 🚪 CỬA RA VÀO (NHÀ THUỐC)
+    { wx: 544, wy: 326, ww: 58, wh: 268 }, // Central West Spine Wide Corridor
+    { wx: 544, wy: 502, ww: 268, wh: 46 }, // Central Bottom Wide Corridor
+    { wx: 766, wy: 180, ww: 46, wh: 625 }, // Central East Wide Corridor bordering Khoang NHÀ THUỐC
 
-    // South Ring Corridor + Outer Spurs
-    { wx: 434, wy: 596, ww: 286, wh: 34 }, // South Top Corridor
-    { wx: 434, wy: 596, ww: 41, wh: 212 }, // South West Corridor
-    { wx: 675, wy: 596, ww: 45, wh: 212 }, // South East Corridor
-    { wx: 334, wy: 780, ww: 487, wh: 28 }, // South Bottom Corridor (extends to SW & SE facades)
-    { wx: 555, wy: 808, ww: 40, wh: 52 },  // South Bottom-Center Facade Spur
+    // South Atrium Wide Ring Corridor (rộng 48–60px bao quanh Giếng trời Nam)
+    { wx: 422, wy: 588, ww: 306, wh: 54 }, // South Top Wide Corridor
+    { wx: 422, wy: 588, ww: 66, wh: 232 }, // South West Wide Corridor
+    { wx: 662, wy: 588, ww: 66, wh: 232 }, // South East Wide Corridor
+    { wx: 260, wy: 768, ww: 568, wh: 48 }, // South Bottom Wide Corridor
+    { wx: 552, wy: 816, ww: 42, wh: 126 }, // South Bottom-Center Facade Spur
   ];
 
   for (const cb of corridorBands) {
-    const p0 = worldToIso(cb.wx, cb.wy, 8.8);
-    const p1 = worldToIso(cb.wx + cb.ww, cb.wy, 8.8);
-    const p2 = worldToIso(cb.wx + cb.ww, cb.wy + cb.wh, 8.8);
-    const p3 = worldToIso(cb.wx, cb.wy + cb.wh, 8.8);
-    ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    ctx.lineTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.lineTo(p3.x, p3.y);
-    ctx.closePath();
-    const cbGrad = ctx.createLinearGradient(p0.x, p0.y, p2.x, p2.y);
+    const bandPts = buildIsoStadiumPoints(cb.wx, cb.wy, cb.ww, cb.wh, 10, 8.8);
+    tracePolygonPath(ctx, bandPts);
+    const cbGrad = ctx.createLinearGradient(
+      bandPts[0].x,
+      bandPts[0].y,
+      bandPts[Math.floor(bandPts.length / 2)].x,
+      bandPts[Math.floor(bandPts.length / 2)].y
+    );
     cbGrad.addColorStop(0, '#eff6ff');
     cbGrad.addColorStop(0.55, '#dbeafe');
     cbGrad.addColorStop(1, '#bfdbfe');
@@ -980,7 +1364,7 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   }
 
   // Stippled CAD grid dots on Ring Corridors
-  ctx.fillStyle = 'rgba(30, 64, 175, 0.22)';
+  ctx.fillStyle = 'rgba(30, 64, 175, 0.20)';
   for (const cb of corridorBands) {
     for (let gx = cb.wx + 12; gx < cb.wx + cb.ww - 6; gx += 18) {
       for (let gy = cb.wy + 12; gy < cb.wy + cb.wh - 6; gy += 18) {
@@ -989,8 +1373,6 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
       }
     }
   }
-
-  // Mặt sàn hành lang sạch bong, tự nhiên tuyệt đối (ẩn hoàn toàn đường kẻ nét đứt dưới chân nhân vật)
 
   // --------------------------------------------------------------------------
   // 5. THE 3 RECESSED OPEN COURTYARD ATRIUMS (NORTH, CENTRAL GRAND, SOUTH)
@@ -1004,13 +1386,13 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   // --------------------------------------------------------------------------
   drawBuildingServiceCores(ctx);
 
-  // Vườn treo góc Đông-Nam (PATIO-SE: wx=720..821, wy=606..650 — đúng chỗ có 2 cây tròn trong bản vẽ CAD)
+  // Vườn treo góc Đông-Nam (PATIO-SE)
   drawIsoBox(
     ctx,
-    720,
-    606,
-    101,
-    44,
+    724,
+    604,
+    102,
+    42,
     8.5,
     9.5,
     '#dcfce7',
@@ -1066,13 +1448,7 @@ function tracePolygonPath(ctx: CanvasRenderingContext2D, pts: Point2D[]) {
 }
 
 /**
- * PHẦN A — VẼ LẠI 3 GIẾNG TRỜI (`drawCourtyardAtrium`) GIỐNG HỆT ẢNH THẬT TÒA NHÀ FRT:
- * Cấu trúc 4 lớp đồng tâm hình chữ nhật bo góc (Stadium / Pill-shaped Concentric Architecture):
- *  0. Nền Sân Đá Xám Kẻ Sọc (`#cbd5e1` / `#94a3b8`) + Hàng Cột Trụ Tròn Trắng (`#f8fafc`) + Dải Lan Can Ban Công Trắng Chấm Bi + Viền Gạch Đỏ Nâu (`#9a3412`)
- *  1. Lớp Đồng Tâm #1 (Vòng Ngoài): Bồn Cây Nhiệt Đới Xanh Mướt (`#15803d`, `#16a34a`, `#22c55e`) & Gờ Bê Tông Trắng Bo Tròn (`#f1f5f9`) + Hoa vàng cam ở góc
- *  2. Lớp Đồng Tâm #2 (Vòng Giữa): Hồ Nước Rãnh Bo Tròn Trồng Hoa Súng / Lá Sen (`#134e4a` / `#115e59` / `#0f766e` + lá súng `#22c55e`, `#4ade80` + hoa súng hồng/trắng)
- *  3. Lớp Đồng Tâm #3 (Vòng Trong): Bờ Cỏ Dây Leo Rủ & Giếng Sâu Tường Đỏ Đô Thông Tầng Hầm (`#991b1b` / `#b91c1c` / `#7f1d1d`) + Cột tròn trắng tầng hầm
- *  4. Lớp Đồng Tâm #4 (Tâm Giếng Trời): Đảo Sỏi Xám (`#64748b`), Bồn Oval Viền Trắng Đôi (`#f8fafc`) & 2 Cây Cọ / Dừa Cảnh Cao Vút (`Twin Fan Palms`)
+ * PHẦN A — VẼ LẠI 3 GIẾNG TRỜI (`drawCourtyardAtrium`) VỚI HÀNH LANG ĐÁ XÁM MỞ RỘNG & GHẾ SOFA NGHỈ CHÂN:
  */
 export function drawCourtyardAtrium(
   ctx: CanvasRenderingContext2D,
@@ -1080,14 +1456,22 @@ export function drawCourtyardAtrium(
   time: number
 ) {
   const { wx, wy, ww, wh, name } = atrium;
-  const zPromenade = 8.95; // Mặt sân đi bộ lát đá xám nơi anh em đứng hút thuốc
+  const zPromenade = 8.95; // Mặt sân đi bộ lát đá xám mở rộng nơi anh em đứng hút thuốc & ngồi nghỉ
 
   ctx.save();
 
   // ==========================================================================
-  // 0. NỀN SÂN ĐÁ XÁM KẺ SỌC DÀI & HÀNH LANG CỘT TRẮNG BAO QUANH (`Grey Stone Promenade & White Pillars`)
+  // 0. NỀN SÂN ĐÁ XÁM KẺ SỌC DÀI MỞ RỘNG (`Wide Grey Stone Promenade & Lounge Benches`)
   // ==========================================================================
-  const promPts = buildIsoStadiumPoints(wx - 4, wy - 4, ww + 8, wh + 8, 16, zPromenade);
+  const promPad = 14; // Nới rộng hành lang sân đá xám bao quanh giếng trời thêm thoáng đãng
+  const promPts = buildIsoStadiumPoints(
+    wx - promPad,
+    wy - promPad,
+    ww + promPad * 2,
+    wh + promPad * 2,
+    22,
+    zPromenade
+  );
   tracePolygonPath(ctx, promPts);
   const promGrad = ctx.createLinearGradient(promPts[0].x, promPts[0].y, promPts[10].x, promPts[10].y);
   promGrad.addColorStop(0, '#cbd5e1');
@@ -1099,24 +1483,47 @@ export function drawCourtyardAtrium(
   ctx.lineWidth = 1.3;
   ctx.stroke();
 
-  // Sọc đá lát dài (`#94a3b8` / `#cbd5e1`) trên sân đi bộ bao quanh giếng trời
-  ctx.strokeStyle = 'rgba(100, 116, 139, 0.42)';
+  // Sọc đá lát dài (`#94a3b8` / `#cbd5e1`) trên sân đi bộ mở rộng bao quanh giếng trời
+  ctx.strokeStyle = 'rgba(100, 116, 139, 0.36)';
   ctx.lineWidth = 0.85;
-  for (let stripeY = wy; stripeY <= wy + wh; stripeY += 11) {
-    const s0 = worldToIso(wx - 2, stripeY, zPromenade + 0.05);
-    const s1 = worldToIso(wx + ww + 2, stripeY, zPromenade + 0.05);
+  for (let stripeY = wy - promPad + 6; stripeY <= wy + wh + promPad - 6; stripeY += 12) {
+    const s0 = worldToIso(wx - promPad + 4, stripeY, zPromenade + 0.05);
+    const s1 = worldToIso(wx + ww + promPad - 4, stripeY, zPromenade + 0.05);
     ctx.beginPath();
     ctx.moveTo(s0.x, s0.y);
     ctx.lineTo(s1.x, s1.y);
     ctx.stroke();
   }
-  for (let stripeX = wx; stripeX <= wx + ww; stripeX += 16) {
-    const s0 = worldToIso(stripeX, wy - 2, zPromenade + 0.05);
-    const s1 = worldToIso(stripeX, wy + wh + 2, zPromenade + 0.05);
+  for (let stripeX = wx - promPad + 6; stripeX <= wx + ww + promPad - 6; stripeX += 16) {
+    const s0 = worldToIso(stripeX, wy - promPad + 4, zPromenade + 0.05);
+    const s1 = worldToIso(stripeX, wy + wh + promPad - 4, zPromenade + 0.05);
     ctx.beginPath();
     ctx.moveTo(s0.x, s0.y);
     ctx.lineTo(s1.x, s1.y);
     ctx.stroke();
+  }
+
+  // Cụm ghế băng gỗ có đệm mềm mại dọc theo hành lang mở rộng quanh Giếng trời
+  const loungeSeats: { bx: number; by: number; bw: number; bh: number; cushion: string }[] = [
+    { bx: wx + 18, by: wy - promPad + 2, bw: 26, bh: 8, cushion: '#38bdf8' },
+    { bx: wx + ww - 44, by: wy - promPad + 2, bw: 26, bh: 8, cushion: '#34d399' },
+    { bx: wx + 18, by: wy + wh + promPad - 10, bw: 26, bh: 8, cushion: '#fbbf24' },
+    { bx: wx + ww - 44, by: wy + wh + promPad - 10, bw: 26, bh: 8, cushion: '#f472b6' },
+  ];
+  for (const seat of loungeSeats) {
+    drawSoftRoundedExtrusion(
+      ctx,
+      seat.bx,
+      seat.by,
+      seat.bw,
+      seat.bh,
+      3.5,
+      zPromenade + 0.1,
+      zPromenade + 4.2,
+      seat.cushion,
+      '#d97706',
+      '#b45309'
+    );
   }
 
   // Viền gạch đỏ nâu (`Terracotta trim #9a3412`) bao quanh chân bồn cây trung tâm

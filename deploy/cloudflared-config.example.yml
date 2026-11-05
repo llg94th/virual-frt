@@ -1,0 +1,50 @@
+# ============================================================================
+# Cloudflare Tunnel Configuration (`deploy/cloudflared-config.example.yml`)
+# Dự án: Virtual FRT Office 2D
+#
+# Kiến trúc Zero-Trust Edge:
+# 1. CHẶN TUYỆT ĐỐI `/admin*` và `/api/admin*` ngay tại biên Cloudflare (HTTP 403)
+#    để không ai ngoài Internet có thể chạm tới trang cài đặt Credential.
+# 2. Chỉ định tuyến duy nhất API đọc dữ liệu đã làm sạch `/api/public/office-stream`
+#    và giao diện tĩnh (`dist/`) về `http://127.0.0.1:8787`.
+# ============================================================================
+
+tunnel: <YOUR_CLOUDFLARE_TUNNEL_UUID>
+credentials-file: /etc/cloudflared/<YOUR_CLOUDFLARE_TUNNEL_UUID>.json
+
+ingress:
+  # 1. [BẢO MẬT CỨNG TẦNG BIÊN] Chặn 100% truy cập /admin và /api/admin từ Internet
+  - hostname: office.yourdomain.com
+    path: ^/admin.*
+    service: http_status:403
+
+  - hostname: office.yourdomain.com
+    path: ^/api/admin.*
+    service: http_status:403
+
+  # 2. Cho phép duy nhất API Public đọc luồng sự kiện (đã qua RAM Cache Deduplicator & Sanitization)
+  - hostname: office.yourdomain.com
+    path: ^/api/public/office-stream.*
+    service: http://127.0.0.1:8787
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 10s
+
+  - hostname: office.yourdomain.com
+    path: ^/api/public/health$
+    service: http://127.0.0.1:8787
+
+  # 3. Chặn mọi đường dẫn /api/* nội bộ khác nếu có
+  - hostname: office.yourdomain.com
+    path: ^/api/.*
+    service: http_status:403
+
+  # 4. Phục vụ giao diện Web 2D tĩnh (dist/) trên cùng cổng 8787
+  - hostname: office.yourdomain.com
+    service: http://127.0.0.1:8787
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 10s
+
+  # 5. Catch-all rule bắt buộc của cloudflared
+  - service: http_status:404

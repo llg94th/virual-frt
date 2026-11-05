@@ -1,0 +1,32 @@
+version: '3.9'
+
+services:
+  frt-office-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: virtual-frt-office-2d
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8787:8787'
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - BIND_HOST=0.0.0.0
+      - ADMIN_MASTER_KEY=${ADMIN_MASTER_KEY:-}
+      - ALLOWED_UPSTREAM_HOSTS=reqs.frt.vn,jenkins-osp.frt.vn
+    volumes:
+      # Lưu bền vững file mã hóa AES-256-GCM (.credentials.enc.json & .master.key) khi cập nhật container
+      - frt_office_vault:/app/server
+
+  # Tùy chọn: Chạy kèm Cloudflare Tunnel ngay trong Docker Compose
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: frt-office-cloudflared
+  #   restart: unless-stopped
+  #   command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+  #   depends_on:
+  #     - frt-office-proxy
+
+volumes:
+  frt_office_vault:

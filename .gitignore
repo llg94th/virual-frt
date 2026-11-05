@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Encrypted Backend Proxy Credentials & Keys (NEVER commit)
+server/.credentials.enc.json
+server/.master.key
+.env
+.env.*
+!.env.example

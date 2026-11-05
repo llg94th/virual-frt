@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6fa;
+    color: #0f172a;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ==========================================================================
+   FLEZIMERCURIA FULL-BLEED ISOMETRIC STAGE & FLOATING GLASSMORPHISM HUD
+   ========================================================================== */
+
+/* Make OfficeCanvas2D truly full-bleed across the entire viewport */
+.flezi-fullbleed-stage > div {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: #f4f6fa !important;
+}
+
+/* Hide legacy fixed dark sub-header inside OfficeCanvas2D so Floating Pill HUD takes over */
+.flezi-fullbleed-stage > div > div.border-b.border-slate-800 {
+  display: none !important;
+}
+
+/* Dark Slate Glassmorphism Pill (like Flezimercuria top LIVE status pill) */
+.flezi-glass-dark {
+  background: rgba(15, 23, 42, 0.86);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow:
+    0 12px 32px -8px rgba(15, 23, 42, 0.32),
+    0 4px 12px -2px rgba(15, 23, 42, 0.18);
+}
+
+/* Bright Architectural White Floating Pill (like Flezimercuria 01..08 zone callout cards) */
+.flezi-glass-light {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  box-shadow:
+    0 10px 25px -6px rgba(15, 23, 42, 0.12),
+    0 2px 6px -1px rgba(15, 23, 42, 0.06);
+}
+
+/* Smooth custom scrollbars for floating drawers */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.85);
+}

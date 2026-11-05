@@ -171,7 +171,7 @@ function extractMentionedAccounts(text) {
 
 const DEFAULT_PROXY_CONFIG = {
   jiraUrl:
-    'https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic&title=undefined',
+    'https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic',
   jiraAuthType: 'BASIC', // 'BASIC' | 'BEARER' | 'COOKIE' | 'NONE'
   jiraUsername: '',
   jiraSecret: '',
@@ -2448,22 +2448,73 @@ export function createOfficeProxyServer() {
           rawAfterSeq !== null && rawAfterSeq !== '' && !Number.isNaN(Number(rawAfterSeq))
             ? Math.max(0, Math.floor(Number(rawAfterSeq)))
             : 0;
+        const rawLimit = parsedUrl.searchParams.get('limit');
+        const maxEvents =
+          rawLimit !== null && rawLimit !== '' && !Number.isNaN(Number(rawLimit))
+            ? Math.max(1, Math.min(50, Math.floor(Number(rawLimit))))
+            : 15;
 
         // Run a coalesced poll cycle so the server's RAM Cache Deduplicator processes the latest feed
         const pollOutcome = await executeUpstreamPollCycle('public-stream-poll');
 
         // Filter events strictly by Monotonic Cursor `seq > afterSeq`
-        let eventsToReturn = [];
+        let rawEvents = [];
         if (afterSeq > 0) {
           // Client already has a cursor: ONLY return events strictly newer than `afterSeq`!
-          eventsToReturn = eventRingBuffer.filter((ev) => ev.seq > afterSeq);
+          rawEvents = eventRingBuffer.filter((ev) => ev.seq > afterSeq).slice(-maxEvents);
         } else {
           // First-time client connection (`afterSeq == 0`): return at most 3 newest events
           // to initialize the office screen and hand out `latestSeq` for subsequent polls!
-          eventsToReturn = eventRingBuffer.slice(-3);
+          rawEvents = eventRingBuffer.slice(-Math.min(3, maxEvents));
         }
 
+        // Chỉ trả về các trường thông tin thực sự cần thiết cho Game 2D
+        const eventsToReturn = rawEvents.map((ev) =>
+          ev.kind === 'JIRA_ACTIVITY'
+            ? {
+                seq: ev.seq,
+                fingerprint: ev.fingerprint,
+                kind: 'JIRA_ACTIVITY',
+                ticketKey: ev.ticketKey,
+                fromAccount: ev.fromAccount,
+                toAccount: ev.toAccount,
+                fromEmployeeId: ev.fromEmployeeId,
+                toEmployeeId: ev.toEmployeeId,
+                toStatus: ev.toStatus,
+                isReturnToPM: ev.isReturnToPM,
+                summary: ev.summary,
+                updatedAt: ev.updatedAt,
+              }
+            : {
+                seq: ev.seq,
+                fingerprint: ev.fingerprint,
+                kind: 'JENKINS_BUILD',
+                jobName: ev.jobName,
+                clusterId: ev.clusterId || 'CI',
+                buildNumber: ev.buildNumber,
+                status: ev.status,
+                statusText: ev.statusText,
+                triggeredByAccount: ev.triggeredByAccount,
+                employeeId: ev.employeeId,
+                ticketKey: ev.ticketKey,
+                timeAgo: ev.timeAgo,
+                publishedAt: ev.publishedAt,
+              }
+        );
+
         const newBuildEvents = eventsToReturn.filter((ev) => ev.kind === 'JENKINS_BUILD');
+        const compactJenkinsSnapshot = jenkinsSnapshot.slice(0, 5).map((b) => ({
+          id: b.id,
+          fingerprint: b.fingerprint,
+          buildNumber: b.buildNumber,
+          jobName: b.jobName,
+          clusterId: b.clusterId || 'CI',
+          status: b.status,
+          statusText: b.statusText,
+          triggeredByAccount: b.triggeredByAccount,
+          ticketKey: b.ticketKey,
+          timeAgo: b.timeAgo,
+        }));
         const statsSnapshot = getPublicDedupStatsSnapshot();
 
         sendJson(res, 200, {
@@ -2473,7 +2524,7 @@ export function createOfficeProxyServer() {
           eventsCount: eventsToReturn.length,
           events: eventsToReturn,
           newBuildEvents,
-          jenkinsSnapshot: jenkinsSnapshot.slice(0, 5),
+          jenkinsSnapshot: compactJenkinsSnapshot,
           dedupStats: statsSnapshot,
           pollSummary: {
             sourceUsed: pollOutcome.sourceUsed,

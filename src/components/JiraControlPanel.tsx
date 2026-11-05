@@ -449,27 +449,32 @@ export const JiraControlPanel: React.FC<JiraControlPanelProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setShowWebhookModal(true)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-extrabold transition shadow-sm border ${
-              isLiveMode
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white border-emerald-300'
-                : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 border-amber-300'
-            }`}
-            title="Mở cửa sổ Cấu hình Kết nối Jira (reqs.frt.vn) & Jenkins (jenkins-osp.frt.vn) Thật"
-          >
-            <span>🔌 Setting Jira &amp; Jenkins Thật</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full font-mono text-[9px] font-black ${
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-full border border-slate-700">
+            <button
+              type="button"
+              onClick={() => handleSetMode('LIVE_FRT')}
+              className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold transition ${
                 isLiveMode
-                  ? 'bg-slate-950/80 text-emerald-300'
-                  : 'bg-slate-950/85 text-amber-300'
+                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
+              title="Chế độ Dữ liệu Thật từ Server Proxy"
             >
-              {isLiveMode ? 'LIVE REAL' : 'MOCK PILOT'}
-            </span>
-          </button>
+              🟢 Thật
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetMode('MOCK_PILOT')}
+              className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold transition ${
+                !isLiveMode
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Chế độ Giả lập (Mock Pilot)"
+            >
+              🧪 Mock
+            </button>
+          </div>
 
           {onCollapse && (
             <button

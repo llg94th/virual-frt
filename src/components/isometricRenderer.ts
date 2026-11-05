@@ -2159,27 +2159,6 @@ export function drawCutawayIsoZone(
       ctx.stroke();
     }
 
-    // 5C. Dòng chữ lớn `NHÀ THUỐC` trên sàn xanh lá nằm chính giữa Hàng 1 và Hàng 2 (đúng như sơ đồ Excel!)
-    const titlePos = worldToIso(
-      NHA_THUOC_BAY_BOUNDS.floorBanner.wx,
-      NHA_THUOC_BAY_BOUNDS.floorBanner.wy,
-      10.65
-    );
-    ctx.font = '900 11.5px Inter, system-ui, sans-serif';
-    const bannerText = '🏥 NHÀ THUỐC (FT3.III2A.1)';
-    const bw = ctx.measureText(bannerText).width + 24;
-    drawRoundedRect(ctx, titlePos.x - bw / 2, titlePos.y - 10, bw, 20, 6);
-    ctx.fillStyle = 'rgba(20, 83, 45, 0.92)';
-    ctx.fill();
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 1.6;
-    ctx.stroke();
-
-    ctx.fillStyle = '#fef08a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(bannerText, titlePos.x, titlePos.y + 0.5);
-
     ctx.restore();
   } else if (z.id === 'ISO-ZONE-01') {
     // 01 PM Command Center (Central Spine): Golden Trophy & DONE Archive Cabinet + Strategy Table
@@ -6064,88 +6043,9 @@ export function formatFlezimercuriaName(emp?: Employee, fallbackId?: string): st
     .replace(/\s*\(PM\)/i, '');
 }
 
-/** Vẽ biển tên phân khu nổi 01..09 kèm đường ghim & chấm tròn đồng tâm `⦿` kiểu Flezimercuria */
-export function drawFlezimercuriaZoneCallouts(ctx: CanvasRenderingContext2D) {
-  for (const z of FLEZI_ISO_ZONES) {
-    const anchorWx = z.pinAnchor?.wx ?? z.wx + z.ww * 0.5;
-    const anchorWy = z.pinAnchor?.wy ?? z.wy + z.wh * 0.45;
-    const pinH = z.pinAnchor?.height ?? 72;
-
-    const anchorIso = worldToIso(anchorWx, anchorWy, 12);
-    const cardIso = worldToIso(anchorWx, anchorWy, 12 + pinH);
-
-    ctx.save();
-
-    // Vertical pin line connecting card to zone bullseye
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(anchorIso.x, anchorIso.y);
-    ctx.lineTo(cardIso.x, cardIso.y);
-    ctx.stroke();
-
-    // Concentric Bullseye Target `⦿` on zone floor
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.arc(anchorIso.x, anchorIso.y, 6.8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(anchorIso.x, anchorIso.y, 2.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Measure Floating White Callout Card (Compact & Clean)
-    ctx.font = '800 9.5px Inter, system-ui, sans-serif';
-    const titleW = ctx.measureText(z.title).width;
-    ctx.font = '700 7.8px Inter, system-ui, sans-serif';
-    const codeW = ctx.measureText(z.code).width;
-
-    const cardW = Math.max(titleW, codeW) + 46;
-    const cardH = 31;
-    const cardX = cardIso.x - cardW / 2;
-    const cardY = cardIso.y - cardH;
-
-    ctx.shadowColor = 'rgba(15, 23, 42, 0.16)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 3;
-
-    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 8);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-
-    ctx.strokeStyle = z.rimColor;
-    ctx.lineWidth = 1.35;
-    ctx.stroke();
-
-    // Left Rounded Square Number Badge (01..09)
-    drawRoundedRect(ctx, cardX + 4.5, cardY + 4.5, 23, 22, 5.5);
-    ctx.fillStyle = z.badgeColor;
-    ctx.fill();
-
-    ctx.font = '800 9px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(z.num, cardX + 16, cardY + 15.5);
-
-    // Right Zone Name + Code
-    ctx.textAlign = 'left';
-    ctx.font = '800 9.5px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#0f172a';
-    ctx.fillText(z.title, cardX + 33, cardY + 11);
-
-    ctx.font = '700 7.8px Inter, system-ui, sans-serif';
-    ctx.fillStyle = '#64748b';
-    ctx.fillText(z.code, cardX + 33, cardY + 22);
-
-    ctx.restore();
-  }
+/** Đã tắt vẽ biển hiệu phân khu nổi 01..09 (Mobile Lab, PM Command, v.v.) theo yêu cầu để mặt bằng sạch thoáng 100% */
+export function drawFlezimercuriaZoneCallouts(_ctx: CanvasRenderingContext2D) {
+  // No-op: removed floating zone callout signboards & bullseye pins
 }
 
 export interface ScreenLabelRect {

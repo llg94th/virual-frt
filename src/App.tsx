@@ -101,7 +101,8 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
   const [focusJenkinsSignal, setFocusJenkinsSignal] = useState<number>(0);
 
   // Clean HUD Toggle (`isHudHidden`, shortcut `H`) & Fullscreen (`F`)
-  const [isHudHidden, setIsHudHidden] = useState<boolean>(false);
+  // Mặc định ẩn chế độ Advance nhiều hub tùy chỉnh (`isHudHidden = true`)
+  const [isHudHidden, setIsHudHidden] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const toggleHud = useCallback(() => {
@@ -248,7 +249,7 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
             void toggleFullscreen();
           }}
           dataSourceMode={sim.dataSourceMode}
-          onOpenIntegrationSettings={() => setShowIntegrationSettings(true)}
+          onSetDataSourceMode={(mode) => sim.setDataSourceMode(mode)}
         />
       </main>
 
@@ -259,30 +260,35 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
       ==================================================================== */}
       {!isHudHidden && (
       <header className="fixed top-3 left-3 z-30 flex flex-col items-start gap-2 max-w-[calc(100vw-24px)] lg:max-w-[calc(100vw-455px)] pointer-events-none">
-        {/* Row 1: Prominent Setting Jira & Jenkins Thật Button + Status Pill + Quick Simulation Controls */}
+        {/* Row 1: 2-Mode Switch (Thật vs Mock) + Status Pill + Quick Simulation Controls */}
         <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-          {/* CỰC KỲ NỔI BẬT: Nút mở Modal Cấu Hình Kết Nối Jira & Jenkins Thật ngay đầu thanh Top Bar */}
-          <button
-            type="button"
-            onClick={() => setShowIntegrationSettings(true)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-2 border-2 shadow-lg ${
-              sim.dataSourceMode === 'LIVE_FRT'
-                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 border-emerald-200 shadow-emerald-500/40'
-                : 'bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 border-amber-200 shadow-orange-500/40'
-            }`}
-            title="Mở cửa sổ cấu hình kết nối Jira (reqs.frt.vn) & Jenkins (jenkins-osp.frt.vn) Thật — Chuyển đổi LIVE REAL / MOCK PILOT"
-          >
-            <span className="text-sm">🔌 Setting Jira & Jenkins Thật</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+          {/* Công tắc 2 Chế Độ: Thật (LIVE) vs Mock (Không cho user tự set credential) */}
+          <div className="flezi-glass-dark rounded-full p-1 flex items-center gap-1 border border-slate-700/80 shadow-lg">
+            <button
+              type="button"
+              onClick={() => sim.setDataSourceMode('LIVE_FRT')}
+              className={`px-3 py-1 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 ${
                 sim.dataSourceMode === 'LIVE_FRT'
-                  ? 'bg-slate-950 text-emerald-300 border border-emerald-400/50'
-                  : 'bg-slate-950 text-amber-300 border border-amber-400/50'
+                  ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/40'
+                  : 'text-slate-300 hover:text-white'
               }`}
+              title="Chế độ Dữ liệu Thật từ Server Proxy (Jira & Jenkins)"
             >
-              {sim.dataSourceMode === 'LIVE_FRT' ? 'LIVE REAL' : 'MOCK PILOT'}
-            </span>
-          </button>
+              <span>🟢 Chế độ Thật (LIVE)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => sim.setDataSourceMode('MOCK_PILOT')}
+              className={`px-3 py-1 rounded-full text-xs font-extrabold transition flex items-center gap-1.5 ${
+                sim.dataSourceMode === 'MOCK_PILOT'
+                  ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/40'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+              title="Chế độ Giả lập (Mock Pilot)"
+            >
+              <span>🧪 Chế độ Mock</span>
+            </button>
+          </div>
 
           {/* Signature Flezimercuria Status Pill */}
           <div className="flezi-glass-dark rounded-full px-3.5 py-1.5 flex items-center gap-2.5 text-slate-100">

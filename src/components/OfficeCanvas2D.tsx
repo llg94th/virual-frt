@@ -192,8 +192,8 @@ export interface OfficeCanvas2DProps {
   onToggleFullscreen?: () => void;
   /** Chế độ nguồn dữ liệu hiện tại: LIVE_FRT (Thật) hoặc MOCK_PILOT (Demo) */
   dataSourceMode?: 'LIVE_FRT' | 'MOCK_PILOT';
-  /** Mở cửa sổ Modal Cấu hình Jira & Jenkins Thật chính giữa màn hình */
-  onOpenIntegrationSettings?: () => void;
+  /** Chuyển trực tiếp giữa 2 chế độ: LIVE_FRT (Thật) và MOCK_PILOT (Mock) — Không cho user tự set credential */
+  onSetDataSourceMode?: (mode: 'LIVE_FRT' | 'MOCK_PILOT') => void;
   /** Class CSS tùy chỉnh */
   className?: string;
 }
@@ -682,7 +682,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   isFullscreen = false,
   onToggleFullscreen,
   dataSourceMode = 'MOCK_PILOT',
-  onOpenIntegrationSettings,
+  onSetDataSourceMode,
   className = '',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -945,12 +945,17 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       const rect = canvas.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return null;
 
-      const canvasX = (clientX - rect.left) * (OFFICE_CANVAS_WIDTH / rect.width);
-      const canvasY = (clientY - rect.top) * (OFFICE_CANVAS_HEIGHT / rect.height);
-
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+      const viewScale = Math.max(
+        rect.width / OFFICE_CANVAS_WIDTH,
+        rect.height / OFFICE_CANVAS_HEIGHT
+      );
       const cam = cameraRef.current;
-      const isoX = (canvasX - OFFICE_CANVAS_WIDTH / 2) / cam.zoom + cam.x;
-      const isoY = (canvasY - OFFICE_CANVAS_HEIGHT / 2) / cam.zoom + cam.y;
+      const effectiveZoom = cam.zoom * viewScale;
+
+      const isoX = (localX - rect.width / 2) / effectiveZoom + cam.x;
+      const isoY = (localY - rect.height / 2) / effectiveZoom + cam.y;
 
       return {
         iso: { x: isoX, y: isoY },
@@ -1084,10 +1089,13 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       dragLastClientRef.current = { x: e.clientX, y: e.clientY };
 
       const cam = cameraRef.current;
-      const scaleX = OFFICE_CANVAS_WIDTH / rect.width;
-      const scaleY = OFFICE_CANVAS_HEIGHT / rect.height;
-      cam.targetX -= (dxClient * scaleX) / cam.zoom;
-      cam.targetY -= (dyClient * scaleY) / cam.zoom;
+      const viewScale = Math.max(
+        rect.width / OFFICE_CANVAS_WIDTH,
+        rect.height / OFFICE_CANVAS_HEIGHT
+      );
+      const effectiveZoom = cam.zoom * viewScale;
+      cam.targetX -= dxClient / effectiveZoom;
+      cam.targetY -= dyClient / effectiveZoom;
       cam.x = cam.targetX;
       cam.y = cam.targetY;
       return;
@@ -1237,14 +1245,26 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Support up to 2.5x HiDPI so zoomed-in 182% characters & document stacks are razor-sharp
+      // Khung hình game luôn tự động giãn tối đa 100% màn hình (Full Viewport WxH) với độ nét HiDPI 2.5x
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      const targetW = Math.round(OFFICE_CANVAS_WIDTH * dpr);
-      const targetH = Math.round(OFFICE_CANVAS_HEIGHT * dpr);
+      const viewW = Math.max(
+        320,
+        canvas.clientWidth || window.innerWidth || OFFICE_CANVAS_WIDTH
+      );
+      const viewH = Math.max(
+        240,
+        canvas.clientHeight || window.innerHeight || OFFICE_CANVAS_HEIGHT
+      );
+      const targetW = Math.round(viewW * dpr);
+      const targetH = Math.round(viewH * dpr);
       if (canvas.width !== targetW || canvas.height !== targetH) {
         canvas.width = targetW;
         canvas.height = targetH;
       }
+      const viewScale = Math.max(
+        viewW / OFFICE_CANVAS_WIDTH,
+        viewH / OFFICE_CANVAS_HEIGHT
+      );
 
       const cfg = configRef.current;
       const emps = employeesRef.current;
@@ -1409,23 +1429,24 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       // 1. BRIGHT CLEAN ARCHITECTURAL WORLD BACKGROUND (#F4F6FA -> #FFFFFF)
       // ------------------------------------------------------------------------
       const bgGrad = ctx.createRadialGradient(
-        OFFICE_CANVAS_WIDTH * 0.5,
-        OFFICE_CANVAS_HEIGHT * 0.45,
+        viewW * 0.5,
+        viewH * 0.45,
         80,
-        OFFICE_CANVAS_WIDTH * 0.5,
-        OFFICE_CANVAS_HEIGHT * 0.5,
-        OFFICE_CANVAS_WIDTH * 0.85
+        viewW * 0.5,
+        viewH * 0.5,
+        Math.max(viewW, viewH) * 0.85
       );
       bgGrad.addColorStop(0, '#ffffff');
       bgGrad.addColorStop(0.55, '#f6f8fc');
       bgGrad.addColorStop(1, '#eaeff7');
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, OFFICE_CANVAS_WIDTH, OFFICE_CANVAS_HEIGHT);
+      ctx.fillRect(0, 0, viewW, viewH);
 
-      // Apply Isometric Camera Transform
+      // Apply Isometric Camera Transform stretched across 100% viewport
+      const effectiveZoom = cam.zoom * viewScale;
       ctx.save();
-      ctx.translate(OFFICE_CANVAS_WIDTH / 2, OFFICE_CANVAS_HEIGHT / 2);
-      ctx.scale(cam.zoom, cam.zoom);
+      ctx.translate(viewW / 2, viewH / 2);
+      ctx.scale(effectiveZoom, effectiveZoom);
       ctx.translate(-cam.x, -cam.y);
 
       // ------------------------------------------------------------------------
@@ -2221,335 +2242,8 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col w-full h-full bg-[#f4f6fa] rounded-xl border border-slate-300/90 overflow-hidden select-none shadow-2xl ${className}`}
+      className={`relative flex flex-col w-full h-full bg-[#f4f6fa] overflow-hidden select-none ${className}`}
     >
-      {/* Top Overlay HUD Bar: Role Legend & Isometric Layer Controls (Ẩn khi bật chế độ Ẩn HUD) */}
-      {!isHudHidden && (
-        <div className="z-20 flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md">
-          {/* Role Filter Chips (30 Staff Breakdown) */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setRoleFilter('ALL')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                roleFilter === 'ALL'
-                  ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/40'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              Tất cả (30)
-            </button>
-            {(Object.keys(ROLE_METADATA) as Role[]).map((role) => {
-              const meta = ROLE_METADATA[role];
-              const count = employees.filter((e) => e.role === role).length;
-              const active = roleFilter === role;
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setRoleFilter(active ? 'ALL' : role)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-all border ${
-                    active
-                      ? 'bg-slate-800 text-white border-orange-400 shadow-sm'
-                      : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: meta.primaryColor }}
-                  />
-                  <span>{meta.shortLabel}</span>
-                  <span className="text-[10px] text-slate-400">({count})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Canvas View & Layer Controls */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {onOpenIntegrationSettings && (
-              <button
-                type="button"
-                onClick={onOpenIntegrationSettings}
-                className={`px-3 py-1 rounded-md text-xs font-extrabold transition flex items-center gap-1.5 border shadow-md ${
-                  dataSourceMode === 'LIVE_FRT'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-300 shadow-emerald-500/40'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 border-amber-300 shadow-amber-500/40'
-                }`}
-                title="Mở cửa sổ cấu hình kết nối Jira (reqs.frt.vn) & Jenkins (jenkins-osp.frt.vn) Thật"
-              >
-                <span>🔌 Setting Jira & Jenkins Thật</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase ${
-                    dataSourceMode === 'LIVE_FRT'
-                      ? 'bg-slate-950 text-emerald-300'
-                      : 'bg-slate-950 text-amber-300'
-                  }`}
-                >
-                  {dataSourceMode === 'LIVE_FRT' ? 'LIVE REAL' : 'MOCK PILOT'}
-                </span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={focusJenkinsServerCamera}
-              className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-sky-600 hover:bg-sky-500 text-white border border-sky-400 shadow-sm shadow-sky-600/40 transition flex items-center gap-1"
-              title="Zoom thẳng vào Trạm Máy Tính Server Jenkins (oneclickv4-build-ci)"
-            >
-              <span>🖥️ Focus Jenkins Server</span>
-            </button>
-
-            {onTriggerJenkinsBuild && (
-              <button
-                type="button"
-                onClick={() => {
-                  onTriggerJenkinsBuild();
-                }}
-                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 shadow-sm shadow-indigo-600/40 transition flex items-center gap-1"
-                title="Cử kỹ sư đi bộ lại Trạm Máy Tính Server để chạy Build Jenkins (oneclickv4-build-ci)"
-              >
-                <span>🚀 Build CI</span>
-              </button>
-            )}
-
-            {onTriggerUatBuild && (
-              <button
-                type="button"
-                onClick={() => {
-                  onTriggerUatBuild();
-                }}
-                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-purple-600 hover:bg-purple-500 text-white border border-purple-400 shadow-sm shadow-purple-600/40 transition flex items-center gap-1"
-                title="Cử kỹ sư đi bộ lại Trạm Server UAT để chạy Build Jenkins (oneclickv4-build-uat)"
-              >
-                <span>🟣 Build UAT</span>
-              </button>
-            )}
-
-            {onResetNewDay && (
-              <button
-                type="button"
-                onClick={onResetNewDay}
-                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-teal-600 hover:bg-teal-500 text-white border border-teal-400 shadow-sm transition flex items-center gap-1"
-                title="Reset Ngày Mới — Làm trống 100% bàn làm việc (0 người ngồi)"
-              >
-                <span>🌅 Reset Ngày Mới ({checkedInCount ?? 0} ngồi)</span>
-              </button>
-            )}
-
-            {onTriggerTestFullSeatsSmoking && (
-              <button
-                type="button"
-                onClick={onTriggerTestFullSeatsSmoking}
-                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-amber-600 hover:bg-amber-500 text-white border border-amber-400 shadow-sm transition flex items-center gap-1"
-                title="Giả lập Kịch bản Full Chỗ Ngồi — Các thành viên có event sau sẽ ra Giếng trời hút thuốc (🚬 💨)"
-              >
-                <span>🚬 Test Full Chỗ ({smokingCount ?? 0} hút thuốc)</span>
-              </button>
-            )}
-
-            {onTriggerTestInactivityCheckout && (
-              <button
-                type="button"
-                onClick={onTriggerTestInactivityCheckout}
-                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-orange-600 hover:bg-orange-500 text-white border border-orange-400 shadow-sm transition flex items-center gap-1"
-                title="Test nhanh Quy tắc 2h Không Có Event Mới — 1–2 nhân viên đứng dậy rời bàn, đi ra 🚪 CỬA RA VÀO về nhà và nhường lại ghế trống!"
-              >
-                <span>🏠 Test 2h Không Event (Đi Về)</span>
-              </button>
-            )}
-
-            {onTriggerJenkinsBrokenHotfix && (
-              <button
-                type="button"
-                onClick={() => {
-                  onTriggerJenkinsBrokenHotfix();
-                  setAutoFollowEvent(true);
-                  setIsFreeCamera(false);
-                }}
-                className={`px-2.5 py-1 rounded-md text-xs font-extrabold transition flex items-center gap-1 border shadow-sm ${
-                  isJenkinsBrokenAlert
-                    ? 'bg-red-600 text-yellow-200 border-yellow-300 shadow-red-600/50 animate-pulse'
-                    : 'bg-red-700/90 hover:bg-red-600 text-white border-red-400 shadow-red-700/40'
-                }`}
-                title="Giả lập sự kiện Jenkins Build Broken #2843 & cử kỹ sư chạy nhanh (⚡ HOTFIX SPRINT) ra Trạm Server cứu build"
-              >
-                <span>🚨 Giả lập Build Broken / Hotfix</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={toggleIslandHeatmap}
-              className={`px-2.5 py-1 rounded-md text-xs font-extrabold transition flex items-center gap-1 border ${
-                localShowIslandHeatmap
-                  ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-sm shadow-amber-500/40'
-                  : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-amber-500/40'
-              }`}
-              title="Bật/Tắt Bản Đồ Nhiệt 9 Cụm Bàn (Island Activity Heatmap) ngay trên mặt sàn Khoang Nhà Thuốc"
-            >
-              <span>🔥 Heatmap Cụm Bàn ({localShowIslandHeatmap ? 'ON' : 'OFF'})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleMvpPodium}
-              className={`px-2.5 py-1 rounded-md text-xs font-extrabold transition flex items-center gap-1 border ${
-                localShowMvpPodium
-                  ? 'bg-yellow-500 text-slate-950 border-yellow-300 shadow-sm shadow-yellow-500/40'
-                  : 'bg-slate-800 hover:bg-slate-700 text-yellow-300 border-yellow-500/40'
-              }`}
-              title="Bật/Tắt Bảng Xếp Hạng Top 3 Chiến Thần Giao Việc & Build CI (Mini MVP Podium)"
-            >
-              <span>🏆 Top MVP ({localShowMvpPodium ? 'ON' : 'OFF'})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => focusManagerCamera(FEMALE_MANAGER_ID)}
-              className="px-2 py-1 rounded-md text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 shadow-sm transition flex items-center gap-1"
-              title="Focus Sếp ThuNDM (Khoang Đông — Thả tim ❤️)"
-            >
-              <span>👑 ThuNDM ❤️</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => focusManagerCamera(MANAGER_TOANLBK_ID)}
-              className="px-2 py-1 rounded-md text-xs font-extrabold bg-red-800 hover:bg-red-700 text-amber-200 border border-red-400 shadow-sm transition flex items-center gap-1"
-              title="Focus Sếp ToanLBK (Khoang Bắc — Tốc độ 1.5x, Giận dữ 💢)"
-            >
-              <span>👑 ToanLBK 💢(1.5x)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => focusManagerCamera(MANAGER_DOANNT19_ID)}
-              className="px-2 py-1 rounded-md text-xs font-extrabold bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-400 shadow-sm transition flex items-center gap-1"
-              title="Focus Sếp doannt19 (Khoang Tây-Trung — Luôn vui vẻ cười 😄)"
-            >
-              <span>👑 doannt19 😄</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => focusManagerCamera(MANAGER_VANLTB8_ID)}
-              className="px-2 py-1 rounded-md text-xs font-extrabold bg-sky-700 hover:bg-sky-600 text-white border border-sky-400 shadow-sm transition flex items-center gap-1"
-              title="Focus Sếp vanltb8 (Khoang Nam — Luôn lo lắng 😰)"
-            >
-              <span>👑 vanltb8 😰</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={focusNhaThuocBayCamera}
-              className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-sm shadow-emerald-600/40 transition flex items-center gap-1"
-              title="1-Click Zoom thẳng vào Khoang NHÀ THUỐC (FT3.III2A.1 • 9 cụm bàn • 54 ô)"
-            >
-              <span>🏥 Focus Khoang NHÀ THUỐC</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={togglePaths}
-              className={`px-2 py-1 rounded text-xs font-medium border transition ${
-                localShowActivePaths
-                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-              title="Bật/Tắt vẽ đường đi bê tài liệu dưới chân nhân vật (Mặc định TẮT)"
-            >
-              Đường đi ({localShowActivePaths ? 'ON' : 'OFF'})
-            </button>
-            <button
-              type="button"
-              onClick={toggleWaypoints}
-              className={`px-2 py-1 rounded text-xs font-medium border transition ${
-                localShowWaypoints
-                  ? 'bg-sky-500/20 border-sky-500/50 text-sky-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-              title="Hiển thị nút hành lang Waypoints"
-            >
-              Waypoints
-            </button>
-            <button
-              type="button"
-              onClick={toggleGrid}
-              className={`px-2 py-1 rounded text-xs font-medium border transition ${
-                localShowGrid
-                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-              title="Hiển thị lưới Isometric"
-            >
-              Lưới Iso
-            </button>
-            <button
-              type="button"
-              onClick={toggleLabels}
-              className={`px-2 py-1 rounded text-xs font-medium border transition ${
-                localShowLabels
-                  ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}
-              title="Ẩn/Hiện nhãn tên nhân viên"
-            >
-              Tên NV
-            </button>
-
-            <div className="h-4 w-px bg-slate-800 mx-0.5" />
-
-            <button
-              type="button"
-              onClick={() => {
-                const next = Math.max(0.55, Number((cameraRef.current.targetZoom - 0.2).toFixed(2)));
-                cameraRef.current.targetZoom = next;
-                setHudZoomPercent(Math.round(next * 100));
-              }}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
-              title="Thu nhỏ"
-            >
-              −
-            </button>
-            <span className="text-xs text-slate-300 font-mono min-w-[44px] text-center">
-              {hudZoomPercent}%
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const next = Math.min(2.6, Number((cameraRef.current.targetZoom + 0.2).toFixed(2)));
-                cameraRef.current.targetZoom = next;
-                setHudZoomPercent(Math.round(next * 100));
-              }}
-              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
-              title="Phóng to"
-            >
-              +
-            </button>
-
-            {onToggleHud && (
-              <button
-                type="button"
-                onClick={onToggleHud}
-                className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 transition"
-                title="Ẩn toàn bộ HUD chỉ chừa Mini Floating Pill (Phím tắt H)"
-              >
-                👁️ Ẩn HUD (H)
-              </button>
-            )}
-
-            {onToggleFullscreen && (
-              <button
-                type="button"
-                onClick={onToggleFullscreen}
-                className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/40 transition"
-                title="Toàn màn hình Fullscreen (Phím tắt F)"
-              >
-                ⛶ {isFullscreen ? 'Thoát Fullscreen (F)' : 'Fullscreen (F)'}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Sprint Rush Banner */}
       {rushActive && !isHudHidden && (
         <div className="z-20 bg-gradient-to-r from-orange-600/95 via-red-600/95 to-amber-600/95 text-white text-xs font-bold py-1.5 px-4 text-center tracking-wider uppercase shadow-lg animate-pulse">
@@ -2557,9 +2251,9 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         </div>
       )}
 
-      {/* Interactive Isometric 2.5D Canvas Viewport */}
+      {/* Interactive Isometric 2.5D Canvas Viewport — 100% Full Screen Edge-to-Edge */}
       <div
-        className={`relative flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-[#f4f6fa] ${
+        className={`relative flex-1 w-full h-full overflow-hidden bg-[#f4f6fa] ${
           isDragging
             ? 'cursor-grabbing'
             : hoveredEmployeeId || hoveredJenkinsServer
@@ -2574,82 +2268,77 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       >
         <canvas
           ref={canvasRef}
-          style={{
-            aspectRatio: `${OFFICE_CANVAS_WIDTH} / ${OFFICE_CANVAS_HEIGHT}`,
-          }}
-          className="w-full h-full object-contain"
+          className="block w-full h-full"
         />
 
         {/* ====================================================================
-            CHẾ ĐỘ ẨN HUD (`isHudHidden === true`):
-            CHỈ HIỂN THỊ MINI FLOATING PILL SIÊU GỌN Ở GÓC TRÊN PHẢI
+            CHẾ ĐỘ MẶC ĐỊNH ẨN ADVANCE HUD (`isHudHidden === true`):
+            HIỂN THỊ MINI FLOATING PILL GỌN GÀNG Ở GÓC TRÊN PHẢI:
+            - Công tắc 2 Chế Độ: 🟢 Thật (LIVE) | 🧪 Mock (Không cho user tự set credential)
+            - Nút ⛶ Toàn màn hình (Fullscreen)
+            - Nút 🎛️ Tùy chỉnh (Advance HUD)
         ==================================================================== */}
         {isHudHidden ? (
-          <div className="absolute top-3 right-3 z-30 flex items-center gap-2 bg-slate-950/90 border border-slate-700/80 rounded-full px-3.5 py-1.5 backdrop-blur-md shadow-2xl text-slate-100 pointer-events-auto">
-            {onOpenIntegrationSettings && (
+          <div className="absolute top-3 right-3 z-30 flex items-center gap-2 bg-slate-950/90 border border-slate-700/80 rounded-full px-3 py-1.5 backdrop-blur-md shadow-2xl text-slate-100 pointer-events-auto">
+            {/* 2-Mode Switch: Thật (LIVE) vs Mock */}
+            <div className="flex items-center bg-slate-900 p-0.5 rounded-full border border-slate-700/90 shrink-0">
               <button
                 type="button"
-                onClick={onOpenIntegrationSettings}
-                className={`px-3 py-1 rounded-full text-[11px] font-extrabold transition flex items-center gap-1.5 border shadow-md shrink-0 ${
+                onClick={() => onSetDataSourceMode?.('LIVE_FRT')}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold transition flex items-center gap-1 ${
                   dataSourceMode === 'LIVE_FRT'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-300 shadow-emerald-500/30'
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 border-amber-300 shadow-amber-500/30'
+                    ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/40'
+                    : 'text-slate-400 hover:text-white'
                 }`}
-                title="Mở cửa sổ cấu hình kết nối Jira (reqs.frt.vn) & Jenkins (jenkins-osp.frt.vn) Thật"
+                title="Chế độ Dữ liệu Thật từ Server Proxy (Jira & Jenkins)"
               >
-                <span>🔌 Setting Jira & Jenkins Thật</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                    dataSourceMode === 'LIVE_FRT'
-                      ? 'bg-slate-950 text-emerald-300'
-                      : 'bg-slate-950 text-amber-300'
-                  }`}
-                >
-                  {dataSourceMode === 'LIVE_FRT' ? 'LIVE REAL' : 'MOCK PILOT'}
-                </span>
+                <span>🟢 Thật</span>
               </button>
-            )}
-            <span
-              className={`inline-block w-2.5 h-2.5 rounded-full animate-pulse shrink-0 ${
-                dataSourceMode === 'LIVE_FRT' ? 'bg-emerald-400' : 'bg-orange-500'
-              }`}
-            />
-            <span
-              className={`text-[11px] font-extrabold tracking-wide shrink-0 ${
-                dataSourceMode === 'LIVE_FRT' ? 'text-emerald-400' : 'text-orange-400'
-              }`}
-            >
-              {dataSourceMode === 'LIVE_FRT' ? 'LIVE REAL' : 'MOCK'}
-            </span>
-            <span className="text-slate-500">·</span>
-            <span className="text-xs font-semibold text-white truncate max-w-[320px]">
+              <button
+                type="button"
+                onClick={() => onSetDataSourceMode?.('MOCK_PILOT')}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold transition flex items-center gap-1 ${
+                  dataSourceMode === 'MOCK_PILOT'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/40'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Chế độ Giả lập (Mock Pilot)"
+              >
+                <span>🧪 Mock</span>
+              </button>
+            </div>
+
+            <span className="text-xs font-semibold text-white truncate max-w-[280px] hidden sm:inline">
               {focusedEventSummary}
             </span>
-            <div className="h-3.5 w-px bg-slate-700 mx-1" />
-            {onToggleHud && (
-              <button
-                type="button"
-                onClick={onToggleHud}
-                className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 transition shrink-0"
-                title="Hiện lại toàn bộ HUD (Phím tắt H)"
-              >
-                👁️ Hiện HUD
-              </button>
-            )}
+
+            <div className="h-3.5 w-px bg-slate-700 mx-0.5" />
+
             {onToggleFullscreen && (
               <button
                 type="button"
                 onClick={onToggleFullscreen}
-                className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/50 transition shrink-0"
+                className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/50 transition shrink-0 flex items-center gap-1"
                 title="Bật/Tắt Toàn màn hình Fullscreen (Phím tắt F)"
               >
-                ⛶ Fullscreen
+                <span>⛶ {isFullscreen ? 'Thoát Full' : 'Toàn màn hình'}</span>
+              </button>
+            )}
+
+            {onToggleHud && (
+              <button
+                type="button"
+                onClick={onToggleHud}
+                className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-400/40 transition shrink-0 flex items-center gap-1"
+                title="Mở bảng Tùy chỉnh Advance HUD (Phím tắt H)"
+              >
+                <span>🎛️ Tùy chỉnh</span>
               </button>
             )}
           </div>
         ) : (
           /* ====================================================================
-              FLEZIMERCURIA-STYLE TOP-RIGHT LIVE CAMERA DIRECTOR HUD (NORMAL MODE)
+              CHẾ ĐỘ ADVANCE HUD (KHI NGƯỜI DÙNG BẤM 🎛️ TÙY CHỈNH / PHÍM H)
           ==================================================================== */
           <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2 max-w-md pointer-events-auto">
             <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 backdrop-blur-md shadow-xl text-slate-100">
@@ -2702,29 +2391,31 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
 
               {/* Camera & Jenkins Server Action Buttons */}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {onOpenIntegrationSettings && (
+                {/* 2-Mode Switch: Thật vs Mock */}
+                <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-700">
                   <button
                     type="button"
-                    onClick={onOpenIntegrationSettings}
-                    className={`px-3 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1.5 border shadow-md ${
+                    onClick={() => onSetDataSourceMode?.('LIVE_FRT')}
+                    className={`px-2.5 py-0.5 rounded-md text-xs font-extrabold transition ${
                       dataSourceMode === 'LIVE_FRT'
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-300 shadow-emerald-500/30'
-                        : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 border-amber-300 shadow-amber-500/30'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
                     }`}
-                    title="Mở cửa sổ cấu hình kết nối Jira (reqs.frt.vn) & Jenkins (jenkins-osp.frt.vn) Thật"
                   >
-                    <span>🔌 Setting Jira & Jenkins Thật</span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                        dataSourceMode === 'LIVE_FRT'
-                          ? 'bg-slate-950 text-emerald-300'
-                          : 'bg-slate-950 text-amber-300'
-                      }`}
-                    >
-                      {dataSourceMode === 'LIVE_FRT' ? 'LIVE REAL' : 'MOCK PILOT'}
-                    </span>
+                    🟢 Thật
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => onSetDataSourceMode?.('MOCK_PILOT')}
+                    className={`px-2.5 py-0.5 rounded-md text-xs font-extrabold transition ${
+                      dataSourceMode === 'MOCK_PILOT'
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🧪 Mock
+                  </button>
+                </div>
 
                 <button
                   type="button"

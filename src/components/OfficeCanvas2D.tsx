@@ -137,6 +137,8 @@ export interface OfficeCanvas2DProps {
   onResetNewDay?: () => void;
   /** Callback Test nhanh Kịch bản Full Chỗ -> Ra Giếng Trời Hút Thuốc (`🚬 💨`) */
   onTriggerTestFullSeatsSmoking?: () => void;
+  /** Callback Test nhanh Quy tắc 2h Không Có Event Mới -> Nhân viên đứng dậy đi ra `🚪 CỬA RA VÀO` về nhà (`🏠`) */
+  onTriggerTestInactivityCheckout?: () => void;
   /** Số nhân viên đã Check-in chiếm chỗ ngồi trong ngày */
   checkedInCount?: number;
   /** Số nhân viên đến muộn hết chỗ đang tụ tập ở Giếng trời hút thuốc */
@@ -349,15 +351,31 @@ function computeEmployeeWorldPosition(
   facingAngle: number;
   moveVec: Point2D;
 } {
-  const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
+  const desk =
+    DESK_BY_ID[emp.assignedDeskId || emp.checkedInDeskId || emp.deskId] ||
+    DESK_BY_EMPLOYEE_ID[emp.id];
   const isPatrolManager = Boolean(
     emp.isFemaleManager || emp.isManager || emp.id === FEMALE_MANAGER_ID
   );
+  const isStandalonePathWalker =
+    Boolean(emp.isCheckingOut) ||
+    Boolean(
+      emp.isWalkingFromEntrance &&
+        emp.currentPath &&
+        emp.currentPath.length >= 2 &&
+        !activeTasks.some((t) => t.fromEmployeeId === emp.id && t.phase !== 'COMPLETED')
+    );
 
-  // Xử lý riêng cho 4 vị Sếp đi tuần tra 4 phòng khác nhau (ThuNDM, ToanLBK, doannt19, vanltb8) hoặc nhân viên đang đi dạo hút thuốc ở Giếng trời
-  if (isPatrolManager || emp.isSmokingAtAtrium) {
+  // Xử lý riêng cho 4 vị Sếp đi tuần tra, nhân viên hút thuốc ở Giếng trời, hoặc nhân viên đi về sau 2h không có event / đi vào nhận bàn trống
+  if (isPatrolManager || emp.isSmokingAtAtrium || isStandalonePathWalker) {
     const drawPos: Point2D = emp.currentPosition || desk?.seatPosition || { x: 1065, y: 435 };
-    const isWalking = emp.roamingPhase !== 'CHEERING';
+    const isWalking = isPatrolManager
+      ? emp.roamingPhase !== 'CHEERING'
+      : Boolean(
+          emp.isCheckingOut ||
+            emp.isWalkingFromEntrance ||
+            (emp.currentPath && emp.currentPath.length >= 2)
+        );
     let isoDirection: IsoDirection = emp.isoDirection ?? 'SW';
     let moveVec: Point2D = { x: 0, y: 0 };
 
@@ -641,6 +659,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   onTriggerJenkinsBrokenHotfix,
   onResetNewDay,
   onTriggerTestFullSeatsSmoking,
+  onTriggerTestInactivityCheckout,
   checkedInCount,
   smokingCount,
   mvpLeaderboard = [],
@@ -1660,17 +1679,20 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       for (const emp of emps) {
         const state = computeEmployeeWorldPosition(emp, activeTasks, emps, activeBuild);
         const isBoss = Boolean(emp.isManager || emp.isFemaleManager || emp.id === FEMALE_MANAGER_ID);
-        // Đầu ngày toàn bộ bàn trống: chỉ vẽ 4 vị Sếp tuần tra HOẶC nhân viên đã có Event (đã check-in ngồi bàn / đang đi từ cổng vào / đang hút thuốc ở giếng trời)
+        // Đầu ngày toàn bộ bàn trống: chỉ vẽ 4 vị Sếp tuần tra HOẶC nhân viên đã có Event (đã check-in ngồi bàn / đang đi từ cổng vào / đang hút thuốc ở giếng trời / đang đi bộ ra cửa về nhà)
         if (
           !isBoss &&
           !emp.isCheckedIn &&
           !emp.isSmokingAtAtrium &&
           !emp.isWalkingFromEntrance &&
+          !emp.isCheckingOut &&
           !state.isWalking
         ) {
           continue;
         }
-        const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
+        const desk =
+          DESK_BY_ID[emp.assignedDeskId || emp.checkedInDeskId || emp.deskId] ||
+          DESK_BY_EMPLOYEE_ID[emp.id];
         const iso = worldToIso(state.pos.x, state.pos.y, 0);
         const deskIsoY = desk ? worldToIso(desk.x, desk.y, 0).y : iso.y;
         const island = desk?.islandId ? ISLAND_BY_ID[desk.islandId] : undefined;
@@ -1708,7 +1730,10 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
               : deskIsoY - 8;
         renderQueue.push({
           kind: 'employee',
-          depthY: state.isWalking || emp.isSmokingAtAtrium || isBoss ? iso.y + 6 : seatedDepthY,
+          depthY:
+            state.isWalking || emp.isSmokingAtAtrium || emp.isCheckingOut || isBoss
+              ? iso.y + 6
+              : seatedDepthY,
           emp,
           ...state,
         });
@@ -2323,6 +2348,17 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
               </button>
             )}
 
+            {onTriggerTestInactivityCheckout && (
+              <button
+                type="button"
+                onClick={onTriggerTestInactivityCheckout}
+                className="px-2.5 py-1 rounded-md text-xs font-extrabold bg-orange-600 hover:bg-orange-500 text-white border border-orange-400 shadow-sm transition flex items-center gap-1"
+                title="Test nhanh Quy tắc 2h Không Có Event Mới — 1–2 nhân viên đứng dậy rời bàn, đi ra 🚪 CỬA RA VÀO về nhà và nhường lại ghế trống!"
+              >
+                <span>🏠 Test 2h Không Event (Đi Về)</span>
+              </button>
+            )}
+
             {onTriggerJenkinsBrokenHotfix && (
               <button
                 type="button"
@@ -2740,6 +2776,17 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                     title="Test Kịch bản Full Chỗ Ngồi — Thành viên đến sau ra Giếng trời hút thuốc (🚬 💨)"
                   >
                     <span>🚬 Test Full Chỗ ({smokingCount ?? 0} hút thuốc)</span>
+                  </button>
+                )}
+
+                {onTriggerTestInactivityCheckout && (
+                  <button
+                    type="button"
+                    onClick={onTriggerTestInactivityCheckout}
+                    className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-orange-600 hover:bg-orange-500 text-white border-orange-400 shadow-sm"
+                    title="Test nhanh Quy tắc 2h Không Có Event Mới — 1–2 nhân viên đứng dậy rời bàn, đi ra 🚪 CỬA RA VÀO về nhà và nhường lại ghế trống!"
+                  >
+                    <span>🏠 Test 2h Không Event (Đi Về)</span>
                   </button>
                 )}
 

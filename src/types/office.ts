@@ -163,10 +163,14 @@ export type Role =
 /** Alias tương thích cho Role */
 export type EmployeeRole = Role;
 
+/** Quy tắc tự động tan ca đi về sau 2 giờ không phát sinh event mới (2h = 7,200,000 ms) */
+export const INACTIVITY_CHECKOUT_MS = 2 * 60 * 60 * 1000;
+
 /** Trạng thái hoạt động tức thời của nhân viên trong mô phỏng */
 export type EmployeeStatus =
   | 'IDLE'           // Ngồi tại bàn, sẵn sàng nhận việc
   | 'WORKING'        // Đang xử lý ticket tại bàn
+  | 'WALKING'        // Đang đi bộ vào nhận bàn hoặc đi bộ ra Cửa Ra Vào tan ca về nhà
   | 'CARRYING_DOCS'  // Đang bê chồng tài liệu đi sang bàn khác hoặc về bàn PM
   | 'HANDOFF'        // Đang trao/đặt tài liệu tại bàn đích
   | 'WALKING_BACK'   // Đang đi bộ quay về bàn của mình sau khi giao tài liệu
@@ -218,16 +222,28 @@ export interface Employee {
   patrolWing?: 'EAST' | 'NORTH' | 'WEST_CENTRAL' | 'SOUTH';
   /** Đã vào công ty nhận chỗ ngồi trong ngày hay chưa (Đầu ngày = false cho toàn bộ nhân viên trừ 4 Sếp) */
   isCheckedIn?: boolean;
+  /** Alias đồng bộ với quy tắc `checkedInToday`: nhân viên đang có mặt trong công ty hôm nay */
+  checkedInToday?: boolean;
+  /** Thời điểm gần nhất (epoch ms `Date.now()`) nhân viên phát sinh event mới (Check-in, Jira, Jenkins). Quá 2h không có event mới -> tự động đi về! */
+  lastEventAt?: number;
+  /** Cờ đánh dấu nhân viên đang đứng dậy đi bộ ra `🚪 CỬA RA VÀO` để tan ca về nhà sau 2h không có event */
+  isCheckingOut?: boolean;
   /** Mã bàn làm việc thực tế mà nhân viên đã chiếm chỗ khi có Event (Check-in) */
   checkedInDeskId?: string | null;
+  /** Alias đồng bộ với `checkedInDeskId`: Mã bàn đang ngồi (undefined khi đi về để giải phóng bàn trống ngay lập tức) */
+  assignedDeskId?: string | null;
   /** Khi hết chỗ ngồi, nhân viên đi ra hành lang đá xám quanh Giếng trời để tụ tập hút thuốc (`🚬 💨`) */
   isSmokingAtAtrium?: boolean;
+  /** Alias đồng bộ với `isSmokingAtAtrium`: Đang phải đứng hút thuốc ở Giếng trời do hết bàn */
+  isSmokingOverflow?: boolean;
   /** Mã Giếng trời nơi nhân viên đang đứng hút thuốc (`ATRIUM-NORTH` | `ATRIUM-CENTRAL` | `ATRIUM-SOUTH`) */
   smokingAtriumId?: 'ATRIUM-NORTH' | 'ATRIUM-CENTRAL' | 'ATRIUM-SOUTH' | null;
   /** Tọa độ đứng hút thuốc trên hành lang đá xám quanh Giếng trời */
   smokingSpot?: Point2D | null;
-  /** Đang đi bộ từ Cửa Ra Vào (`🚪 CỬA RA VÀO`) vào bàn làm việc hoặc ra Giếng trời hút thuốc */
+  /** Đang đi bộ từ Cửa Ra Vào (`🚪 CỬA RA VÀO`) hoặc từ Giếng trời vào bàn làm việc */
   isWalkingFromEntrance?: boolean;
+  /** Câu thoại nổi trên đầu khi nhân viên tan ca đi về sau 2h không có event hoặc từ Giếng trời vào nhận bàn trống */
+  checkoutSpeechText?: string | null;
   /** Mã chỗ ngồi thực tế theo sơ đồ Excel (VD: 'FT3.III2A.1.289') */
   seatCode?: string;
   /** Tên Account thực tế trong đơn vị (VD: 'DongNQ6', 'ChienND22', 'ThuNDM') */
@@ -238,6 +254,8 @@ export interface Employee {
   // --- Runtime Simulation State (khởi tạo mặc định từ vị trí bàn) ---
   /** Trạng thái hiện tại của nhân viên */
   status: EmployeeStatus;
+  /** Alias đồng bộ trạng thái (`'WALKING' | 'WORKING' | 'IDLE' ...`) */
+  state?: EmployeeStatus;
   /** Vị trí hiện tại trên Canvas (pixel) */
   currentPosition: Point2D;
   /** Điểm đích đang hướng tới (nếu đang di chuyển) */

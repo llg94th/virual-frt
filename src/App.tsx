@@ -236,6 +236,7 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
           onTriggerJenkinsBrokenHotfix={() => sim.triggerJenkinsBrokenHotfix()}
           onResetNewDay={() => sim.resetNewDayEmptyDesks()}
           onTriggerTestFullSeatsSmoking={() => sim.triggerTestFullSeatsSmoking()}
+          onTriggerTestInactivityCheckout={() => sim.triggerTestInactivityCheckout()}
           checkedInCount={sim.checkedInCount}
           smokingCount={sim.smokingCount}
           mvpLeaderboard={sim.mvpLeaderboard}
@@ -477,6 +478,16 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
               title="Giả lập Kịch bản Full Chỗ Ngồi — Thành viên có event sau sẽ tụ tập ở Giếng trời hút thuốc (🚬 💨)"
             >
               <span>🚬 Test Full Chỗ ({sim.smokingCount} hút thuốc)</span>
+            </button>
+
+            {/* Test 2h No Event -> Auto Checkout Walk Home */}
+            <button
+              type="button"
+              onClick={() => sim.triggerTestInactivityCheckout()}
+              className="px-2.5 py-1 rounded-full bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-extrabold transition shadow-sm flex items-center gap-1 border border-orange-300/60"
+              title="Test nhanh Quy tắc 2h Không Có Event Mới — 1–2 nhân viên đứng dậy rời bàn, đi ra 🚪 CỬA RA VÀO về nhà và nhường lại ghế trống!"
+            >
+              <span>🏠 Test 2h Không Event (Đi Về)</span>
             </button>
 
             {/* Simulate Jenkins Build Broken / Hotfix Rescue */}

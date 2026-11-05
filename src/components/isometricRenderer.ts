@@ -156,54 +156,50 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'PM Command Center',
     code: 'PMC • CENTRAL SPINE',
     subtitle: 'Nghiệm thu Ticket DONE',
-    wx: 380,
-    wy: 344,
-    ww: 166,
-    wh: 172,
+    wx: 390,
+    wy: 368,
+    ww: 168,
+    wh: 146,
     rimColor: '#ea580c',
     wallAccent: '#c2410c',
     floorTileA: '#ffffff',
     floorTileB: '#fffbeb',
     badgeColor: '#c2410c',
-    pinAnchor: { wx: 462, wy: 425, height: 96 },
+    pinAnchor: { wx: 472, wy: 435, height: 96 },
   },
   {
     id: 'ISO-ZONE-02',
     num: '02',
     title: 'BA & Design Studio',
-    code: 'BAD • CENTER-SOUTH BAY',
-    subtitle: 'Phân tích SRS & User Story',
-    wx: 590,
-    wy: 538,
-    ww: 150,
-    wh: 106,
+    code: 'BAD • SOUTH-CENTER LOUNGE',
+    subtitle: 'Phân tích SRS & Espresso Bar',
+    wx: 446,
+    wy: 818,
+    ww: 154,
+    wh: 124,
     rimColor: '#eab308',
     wallAccent: '#a16207',
     floorTileA: '#ffffff',
     floorTileB: '#fefce8',
     badgeColor: '#b45309',
-    pinAnchor: { wx: 660, wy: 576, height: 84 },
+    pinAnchor: { wx: 523, wy: 876, height: 84 },
   },
   {
     id: 'ISO-ZONE-03',
     num: '03',
     title: 'Tech Lead Hub',
-    code: 'TLH • NORTH-CENTER L-WING',
+    code: 'TLH • NORTH-EAST SPINE',
     subtitle: 'System Design & Code Review',
-    wx: 632,
-    wy: 184,
-    ww: 112,
-    wh: 146,
-    subBays: [
-      { wx: 632, wy: 184, ww: 112, wh: 66 },
-      { wx: 632, wy: 250, ww: 112, wh: 80 },
-    ],
+    wx: 634,
+    wy: 238,
+    ww: 132,
+    wh: 118,
     rimColor: '#7c3aed',
     wallAccent: '#5b21b6',
     floorTileA: '#ffffff',
     floorTileB: '#faf5ff',
     badgeColor: '#6d28d9',
-    pinAnchor: { wx: 684, wy: 285, height: 90 },
+    pinAnchor: { wx: 690, wy: 295, height: 90 },
   },
   {
     id: 'ISO-ZONE-04',
@@ -211,22 +207,20 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'North Loop Bays',
     code: 'NORTH WING • ATRIUM NORTH',
     subtitle: 'Cánh Bắc Mở Rộng Quanh Giếng Trời Bắc',
-    wx: 190,
-    wy: 20,
-    ww: 558,
-    wh: 364,
+    wx: 195,
+    wy: 18,
+    ww: 552,
+    wh: 244,
     subBays: [
-      { wx: 190, wy: 20, ww: 316, wh: 104 },
-      { wx: 608, wy: 20, ww: 140, wh: 104 },
-      { wx: 190, wy: 184, ww: 148, wh: 114 },
-      { wx: 356, wy: 278, ww: 148, wh: 106 },
+      { wx: 195, wy: 18, ww: 552, wh: 104 },
+      { wx: 195, wy: 148, ww: 155, wh: 114 },
     ],
     rimColor: '#2563eb',
     wallAccent: '#1e40af',
     floorTileA: '#ffffff',
     floorTileB: '#f8fafc',
     badgeColor: '#1d4ed8',
-    pinAnchor: { wx: 350, wy: 68, height: 92 },
+    pinAnchor: { wx: 485, wy: 68, height: 92 },
   },
   {
     id: 'ISO-ZONE-05',
@@ -251,20 +245,16 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'Mobile Lab',
     code: 'MOB • SOUTH-WEST L-WING',
     subtitle: 'Cánh Tây-Nam Mở Rộng Quanh Giếng Trời Nam',
-    wx: 260,
-    wy: 520,
-    ww: 172,
-    wh: 252,
-    subBays: [
-      { wx: 260, wy: 520, ww: 172, wh: 126 },
-      { wx: 260, wy: 646, ww: 162, wh: 126 },
-    ],
+    wx: 268,
+    wy: 636,
+    ww: 158,
+    wh: 136,
     rimColor: '#db2777',
     wallAccent: '#9d174d',
     floorTileA: '#ffffff',
     floorTileB: '#fdf2f8',
     badgeColor: '#be185d',
-    pinAnchor: { wx: 340, wy: 625, height: 92 },
+    pinAnchor: { wx: 345, wy: 702, height: 92 },
   },
   {
     id: 'ISO-ZONE-07',
@@ -272,57 +262,53 @@ export const FLEZI_ISO_ZONES: IsoArchitecturalZone[] = [
     title: 'QA Testing Center',
     code: 'QA • SOUTH-EAST BAYS',
     subtitle: 'Cánh Đông-Nam Mở Rộng Quanh Giếng Trời Nam',
-    wx: 590,
-    wy: 646,
-    ww: 238,
-    wh: 296,
-    subBays: [
-      { wx: 724, wy: 646, ww: 104, wh: 94 },
-      { wx: 590, wy: 818, ww: 238, wh: 124 },
-    ],
+    wx: 620,
+    wy: 818,
+    ww: 196,
+    wh: 124,
     rimColor: '#ea580c',
     wallAccent: '#9a3412',
     floorTileA: '#ffffff',
     floorTileB: '#fff7ed',
     badgeColor: '#c2410c',
-    pinAnchor: { wx: 770, wy: 690, height: 90 },
+    pinAnchor: { wx: 718, wy: 880, height: 90 },
   },
   {
     id: 'ISO-ZONE-09',
     num: '09',
-    title: 'Meeting & Pantry',
-    code: 'MPN • SOUTH-WEST LOUNGE',
-    subtitle: 'War Room & Espresso Bar',
-    wx: 260,
-    wy: 820,
-    ww: 292,
-    wh: 122,
+    title: 'South-West Squad Bay',
+    code: 'SWB • SOUTH-WEST BAY',
+    subtitle: 'Không gian làm việc Cánh Nam',
+    wx: 268,
+    wy: 818,
+    ww: 158,
+    wh: 124,
     rimColor: '#4f46e5',
     wallAccent: '#3730a3',
     floorTileA: '#ffffff',
     floorTileB: '#f5f3ff',
     badgeColor: '#4338ca',
-    pinAnchor: { wx: 410, wy: 860, height: 84 },
+    pinAnchor: { wx: 345, wy: 880, height: 84 },
   },
 ];
 
 // Cây xanh 3D Low-Poly trồng TRONG lòng 3 Giếng trời (Atriums), Vườn tiểu cảnh SE & Khuôn viên ngoài tòa nhà
 export const CAMPUS_TREES: { wx: number; wy: number; scale: number; variant: 'pine' | 'round' | 'cypress' }[] = [
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Bắc (ATRIUM-NORTH) ---
-  { wx: 438, wy: 185, scale: 0.96, variant: 'round' },
-  { wx: 530, wy: 195, scale: 0.88, variant: 'cypress' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Bắc (ATRIUM-NORTH: wx 408..582, wy 158..232) ---
+  { wx: 452, wy: 194, scale: 0.94, variant: 'round' },
+  { wx: 538, wy: 196, scale: 0.88, variant: 'cypress' },
 
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Trung tâm lớn (ATRIUM-CENTRAL) ---
-  { wx: 642, wy: 432, scale: 1.02, variant: 'round' },
-  { wx: 725, wy: 442, scale: 1.08, variant: 'pine' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Trung tâm lớn (ATRIUM-CENTRAL: wx 616..762, wy 398..496) ---
+  { wx: 656, wy: 446, scale: 1.0, variant: 'round' },
+  { wx: 724, wy: 448, scale: 1.04, variant: 'pine' },
 
-  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Nam (ATRIUM-SOUTH) ---
-  { wx: 538, wy: 688, scale: 0.98, variant: 'round' },
-  { wx: 612, wy: 728, scale: 0.92, variant: 'cypress' },
+  // --- Cây xanh tiểu cảnh dưới lòng Giếng trời Nam (ATRIUM-SOUTH: wx 504..666, wy 668..766) ---
+  { wx: 548, wy: 716, scale: 0.96, variant: 'round' },
+  { wx: 622, wy: 718, scale: 0.92, variant: 'cypress' },
 
   // --- 2 Cây tròn tại Góc Vườn treo Đông-Nam (PATIO-SE) ---
-  { wx: 758, wy: 628, scale: 0.82, variant: 'round' },
-  { wx: 796, wy: 628, scale: 0.85, variant: 'round' },
+  { wx: 752, wy: 624, scale: 0.82, variant: 'round' },
+  { wx: 792, wy: 624, scale: 0.85, variant: 'round' },
 
   // --- Cây xanh cảnh quan bao quanh mặt ngoài tòa nhà & Bãi xe mềm mại ---
   { wx: 138, wy: 65, scale: 1.12, variant: 'round' },
@@ -343,17 +329,7 @@ export const CAMPUS_STREET_PROPS: {
   wy: number;
   kind: 'lamp' | 'bench' | 'containers';
 }[] = [
-  // Ghế nghỉ gỗ dài dọc hành lang rộng bao quanh 3 Giếng trời (North, Central, South Atriums)
-  { wx: 445, wy: 132, kind: 'bench' },
-  { wx: 525, wy: 132, kind: 'bench' },
-  { wx: 484, wy: 254, kind: 'bench' },
-  { wx: 642, wy: 364, kind: 'bench' },
-  { wx: 722, wy: 364, kind: 'bench' },
-  { wx: 684, wy: 518, kind: 'bench' },
-  { wx: 536, wy: 626, kind: 'bench' },
-  { wx: 616, wy: 626, kind: 'bench' },
-  { wx: 576, wy: 784, kind: 'bench' },
-  // Đèn cảnh quan & cụm module trang trí ngoài tòa nhà
+  // Đèn cảnh quan & cụm module trang trí ngoài tòa nhà (Hành lang nội bộ để thông thoáng 100% cho các Sếp tuần tra)
   { wx: 158, wy: 365, kind: 'lamp' },
   { wx: 775, wy: 145, kind: 'lamp' },
   { wx: 1590, wy: 350, kind: 'lamp' },
@@ -1322,29 +1298,27 @@ export function drawCampusRoadNetwork(ctx: CanvasRenderingContext2D, time = 0) {
   ctx.stroke();
 
   // --------------------------------------------------------------------------
-  // 4. WIDENED RING CORRIDORS AROUND ALL 3 ATRIUMS (RỘNG HƠN, BO GÓC MỀM MẠI)
+  // 4. WIDENED RING CORRIDORS AROUND ALL 3 ATRIUMS (RỘNG RÃI, CHUẨN TRỤC TUẦN TRA 3 SẾP)
   // --------------------------------------------------------------------------
   const corridorBands: IsoSubRect[] = [
-    // North Atrium Wide Ring Corridor (rộng 46–60px bao quanh Giếng trời Bắc)
-    { wx: 190, wy: 120, ww: 558, wh: 32 }, // North Top Wide Corridor
-    { wx: 506, wy: 20, ww: 100, wh: 102 }, // North Top-Center Open Atrium Plaza
-    { wx: 336, wy: 120, ww: 60, wh: 164 }, // North West Wide Corridor
-    { wx: 336, wy: 238, ww: 300, wh: 44 }, // North Bottom Wide Corridor
-    { wx: 572, wy: 120, ww: 64, wh: 218 }, // North East Wide Corridor
+    // North Atrium Wide Ring Corridor (col 12..20 [x=375..615], row 4..8 [y=135..255] — Lộ trình Sếp ToanLBK)
+    { wx: 195, wy: 122, ww: 552, wh: 28 }, // North Top Wide Corridor (row 4)
+    { wx: 356, wy: 122, ww: 40, wh: 150 }, // North West Wide Corridor (col 12)
+    { wx: 356, wy: 244, ww: 276, wh: 28 }, // North Bottom Wide Corridor (row 8)
+    { wx: 594, wy: 122, ww: 40, wh: 256 }, // North East Wide Corridor (col 20)
+    { wx: 594, wy: 208, ww: 220, wh: 30 }, // North-East Connector to 🚪 CỬA RA VÀO (row 7)
 
-    // Central Grand Atrium Wide Ring Corridor (rộng 48–60px bao quanh Giếng trời Trung tâm)
-    { wx: 544, wy: 326, ww: 268, wh: 54 }, // Central Top Wide Corridor
-    { wx: 755, wy: 180, ww: 485, wh: 40 }, // North Entrance Corridor feeding 🚪 CỬA RA VÀO (NHÀ THUỐC)
-    { wx: 544, wy: 326, ww: 58, wh: 268 }, // Central West Spine Wide Corridor
-    { wx: 544, wy: 502, ww: 268, wh: 46 }, // Central Bottom Wide Corridor
-    { wx: 766, wy: 180, ww: 46, wh: 625 }, // Central East Wide Corridor bordering Khoang NHÀ THUỐC
+    // Central Grand Atrium Wide Ring Corridor (col 19..26 [x=585..795], row 12..17 [y=375..525] — Lộ trình Sếp doannt19)
+    { wx: 564, wy: 360, ww: 248, wh: 28 }, // Central Top Wide Corridor (row 12)
+    { wx: 564, wy: 360, ww: 40, wh: 285 }, // Central West Spine Wide Corridor (col 19)
+    { wx: 564, wy: 510, ww: 248, wh: 28 }, // Central Bottom Wide Corridor (row 17)
+    { wx: 774, wy: 208, ww: 38, wh: 450 }, // Central East Wide Corridor bordering Khoang NHÀ THUỐC (col 26)
 
-    // South Atrium Wide Ring Corridor (rộng 48–60px bao quanh Giếng trời Nam)
-    { wx: 422, wy: 588, ww: 306, wh: 54 }, // South Top Wide Corridor
-    { wx: 422, wy: 588, ww: 66, wh: 232 }, // South West Wide Corridor
-    { wx: 662, wy: 588, ww: 66, wh: 232 }, // South East Wide Corridor
-    { wx: 260, wy: 768, ww: 568, wh: 48 }, // South Bottom Wide Corridor
-    { wx: 552, wy: 816, ww: 42, wh: 126 }, // South Bottom-Center Facade Spur
+    // South Atrium Wide Ring Corridor (col 15..23 [x=465..705], row 21..26 [y=645..795] — Lộ trình Sếp vanltb8)
+    { wx: 444, wy: 630, ww: 368, wh: 28 }, // South Top Wide Corridor (row 21)
+    { wx: 444, wy: 630, ww: 44, wh: 182 }, // South West Wide Corridor (col 15)
+    { wx: 684, wy: 630, ww: 44, wh: 182 }, // South East Wide Corridor (col 23)
+    { wx: 268, wy: 780, ww: 548, wh: 32 }, // South Bottom Wide Corridor (row 26)
   ];
 
   for (const cb of corridorBands) {
@@ -2567,87 +2541,13 @@ export function drawCutawayIsoZone(
     }
 
     ctx.restore();
-  } else if (z.id === 'ISO-ZONE-01') {
-    // 01 PM Command Center (Central Spine): Golden Trophy & DONE Archive Cabinet + Strategy Table
-    drawIsoBox(
-      ctx,
-      z.wx + 12,
-      z.wy + 16,
-      28,
-      18,
-      10.2,
-      29,
-      '#fef3c7',
-      '#f59e0b',
-      '#d97706',
-      '#78350f',
-      0.85
-    );
-    drawIsoBox(
-      ctx,
-      z.wx + 22,
-      z.wy + 115,
-      68,
-      28,
-      10.2,
-      21,
-      '#fffbeb',
-      '#f59e0b',
-      '#b45309',
-      '#78350f',
-      0.8
-    );
-  } else if (z.id === 'ISO-ZONE-08') {
-    // 08 DevOps & Infra (East-North Wing): 3 High-Density 3D Server Racks with blinking LEDs
-    for (let r = 0; r < 3; r++) {
-      const rx = z.wx + z.ww - 32;
-      const ry = z.wy + 14 + r * 30;
-      drawIsoBox(
-        ctx,
-        rx,
-        ry,
-        22,
-        22,
-        10.2,
-        45,
-        '#334155',
-        '#0f172a',
-        '#1e293b',
-        '#06b6d4',
-        0.9
-      );
-      for (let blade = 0; blade < 4; blade++) {
-        const bz = 16 + blade * 6.5;
-        const ledIso = worldToIso(rx + 4, ry + 22, bz);
-        const blink = Math.sin(time * 0.012 + r * 2 + blade) > 0;
-        ctx.fillStyle = blink ? '#22d3ee' : '#10b981';
-        ctx.beginPath();
-        ctx.arc(ledIso.x, ledIso.y, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  } else if (z.id === 'ISO-ZONE-09') {
-    // 09 Meeting & Pantry (Bottom-South-West Bay): War Room Conference Table + Espresso Bar
+  } else if (z.id === 'ISO-ZONE-02') {
+    // 02 BA & Design Lounge (South-Center Bay, không có cụm bàn 6 chỗ nên đặt Quầy Espresso & Bàn Họp gọn gàng)
     drawIsoBox(
       ctx,
       z.wx + 18,
-      z.wy + 12,
-      90,
-      26,
-      10.2,
-      22,
-      '#e0e7ff',
-      '#6366f1',
-      '#4338ca',
-      '#312e81',
-      0.85
-    );
-    // Espresso Lounge Counter
-    drawIsoBox(
-      ctx,
-      z.wx + 125,
-      z.wy + 12,
-      78,
+      z.wy + 20,
+      72,
       24,
       10.2,
       24,
@@ -2657,12 +2557,11 @@ export function drawCutawayIsoZone(
       '#78350f',
       0.85
     );
-    // Commercial 3D Espresso Machine on Counter
     drawIsoBox(
       ctx,
-      z.wx + 165,
-      z.wy + 14,
-      26,
+      z.wx + 48,
+      z.wy + 22,
+      24,
       18,
       24,
       38,
@@ -2672,7 +2571,7 @@ export function drawCutawayIsoZone(
       '#0f172a',
       0.7
     );
-    const steamIso = worldToIso(z.wx + 178, z.wy + 22, 41);
+    const steamIso = worldToIso(z.wx + 60, z.wy + 30, 41);
     const wave = Math.sin(time * 0.006) * 2.8;
     ctx.save();
     ctx.strokeStyle = 'rgba(100, 116, 139, 0.58)';

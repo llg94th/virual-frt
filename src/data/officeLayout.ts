@@ -112,28 +112,28 @@ export const COURTYARD_ATRIUMS: CourtyardAtrium[] = [
     id: 'ATRIUM-NORTH',
     name: 'North Sky Atrium',
     code: 'VOID • NORTH COURTYARD',
-    wx: 392,
-    wy: 146,
-    ww: 184,
-    wh: 96,
+    wx: 408,
+    wy: 158,
+    ww: 174,
+    wh: 74,
   },
   {
     id: 'ATRIUM-CENTRAL',
     name: 'Central Grand Atrium',
     code: 'VOID • CENTRAL PLAZA',
-    wx: 598,
-    wy: 378,
-    ww: 172,
-    wh: 128,
+    wx: 616,
+    wy: 398,
+    ww: 146,
+    wh: 98,
   },
   {
     id: 'ATRIUM-SOUTH',
     name: 'South Garden Atrium',
     code: 'VOID • SOUTH COURTYARD',
-    wx: 486,
-    wy: 640,
-    ww: 180,
-    wh: 132,
+    wx: 504,
+    wy: 668,
+    ww: 162,
+    wh: 98,
   },
 ];
 
@@ -149,15 +149,15 @@ export interface BuildingServiceCore {
   hasRestroom: boolean;
 }
 
-/** 8 Cụm Lõi Thang máy / Thang bộ / WC / Kỹ thuật */
+/** 8 Cụm Lõi Thang máy / Thang bộ / WC / Kỹ thuật quy hoạch gọn gàng không chồng lấn hành lang hay bàn làm việc */
 export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-NW',
     label: 'LIFT & WC NW',
-    wx: 192,
-    wy: 136,
-    ww: 86,
-    wh: 46,
+    wx: 198,
+    wy: 276,
+    ww: 145,
+    wh: 56,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -165,10 +165,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-NE',
     label: 'LIFT & WC NE',
-    wx: 646,
-    wy: 136,
-    ww: 86,
-    wh: 46,
+    wx: 642,
+    wy: 148,
+    ww: 100,
+    wh: 52,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -176,9 +176,9 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-NC',
     label: 'STAIR CORE NC',
-    wx: 508,
-    wy: 286,
-    ww: 62,
+    wx: 425,
+    wy: 280,
+    ww: 140,
     wh: 52,
     hasElevator: false,
     hasStairs: true,
@@ -187,10 +187,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-CNE',
     label: 'LIFT CORE CNE',
-    wx: 742,
-    wy: 250,
-    ww: 58,
-    wh: 78,
+    wx: 425,
+    wy: 536,
+    ww: 125,
+    wh: 56,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -198,10 +198,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-CSW',
     label: 'CENTRAL CORE',
-    wx: 488,
-    wy: 522,
-    ww: 66,
-    wh: 68,
+    wx: 616,
+    wy: 544,
+    ww: 72,
+    wh: 58,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -209,10 +209,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-CSE',
     label: 'LIFT CORE CSE',
-    wx: 742,
-    wy: 552,
-    ww: 58,
-    wh: 48,
+    wx: 696,
+    wy: 544,
+    ww: 68,
+    wh: 58,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -220,10 +220,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-SW',
     label: 'LIFT & WC SW',
-    wx: 262,
-    wy: 774,
-    ww: 96,
-    wh: 44,
+    wx: 268,
+    wy: 536,
+    ww: 140,
+    wh: 78,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -231,10 +231,10 @@ export const BUILDING_SERVICE_CORES: BuildingServiceCore[] = [
   {
     id: 'CORE-SE',
     label: 'LIFT & WC SE',
-    wx: 730,
-    wy: 742,
-    ww: 96,
-    wh: 44,
+    wx: 734,
+    wy: 666,
+    ww: 74,
+    wh: 98,
     hasElevator: true,
     hasStairs: true,
     hasRestroom: true,
@@ -1568,16 +1568,16 @@ export const MANAGER_TOANLBK_STATION: DeskPosition = {
   label: 'NORTH.VIP • ToanLBK (Sếp Nam 1.5x 💢 - Khoang Bắc)',
   zoneId: 'ZONE-LEAD',
   assignedEmployeeId: 'EMP-MANAGER-TOANLBK',
-  position: gridToPixel(16, 4),
-  x: gridToPixel(16, 4).x,
-  y: gridToPixel(16, 4).y,
-  grid: { col: 16, row: 4 },
+  position: gridToPixel(12, 4),
+  x: gridToPixel(12, 4).x,
+  y: gridToPixel(12, 4).y,
+  grid: { col: 12, row: 4 },
   width: 32,
   height: 24,
   orientation: 'RIGHT',
-  seatPosition: gridToPixel(16, 4),
-  handoffGrid: { col: 16, row: 4 },
-  handoffPoint: gridToPixel(16, 4),
+  seatPosition: gridToPixel(12, 4),
+  handoffGrid: { col: 12, row: 4 },
+  handoffPoint: gridToPixel(12, 4),
   nearestWaypointId: 'WP-N-NW',
   seatCode: 'FT3.NORTH.VIP',
   account: 'ToanLBK',
@@ -1591,16 +1591,16 @@ export const MANAGER_DOANNT19_STATION: DeskPosition = {
   label: 'CENTRAL.VIP • doannt19 (Sếp Nữ 😄 - Khoang Tây-Trung)',
   zoneId: 'ZONE-PM',
   assignedEmployeeId: 'EMP-MANAGER-DOANNT19',
-  position: gridToPixel(20, 14),
-  x: gridToPixel(20, 14).x,
-  y: gridToPixel(20, 14).y,
-  grid: { col: 20, row: 14 },
+  position: gridToPixel(19, 12),
+  x: gridToPixel(19, 12).x,
+  y: gridToPixel(19, 12).y,
+  grid: { col: 19, row: 12 },
   width: 32,
   height: 24,
-  orientation: 'DOWN',
-  seatPosition: gridToPixel(20, 14),
-  handoffGrid: { col: 20, row: 14 },
-  handoffPoint: gridToPixel(20, 14),
+  orientation: 'RIGHT',
+  seatPosition: gridToPixel(19, 12),
+  handoffGrid: { col: 19, row: 12 },
+  handoffPoint: gridToPixel(19, 12),
   nearestWaypointId: 'WP-C-SW',
   seatCode: 'FT3.CENTRAL.VIP',
   account: 'doannt19',
@@ -1614,16 +1614,16 @@ export const MANAGER_VANLTB8_STATION: DeskPosition = {
   label: 'SOUTH.VIP • vanltb8 (Sếp Nữ 😰 - Khoang Nam)',
   zoneId: 'ZONE-QA',
   assignedEmployeeId: 'EMP-MANAGER-VANLTB8',
-  position: gridToPixel(18, 26),
-  x: gridToPixel(18, 26).x,
-  y: gridToPixel(18, 26).y,
-  grid: { col: 18, row: 26 },
+  position: gridToPixel(15, 21),
+  x: gridToPixel(15, 21).x,
+  y: gridToPixel(15, 21).y,
+  grid: { col: 15, row: 21 },
   width: 32,
   height: 24,
   orientation: 'RIGHT',
-  seatPosition: gridToPixel(18, 26),
-  handoffGrid: { col: 18, row: 26 },
-  handoffPoint: gridToPixel(18, 26),
+  seatPosition: gridToPixel(15, 21),
+  handoffGrid: { col: 15, row: 21 },
+  handoffPoint: gridToPixel(15, 21),
   nearestWaypointId: 'WP-S-MID',
   seatCode: 'FT3.SOUTH.VIP',
   account: 'vanltb8',
@@ -1631,55 +1631,65 @@ export const MANAGER_VANLTB8_STATION: DeskPosition = {
   highlightVariant: 'normal',
 };
 
-/** Lộ trình tuần tra vòng quanh phòng riêng của 3 vị Sếp mới (Khoang Bắc, Khoang Tây-Trung, Khoang Nam) */
+/** Lộ trình tuần tra vuông góc trên Hành lang Vòng rộng rãi bao quanh 3 Giếng trời của 3 vị Sếp mới (Tuyệt đối không đi đè lên bàn ghế hay giếng trời) */
 export const BOSS_WING_PATROL_LOOPS: Record<string, Point2D[]> = {
   NORTH: [
     gridToPixel(12, 4),
+    gridToPixel(16, 4),
     gridToPixel(20, 4),
-    gridToPixel(20, 9),
-    gridToPixel(12, 9),
-    gridToPixel(11, 7),
-    gridToPixel(12, 4),
+    gridToPixel(20, 8),
+    gridToPixel(16, 8),
+    gridToPixel(12, 8),
+    gridToPixel(12, 6),
   ],
   WEST_CENTRAL: [
-    gridToPixel(19, 11),
-    gridToPixel(26, 11),
-    gridToPixel(26, 18),
-    gridToPixel(19, 18),
-    gridToPixel(19, 14),
-    gridToPixel(19, 11),
+    gridToPixel(19, 12),
+    gridToPixel(23, 12),
+    gridToPixel(26, 12),
+    gridToPixel(26, 15),
+    gridToPixel(26, 17),
+    gridToPixel(22, 17),
+    gridToPixel(19, 17),
+    gridToPixel(19, 15),
   ],
   SOUTH: [
-    gridToPixel(15, 20),
-    gridToPixel(23, 20),
-    gridToPixel(23, 28),
-    gridToPixel(15, 28),
+    gridToPixel(15, 21),
+    gridToPixel(19, 21),
+    gridToPixel(23, 21),
+    gridToPixel(23, 24),
+    gridToPixel(23, 26),
+    gridToPixel(19, 26),
     gridToPixel(15, 26),
-    gridToPixel(15, 20),
+    gridToPixel(15, 24),
   ],
   'EMP-MANAGER-TOANLBK': [
     gridToPixel(12, 4),
+    gridToPixel(16, 4),
     gridToPixel(20, 4),
-    gridToPixel(20, 9),
-    gridToPixel(12, 9),
-    gridToPixel(11, 7),
-    gridToPixel(12, 4),
+    gridToPixel(20, 8),
+    gridToPixel(16, 8),
+    gridToPixel(12, 8),
+    gridToPixel(12, 6),
   ],
   'EMP-MANAGER-DOANNT19': [
-    gridToPixel(19, 11),
-    gridToPixel(26, 11),
-    gridToPixel(26, 18),
-    gridToPixel(19, 18),
-    gridToPixel(19, 14),
-    gridToPixel(19, 11),
+    gridToPixel(19, 12),
+    gridToPixel(23, 12),
+    gridToPixel(26, 12),
+    gridToPixel(26, 15),
+    gridToPixel(26, 17),
+    gridToPixel(22, 17),
+    gridToPixel(19, 17),
+    gridToPixel(19, 15),
   ],
   'EMP-MANAGER-VANLTB8': [
-    gridToPixel(15, 20),
-    gridToPixel(23, 20),
-    gridToPixel(23, 28),
-    gridToPixel(15, 28),
+    gridToPixel(15, 21),
+    gridToPixel(19, 21),
+    gridToPixel(23, 21),
+    gridToPixel(23, 24),
+    gridToPixel(23, 26),
+    gridToPixel(19, 26),
     gridToPixel(15, 26),
-    gridToPixel(15, 20),
+    gridToPixel(15, 24),
   ],
 };
 
@@ -1728,124 +1738,97 @@ function buildExtraWingIsland(params: {
   };
 }
 
-/** Các cụm 6 bàn ghép (2x3 Joined Bench Islands) mở rộng phủ khắp 3 khu vực quanh 3 Giếng trời (Khoang Bắc, Khoang Tây-Trung, Khoang Nam) */
+/** 9 Cụm 6 bàn ghép (2x3 Joined Bench Islands = 54 chỗ ngồi mở rộng) quy hoạch chuẩn kiến trúc quanh 3 Giếng trời, không chồng lấn vách tường hay hành lang */
 export const EXTRA_WING_ISLANDS: NhaThuocIslandMeta[] = [
-  // --- KHOANG BẮC QUANH GIẾNG TRỜI BẮC (5 Cụm Bàn = 30 chỗ ngồi - Sếp ToanLBK tuần tra) ---
+  // --- KHOANG BẮC QUANH GIẾNG TRỜI BẮC (4 Cụm Bàn = 24 chỗ ngồi - Sếp ToanLBK tuần tra hành lang vòng col 12..20, row 4..8) ---
   buildExtraWingIsland({
     id: 'ISLAND-N.1',
     label: 'Cụm Bắc 1 (North-West Top)',
-    partitionWx: 248,
-    tableWy: 22,
-    leftHandoffCol: 8,
-    rightHandoffCol: 10,
+    partitionWx: 265,
+    tableWy: 20,
+    leftHandoffCol: 7,
+    rightHandoffCol: 11,
     rowHandoffRows: [4, 4, 4],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-N.2',
     label: 'Cụm Bắc 2 (North-Center Atrium View)',
-    partitionWx: 432,
-    tableWy: 22,
-    leftHandoffCol: 13,
-    rightHandoffCol: 16,
+    partitionWx: 485,
+    tableWy: 20,
+    leftHandoffCol: 14,
+    rightHandoffCol: 18,
     rowHandoffRows: [4, 4, 4],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-N.3',
     label: 'Cụm Bắc 3 (North-East Top)',
-    partitionWx: 668,
-    tableWy: 22,
-    leftHandoffCol: 20,
-    rightHandoffCol: 22,
+    partitionWx: 685,
+    tableWy: 20,
+    leftHandoffCol: 21,
+    rightHandoffCol: 24,
     rowHandoffRows: [4, 4, 4],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-N.4',
     label: 'Cụm Bắc 4 (North-West Atrium Side)',
-    partitionWx: 248,
-    tableWy: 192,
-    leftHandoffCol: 8,
-    rightHandoffCol: 11,
-    rowHandoffRows: [7, 7, 7],
-  }),
-  buildExtraWingIsland({
-    id: 'ISLAND-N.5',
-    label: 'Cụm Bắc 5 (North-South Atrium Promenade)',
-    partitionWx: 412,
-    tableWy: 282,
+    partitionWx: 265,
+    tableWy: 156,
     leftHandoffCol: 12,
-    rightHandoffCol: 15,
-    rowHandoffRows: [9, 9, 9],
+    rightHandoffCol: 12,
+    rowHandoffRows: [5, 6, 8],
   }),
 
-  // --- KHOANG TÂY-TRUNG QUANH GIẾNG TRỜI TRUNG TÂM (4 Cụm Bàn = 24 chỗ ngồi - Sếp doannt19 tuần tra) ---
+  // --- KHOANG TÂY-TRUNG QUANH GIẾNG TRỜI TRUNG TÂM (2 Cụm Bàn = 12 chỗ ngồi - Sếp doannt19 tuần tra hành lang vòng col 19..26, row 12..17) ---
   buildExtraWingIsland({
     id: 'ISLAND-WC.1',
-    label: 'Cụm Tây-Trung 1 (Central Spine West)',
-    partitionWx: 424,
-    tableWy: 372,
-    leftHandoffCol: 14,
-    rightHandoffCol: 16,
-    rowHandoffRows: [12, 14, 15],
+    label: 'Cụm Tây-Trung 1 (PM Command Center West)',
+    partitionWx: 472,
+    tableWy: 392,
+    leftHandoffCol: 19,
+    rightHandoffCol: 19,
+    rowHandoffRows: [13, 15, 16],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-WC.2',
-    label: 'Cụm Tây-Trung 2 (Central Atrium Promenade)',
-    partitionWx: 504,
-    tableWy: 372,
-    leftHandoffCol: 17,
-    rightHandoffCol: 19,
-    rowHandoffRows: [12, 14, 15],
-  }),
-  buildExtraWingIsland({
-    id: 'ISLAND-WC.3',
-    label: 'Cụm Tây-Trung 3 (Tech Lead Hub)',
-    partitionWx: 684,
-    tableWy: 214,
-    leftHandoffCol: 21,
-    rightHandoffCol: 24,
-    rowHandoffRows: [7, 8, 9],
-  }),
-  buildExtraWingIsland({
-    id: 'ISLAND-WC.4',
-    label: 'Cụm Tây-Trung 4 (BA & Design Studio)',
-    partitionWx: 655,
-    tableWy: 544,
+    label: 'Cụm Tây-Trung 2 (Tech Lead Hub North-East)',
+    partitionWx: 690,
+    tableWy: 248,
     leftHandoffCol: 20,
-    rightHandoffCol: 23,
-    rowHandoffRows: [18, 19, 20],
+    rightHandoffCol: 26,
+    rowHandoffRows: [8, 10, 12],
   }),
 
-  // --- KHOANG NAM QUANH GIẾNG TRỜI NAM (3 Cụm Bàn = 18 chỗ ngồi - Sếp vanltb8 tuần tra) ---
+  // --- KHOANG NAM QUANH GIẾNG TRỜI NAM (3 Cụm Bàn = 18 chỗ ngồi - Sếp vanltb8 tuần tra hành lang vòng col 15..23, row 21..26) ---
   buildExtraWingIsland({
     id: 'ISLAND-S.1',
-    label: 'Cụm Nam 1 (South-West Upper Lab)',
-    partitionWx: 312,
-    tableWy: 542,
-    leftHandoffCol: 10,
-    rightHandoffCol: 13,
-    rowHandoffRows: [18, 19, 20],
+    label: 'Cụm Nam 1 (South-West Mobile Lab)',
+    partitionWx: 345,
+    tableWy: 656,
+    leftHandoffCol: 15,
+    rightHandoffCol: 15,
+    rowHandoffRows: [22, 23, 25],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-S.2',
-    label: 'Cụm Nam 2 (South-West Atrium Side)',
-    partitionWx: 312,
-    tableWy: 668,
-    leftHandoffCol: 10,
+    label: 'Cụm Nam 2 (South-West Bottom Bay)',
+    partitionWx: 345,
+    tableWy: 832,
+    leftHandoffCol: 11,
     rightHandoffCol: 13,
-    rowHandoffRows: [22, 23, 24],
+    rowHandoffRows: [26, 26, 26],
   }),
   buildExtraWingIsland({
     id: 'ISLAND-S.3',
     label: 'Cụm Nam 3 (South-East QA Atrium View)',
-    partitionWx: 684,
-    tableWy: 826,
-    leftHandoffCol: 20,
-    rightHandoffCol: 23,
-    rowHandoffRows: [26, 27, 28],
+    partitionWx: 695,
+    tableWy: 832,
+    leftHandoffCol: 21,
+    rightHandoffCol: 25,
+    rowHandoffRows: [26, 26, 26],
   }),
 ];
 
-/** Toàn bộ 21 Cụm 6 Bàn Ghép (126 chỗ ngồi) phủ kín 4 phân khu & bao quanh 3 Giếng trời của Tòa nhà FRT */
+/** Toàn bộ 18 Cụm 6 Bàn Ghép (108 chỗ ngồi) phủ kín 4 phân khu & bao quanh 3 Giếng trời của Tòa nhà FRT */
 export const ALL_JOINED_DESK_ISLANDS: NhaThuocIslandMeta[] = [
   ...NHA_THUOC_ISLANDS,
   ...EXTRA_WING_ISLANDS,
@@ -2110,35 +2093,35 @@ export const ATRIUM_SMOKING_SPOTS: {
   grid: GridCoord;
   facing: Direction;
 }[] = [
-  // Quanh Giếng Trời Trung Tâm (Central Grand Atrium: wx 598..770, wy 378..506 — hành lang rộng thoáng)
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 608, y: 358 }, position: { x: 608, y: 358 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 658, y: 358 }, position: { x: 658, y: 358 }, grid: { col: 22, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 712, y: 358 }, position: { x: 712, y: 358 }, grid: { col: 24, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 758, y: 358 }, position: { x: 758, y: 358 }, grid: { col: 25, row: 12 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 576, y: 408 }, position: { x: 576, y: 408 }, grid: { col: 19, row: 14 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 576, y: 452 }, position: { x: 576, y: 452 }, grid: { col: 19, row: 15 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 576, y: 494 }, position: { x: 576, y: 494 }, grid: { col: 19, row: 17 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 625, y: 524 }, position: { x: 625, y: 524 }, grid: { col: 21, row: 18 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 685, y: 524 }, position: { x: 685, y: 524 }, grid: { col: 23, row: 18 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 745, y: 524 }, position: { x: 745, y: 524 }, grid: { col: 25, row: 18 }, facing: 'UP' },
+  // Quanh Giếng Trời Trung Tâm (Central Grand Atrium: col 19..26, row 12..17 — hành lang rộng thoáng)
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 615, y: 375 }, position: { x: 615, y: 375 }, grid: { col: 20, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 675, y: 375 }, position: { x: 675, y: 375 }, grid: { col: 22, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 735, y: 375 }, position: { x: 735, y: 375 }, grid: { col: 24, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 765, y: 375 }, position: { x: 765, y: 375 }, grid: { col: 25, row: 12 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 585, y: 405 }, position: { x: 585, y: 405 }, grid: { col: 19, row: 13 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 585, y: 465 }, position: { x: 585, y: 465 }, grid: { col: 19, row: 15 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 585, y: 495 }, position: { x: 585, y: 495 }, grid: { col: 19, row: 16 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 645, y: 525 }, position: { x: 645, y: 525 }, grid: { col: 21, row: 17 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 705, y: 525 }, position: { x: 705, y: 525 }, grid: { col: 23, row: 17 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-CENTRAL', atriumName: 'Giếng Trời Trung Tâm', spot: { x: 765, y: 525 }, position: { x: 765, y: 525 }, grid: { col: 25, row: 17 }, facing: 'UP' },
 
-  // Quanh Giếng Trời Bắc (North Sky Atrium: wx 392..576, wy 146..242 — hành lang rộng thoáng)
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 416, y: 126 }, position: { x: 416, y: 126 }, grid: { col: 14, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 484, y: 126 }, position: { x: 484, y: 126 }, grid: { col: 16, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 548, y: 126 }, position: { x: 548, y: 126 }, grid: { col: 18, row: 4 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 368, y: 176 }, position: { x: 368, y: 176 }, grid: { col: 12, row: 6 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 368, y: 218 }, position: { x: 368, y: 218 }, grid: { col: 12, row: 7 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 448, y: 262 }, position: { x: 448, y: 262 }, grid: { col: 15, row: 9 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 536, y: 262 }, position: { x: 536, y: 262 }, grid: { col: 18, row: 9 }, facing: 'UP' },
+  // Quanh Giếng Trời Bắc (North Sky Atrium: col 12..20, row 4..8 — hành lang rộng thoáng)
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 435, y: 135 }, position: { x: 435, y: 135 }, grid: { col: 14, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 495, y: 135 }, position: { x: 495, y: 135 }, grid: { col: 16, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 555, y: 135 }, position: { x: 555, y: 135 }, grid: { col: 18, row: 4 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 375, y: 165 }, position: { x: 375, y: 165 }, grid: { col: 12, row: 5 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 375, y: 225 }, position: { x: 375, y: 225 }, grid: { col: 12, row: 7 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 465, y: 255 }, position: { x: 465, y: 255 }, grid: { col: 15, row: 8 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-NORTH', atriumName: 'Giếng Trời Bắc', spot: { x: 555, y: 255 }, position: { x: 555, y: 255 }, grid: { col: 18, row: 8 }, facing: 'UP' },
 
-  // Quanh Giếng Trời Nam (South Garden Atrium: wx 486..666, wy 640..772 — hành lang rộng thoáng)
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 512, y: 620 }, position: { x: 512, y: 620 }, grid: { col: 17, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 576, y: 620 }, position: { x: 576, y: 620 }, grid: { col: 19, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 642, y: 620 }, position: { x: 642, y: 620 }, grid: { col: 21, row: 20 }, facing: 'DOWN' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 462, y: 682 }, position: { x: 462, y: 682 }, grid: { col: 15, row: 23 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 462, y: 734 }, position: { x: 462, y: 734 }, grid: { col: 15, row: 24 }, facing: 'RIGHT' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 535, y: 792 }, position: { x: 535, y: 792 }, grid: { col: 18, row: 26 }, facing: 'UP' },
-  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 615, y: 792 }, position: { x: 615, y: 792 }, grid: { col: 20, row: 26 }, facing: 'UP' },
+  // Quanh Giếng Trời Nam (South Garden Atrium: col 15..23, row 21..26 — hành lang rộng thoáng)
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 525, y: 645 }, position: { x: 525, y: 645 }, grid: { col: 17, row: 21 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 585, y: 645 }, position: { x: 585, y: 645 }, grid: { col: 19, row: 21 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 645, y: 645 }, position: { x: 645, y: 645 }, grid: { col: 21, row: 21 }, facing: 'DOWN' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 465, y: 705 }, position: { x: 465, y: 705 }, grid: { col: 15, row: 23 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 465, y: 735 }, position: { x: 465, y: 735 }, grid: { col: 15, row: 24 }, facing: 'RIGHT' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 555, y: 795 }, position: { x: 555, y: 795 }, grid: { col: 18, row: 26 }, facing: 'UP' },
+  { atriumId: 'ATRIUM-SOUTH', atriumName: 'Giếng Trời Nam', spot: { x: 615, y: 795 }, position: { x: 615, y: 795 }, grid: { col: 20, row: 26 }, facing: 'UP' },
 ];
 
 /** Map tra cứu nhanh bàn làm việc theo deskId */
@@ -2174,17 +2157,18 @@ export const PM_DESK: DeskPosition = DESK_BY_ID['DESK-01'];
 // 7. WALKABLE CORRIDOR & 3x3 ISLAND AISLE GRID + A* / BFS PATHFINDING
 // ============================================================================
 
-/** Các cột hành lang dọc chính (bao gồm 4 lối đi dọc rộng rãi giữa 3 cột đảo bàn trong Khoang NHÀ THUỐC: 28, 35, 43, 50) */
-export const VERTICAL_CORRIDOR_COLS = [12, 15, 20, 23, 28, 35, 43, 50];
+/** Các cột hành lang dọc chính (bao gồm hành lang 3 Giếng trời & 4 lối đi dọc trong Khoang NHÀ THUỐC: 28, 35, 43, 50) */
+export const VERTICAL_CORRIDOR_COLS = [12, 15, 19, 20, 23, 26, 28, 35, 43, 50];
 
-/** Các hàng hành lang ngang chính (bao gồm 4 lối đi ngang rộng rãi giữa 3 hàng đảo bàn trong Khoang NHÀ THUỐC: 7, 14, 20, 26) */
-export const HORIZONTAL_CORRIDOR_ROWS = [4, 7, 14, 20, 26, 29];
+/** Các hàng hành lang ngang chính (bao gồm hành lang 3 Giếng trời & 4 lối đi ngang trong Khoang NHÀ THUỐC: 7, 14, 20, 26) */
+export const HORIZONTAL_CORRIDOR_ROWS = [4, 7, 8, 12, 14, 17, 20, 21, 26];
 
 /**
  * Khởi tạo ma trận lưới 2D (35 hàng x 56 cột):
- * - Kết hợp Hệ thống Hành lang vòng ôm quanh 3 Giếng trời VÀ
+ * - Kết hợp Hệ thống Hành lang vòng vuông góc ôm quanh 3 Giếng trời VÀ
  * - Hệ thống 4 lối đi dọc (col 28, 35, 43, 50) x 4 lối đi ngang (row 7, 14, 20, 26) xen giữa 9 cụm đảo bàn
  *   rộng thoáng trong Khoang NHÀ THUỐC (`FT3.III2A.1`).
+ * - Khoá cứng (false) toàn bộ 18 cụm bàn (`ALL_JOINED_DESK_ISLANDS`), 3 Giếng trời (`COURTYARD_ATRIUMS`) và 8 Lõi thang máy (`BUILDING_SERVICE_CORES`).
  */
 export function createWalkableGrid(): boolean[][] {
   const grid: boolean[][] = Array.from({ length: OFFICE_GRID_ROWS }, () =>
@@ -2203,41 +2187,38 @@ export function createWalkableGrid(): boolean[][] {
     }
   };
 
-  // 1. North Atrium Ring Corridor & Boss ToanLBK Patrol Loop
-  markSegmentWalkable(10, 4, 21, 4);
-  markSegmentWalkable(12, 7, 28, 7); // Connects North Ring through CỬA RA VÀO into Khoang NHÀ THUỐC
-  markSegmentWalkable(12, 9, 20, 9);
-  markSegmentWalkable(10, 4, 12, 9);
-  markSegmentWalkable(20, 4, 20, 28); // Main Central Spine Corridor
+  // 1. North Atrium Ring Corridor & Sếp ToanLBK Patrol Loop (col 12..20, row 4..8)
+  markSegmentWalkable(7, 4, 24, 4);    // Hành lang ngang Bắc (dưới ISLAND-N.1, N.2, N.3)
+  markSegmentWalkable(12, 8, 20, 8);   // Hành lang ngang Nam Giếng trời Bắc
+  markSegmentWalkable(12, 4, 12, 8);   // Hành lang dọc Tây Giếng trời Bắc
+  markSegmentWalkable(20, 4, 20, 12);  // Hành lang dọc Đông Giếng trời Bắc nối xuống Giếng trời Trung tâm
+  markSegmentWalkable(20, 7, 28, 7);   // Hành lang nối sang CỬA RA VÀO Khoang NHÀ THUỐC
 
-  // 1B. West-Central Atrium Ring Corridor & Boss doannt19 Patrol Loop
-  markSegmentWalkable(18, 11, 28, 11);
-  markSegmentWalkable(18, 18, 28, 18);
-  markSegmentWalkable(18, 11, 20, 20);
-  markSegmentWalkable(26, 11, 26, 18);
+  // 1B. West-Central Atrium Ring Corridor & Sếp doannt19 Patrol Loop (col 19..26, row 12..17)
+  markSegmentWalkable(19, 12, 28, 12); // Hành lang ngang Bắc Giếng trời Trung tâm
+  markSegmentWalkable(19, 17, 28, 17); // Hành lang ngang Nam Giếng trời Trung tâm
+  markSegmentWalkable(19, 12, 19, 21); // Hành lang dọc Tây Giếng trời Trung tâm nối xuống Giếng trời Nam
+  markSegmentWalkable(26, 7, 26, 21);  // Hành lang dọc Đông Giếng trời Trung tâm
 
   // 2. Khoang NHÀ THUỐC (FT3.III2A.1) — 4 Vertical Aisles (28, 35, 43, 50) & 4 Horizontal Aisles (7, 14, 20, 26)
   markSegmentWalkable(28, 7, 50, 7);   // Lối đi ngang Bắc (CỬA RA VÀO)
-  markSegmentWalkable(20, 14, 50, 14); // Lối đi ngang Giữa-Trên (Chữ NHÀ THUỐC)
-  markSegmentWalkable(20, 20, 50, 20); // Lối đi ngang Giữa-Dưới (Giữa Hàng 2 & Hàng 3)
-  markSegmentWalkable(20, 26, 50, 26); // Lối đi ngang Đáy (Dưới Hàng 3)
+  markSegmentWalkable(26, 14, 50, 14); // Lối đi ngang Giữa-Trên (Chữ NHÀ THUỐC)
+  markSegmentWalkable(26, 20, 50, 20); // Lối đi ngang Giữa-Dưới (Giữa Hàng 2 & Hàng 3)
+  markSegmentWalkable(23, 26, 50, 26); // Lối đi ngang Đáy (Dưới Hàng 3)
 
   markSegmentWalkable(28, 7, 28, 26);  // Lối đi dọc 1 (Biên Trái Cụm 1.1, 2.1, 3.1)
   markSegmentWalkable(35, 7, 35, 26);  // Lối đi dọc 2 (Giữa Cụm X.1 và Cụm X.2 — Cạnh bàn Đỏ DongNQ6)
   markSegmentWalkable(43, 7, 43, 26);  // Lối đi dọc 3 (Giữa Cụm X.2 và Cụm X.3)
   markSegmentWalkable(50, 7, 50, 26);  // Lối đi dọc 4 (Biên Phải Cụm 1.3, 2.3, 3.3 — Cạnh CỘT NHÀ)
 
-  // 3. South Atrium Ring Corridor & Boss vanltb8 Patrol Loop
-  markSegmentWalkable(15, 20, 24, 20);
-  markSegmentWalkable(15, 26, 24, 26);
-  markSegmentWalkable(15, 28, 24, 28);
-  markSegmentWalkable(12, 29, 25, 29);
-  markSegmentWalkable(15, 20, 15, 29);
-  markSegmentWalkable(23, 20, 23, 29);
+  // 3. South Atrium Ring Corridor & Sếp vanltb8 Patrol Loop (col 15..23, row 21..26)
+  markSegmentWalkable(15, 21, 26, 21); // Hành lang ngang Bắc Giếng trời Nam
+  markSegmentWalkable(11, 26, 28, 26); // Hành lang ngang Nam Giếng trời Nam
+  markSegmentWalkable(15, 21, 15, 26); // Hành lang dọc Tây Giếng trời Nam
+  markSegmentWalkable(23, 21, 23, 26); // Hành lang dọc Đông Giếng trời Nam
 
-  // 4. Đánh dấu toàn bộ diện tích mặt bàn ghép 2x3 của cả 9 cụm bàn là vật cản (false)
-  //    để không nhân vật nào đi xuyên qua giữa cụm 6 bàn
-  for (const isl of NHA_THUOC_ISLANDS) {
+  // 4. Đánh dấu toàn bộ diện tích 18 cụm bàn ghép (ALL_JOINED_DESK_ISLANDS), 3 Giếng trời và 8 Lõi kỹ thuật là vật cản (false)
+  for (const isl of ALL_JOINED_DESK_ISLANDS) {
     const minC = Math.max(0, Math.floor(isl.wx / OFFICE_TILE_SIZE));
     const maxC = Math.min(
       OFFICE_GRID_COLS - 1,
@@ -2247,6 +2228,42 @@ export function createWalkableGrid(): boolean[][] {
     const maxR = Math.min(
       OFFICE_GRID_ROWS - 1,
       Math.floor((isl.wy + isl.wh - 1) / OFFICE_TILE_SIZE)
+    );
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        grid[r][c] = false;
+      }
+    }
+  }
+
+  for (const atr of COURTYARD_ATRIUMS) {
+    const minC = Math.max(0, Math.floor(atr.wx / OFFICE_TILE_SIZE));
+    const maxC = Math.min(
+      OFFICE_GRID_COLS - 1,
+      Math.floor((atr.wx + atr.ww - 1) / OFFICE_TILE_SIZE)
+    );
+    const minR = Math.max(0, Math.floor(atr.wy / OFFICE_TILE_SIZE));
+    const maxR = Math.min(
+      OFFICE_GRID_ROWS - 1,
+      Math.floor((atr.wy + atr.wh - 1) / OFFICE_TILE_SIZE)
+    );
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        grid[r][c] = false;
+      }
+    }
+  }
+
+  for (const core of BUILDING_SERVICE_CORES) {
+    const minC = Math.max(0, Math.floor(core.wx / OFFICE_TILE_SIZE));
+    const maxC = Math.min(
+      OFFICE_GRID_COLS - 1,
+      Math.floor((core.wx + core.ww - 1) / OFFICE_TILE_SIZE)
+    );
+    const minR = Math.max(0, Math.floor(core.wy / OFFICE_TILE_SIZE));
+    const maxR = Math.min(
+      OFFICE_GRID_ROWS - 1,
+      Math.floor((core.wy + core.wh - 1) / OFFICE_TILE_SIZE)
     );
     for (let r = minR; r <= maxR; r++) {
       for (let c = minC; c <= maxC; c++) {

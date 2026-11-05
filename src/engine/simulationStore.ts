@@ -489,6 +489,9 @@ function getManagerCheerSpeech(targetEmp?: Employee, index = 0): string {
 }
 
 function buildPointToPointPatrolPath(fromPos: Point2D, targetPos: Point2D): Point2D[] {
+  if (Math.abs(fromPos.x - targetPos.x) < 2 || Math.abs(fromPos.y - targetPos.y) < 2) {
+    return [{ ...fromPos }, { ...targetPos }];
+  }
   const startGrid = pixelToGrid(fromPos.x, fromPos.y);
   const endGrid = pixelToGrid(targetPos.x, targetPos.y);
   const gridSteps = findGridPathAStar(startGrid, endGrid);
@@ -1893,7 +1896,7 @@ export class OfficeSimulationEngine {
         BOSS_WING_PATROL_LOOPS[wingKey] ?? BOSS_WING_PATROL_LOOPS.NORTH;
       if (!loopPoints || loopPoints.length === 0) continue;
 
-      const curWpIdx = this.bossWaypointIndex.get(boss.id) ?? 0;
+      const curWpIdx = this.bossWaypointIndex.get(boss.id) ?? 1;
 
       if (boss.roamingPhase === 'CHEERING') {
         boss.status = 'HANDOFF';

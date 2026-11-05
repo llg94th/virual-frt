@@ -3013,19 +3013,46 @@ export function drawJoinedDeskIsland(
     ctx.stroke();
   }
 
+  // Helper tìm nhân viên đang chiếm chỗ ngồi tại ô bàn (hỗ trợ cả nhân viên từ Giếng trời vào nhận bàn vừa trống!)
+  const getSlotOccupantEmp = (slot: NhaThuocSeatSlot): Employee | undefined => {
+    if (slot.deskId) {
+      const dynamicOccupant = employees.find(
+        (e) =>
+          !e.isManager &&
+          !e.isFemaleManager &&
+          e.isCheckedIn &&
+          !e.isCheckingOut &&
+          (e.assignedDeskId === slot.deskId || e.checkedInDeskId === slot.deskId)
+      );
+      if (dynamicOccupant) return dynamicOccupant;
+    }
+    if (slot.assignedEmployeeId) {
+      return (
+        employees.find((e) => e.id === slot.assignedEmployeeId) ||
+        EMPLOYEE_BY_ID[slot.assignedEmployeeId]
+      );
+    }
+    return undefined;
+  };
+
   // Helper kiểm tra nhân viên tại 1 ô bàn có đang ngồi tại ghế hay không
   // Yêu cầu Phần F: Mỗi ngày toàn bộ bàn làm việc sẽ trống (isCheckedIn = false), ai có event trước thì vào công ty chiếm 1 chỗ ngồi!
   const isSlotPersonSeated = (slot: NhaThuocSeatSlot): boolean => {
     if (slot.kind !== 'OCCUPIED') return false;
-    if (!slot.deskId || !slot.assignedEmployeeId) {
+    if (!slot.deskId) {
       return false; // Đầu ngày toàn bộ bàn chưa có người Check-In đều để ghế trống
     }
     const desk = DESK_BY_ID[slot.deskId];
-    const emp =
-      employees.find((e) => e.id === slot.assignedEmployeeId) ||
-      EMPLOYEE_BY_ID[slot.assignedEmployeeId];
+    const emp = getSlotOccupantEmp(slot);
     if (!desk || !emp) return false;
-    if (!emp.isCheckedIn || emp.isSmokingAtAtrium || emp.isWalkingFromEntrance) {
+    const empDeskId = emp.assignedDeskId || emp.checkedInDeskId || emp.deskId;
+    if (
+      !emp.isCheckedIn ||
+      emp.isCheckingOut ||
+      emp.isSmokingAtAtrium ||
+      emp.isWalkingFromEntrance ||
+      empDeskId !== slot.deskId
+    ) {
       return false;
     }
     return (
@@ -3045,9 +3072,7 @@ export function drawJoinedDeskIsland(
   for (const slot of islandSlots) {
     if (!slot.deskId) continue;
     const desk = DESK_BY_ID[slot.deskId];
-    const emp =
-      employees.find((e) => e.id === slot.assignedEmployeeId) ||
-      (slot.assignedEmployeeId ? EMPLOYEE_BY_ID[slot.assignedEmployeeId] : undefined);
+    const emp = getSlotOccupantEmp(slot);
     const isSelected = Boolean(emp && emp.id === selectedEmployeeId);
     const isHovered = Boolean(emp && emp.id === hoveredEmployeeId);
     const isTargetOfTransfer = Boolean(
@@ -3102,10 +3127,7 @@ export function drawJoinedDeskIsland(
   for (const slot of islandSlots) {
     if (slot.side !== 'LEFT' || slot.kind === 'PILLAR') continue;
     if (!isSlotPersonSeated(slot)) {
-      const emp = slot.assignedEmployeeId
-        ? employees.find((e) => e.id === slot.assignedEmployeeId) ||
-          EMPLOYEE_BY_ID[slot.assignedEmployeeId]
-        : undefined;
+      const emp = getSlotOccupantEmp(slot);
       const chairColor =
         slot.kind === 'VACANT'
           ? '#ca8a04'
@@ -3267,10 +3289,7 @@ export function drawJoinedDeskIsland(
     if (!slot || slot.kind === 'PILLAR') continue;
 
     const isVacant = slot.kind === 'VACANT';
-    const emp = slot.assignedEmployeeId
-      ? employees.find((e) => e.id === slot.assignedEmployeeId) ||
-        EMPLOYEE_BY_ID[slot.assignedEmployeeId]
-      : undefined;
+    const emp = getSlotOccupantEmp(slot);
     const roleMeta = emp ? ROLE_METADATA[emp.role] : ROLE_METADATA.BACKEND;
     const isFilteredOut = Boolean(
       activeRoleFilter !== 'ALL' && emp && emp.role !== activeRoleFilter
@@ -3582,10 +3601,7 @@ export function drawJoinedDeskIsland(
     if (!slot || slot.kind === 'PILLAR') continue;
 
     const isVacant = slot.kind === 'VACANT';
-    const emp = slot.assignedEmployeeId
-      ? employees.find((e) => e.id === slot.assignedEmployeeId) ||
-        EMPLOYEE_BY_ID[slot.assignedEmployeeId]
-      : undefined;
+    const emp = getSlotOccupantEmp(slot);
     const roleMeta = emp ? ROLE_METADATA[emp.role] : ROLE_METADATA.BACKEND;
     const isFilteredOut = Boolean(
       activeRoleFilter !== 'ALL' && emp && emp.role !== activeRoleFilter
@@ -3721,10 +3737,7 @@ export function drawJoinedDeskIsland(
     if (slot.kind === 'PILLAR') continue;
 
     if (slot.side === 'RIGHT' && !isSlotPersonSeated(slot)) {
-      const emp = slot.assignedEmployeeId
-        ? employees.find((e) => e.id === slot.assignedEmployeeId) ||
-          EMPLOYEE_BY_ID[slot.assignedEmployeeId]
-        : undefined;
+      const emp = getSlotOccupantEmp(slot);
       const chairColor =
         slot.kind === 'VACANT'
           ? '#ca8a04'
@@ -4390,17 +4403,23 @@ export function drawDetailedIsoCharacter(
   const empNum = parseInt(emp.id.replace(/\D/g, ''), 10) || 1;
   const isManager = Boolean(emp.isManager || emp.isFemaleManager);
   const managerMood = emp.managerMood ?? (emp.isFemaleManager ? 'loving' : undefined);
-  const isFemaleManager = Boolean(emp.isFemaleManager || emp.id === 'EMP-MANAGER-THUNDM');
+  const isFemaleManager = Boolean(
+    emp.isFemaleManager ||
+      emp.id === 'EMP-MANAGER-THUNDM' ||
+      emp.id === 'EMP-MANAGER-DOANNT19' ||
+      emp.id === 'EMP-MANAGER-VANLTB8'
+  );
   const isFemale = isFemaleManager || emp.gender === 'female' || FEMALE_EMPLOYEE_IDS.has(emp.id);
-  const hairPalette = isFemaleManager
-    ? { top: '#451a03', side: '#270e02' } // Nâu hạt dẻ trầm ấm sang trọng cho Sếp nữ ThuNDM
-    : emp.id === 'EMP-MANAGER-TOANLBK'
-    ? { top: '#0f172a', side: '#020617' } // Đen sắc lạnh cho Sếp nam ToanLBK
-    : emp.id === 'EMP-MANAGER-DOANNT19'
-    ? { top: '#78350f', side: '#451a03' } // Nâu sáng tươi tắn cho Sếp nữ doannt19
-    : emp.id === 'EMP-MANAGER-VANLTB8'
-    ? { top: '#312e81', side: '#1e1b4b' } // Tím than trầm cho Sếp nữ vanltb8
-    : HAIR_PALETTES[empNum % HAIR_PALETTES.length];
+  const hairPalette =
+    emp.id === 'EMP-MANAGER-THUNDM'
+      ? { top: '#451a03', side: '#270e02' } // Nâu hạt dẻ trầm ấm sang trọng cho Sếp nữ ThuNDM
+      : emp.id === 'EMP-MANAGER-TOANLBK'
+      ? { top: '#0f172a', side: '#020617' } // Đen sắc lạnh cho Sếp nam ToanLBK
+      : emp.id === 'EMP-MANAGER-DOANNT19'
+      ? { top: '#78350f', side: '#451a03' } // Nâu sáng tươi tắn cho Sếp nữ doannt19
+      : emp.id === 'EMP-MANAGER-VANLTB8'
+      ? { top: '#312e81', side: '#1e1b4b' } // Tím than trầm cho Sếp nữ vanltb8
+      : HAIR_PALETTES[empNum % HAIR_PALETTES.length];
   const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
 
   // 1. Resolve exact 4-way Isometric Direction ('SE' | 'SW' | 'NE' | 'NW')
@@ -4643,18 +4662,30 @@ export function drawDetailedIsoCharacter(
   const headCenterX = chestX + flipX * 0.6;
   const headCenterY = chestY - 12.2;
 
-  const suitBase = isFemaleManager
-    ? '#e11d48'
-    : managerMood === 'angry'
-    ? '#b91c1c'
-    : managerMood === 'happy'
-    ? '#f59e0b'
-    : managerMood === 'worried'
-    ? '#6366f1'
-    : emp.avatarColor || roleMeta.primaryColor;
-  const suitHi = isFemaleManager ? '#fb7185' : shadeHexColor(suitBase, 22);
-  const suitMid = isFemaleManager ? '#f43f5e' : suitBase;
-  const suitDark = isFemaleManager ? '#9f1239' : shadeHexColor(suitBase, -26);
+  const suitBase =
+    emp.id === 'EMP-MANAGER-THUNDM'
+      ? '#e11d48'
+      : managerMood === 'angry'
+      ? '#b91c1c'
+      : managerMood === 'happy'
+      ? '#f59e0b'
+      : managerMood === 'worried'
+      ? '#6366f1'
+      : isFemaleManager
+      ? '#e11d48'
+      : emp.avatarColor || roleMeta.primaryColor;
+  const suitHi =
+    emp.id === 'EMP-MANAGER-THUNDM'
+      ? '#fb7185'
+      : shadeHexColor(suitBase, 22);
+  const suitMid =
+    emp.id === 'EMP-MANAGER-THUNDM'
+      ? '#f43f5e'
+      : suitBase;
+  const suitDark =
+    emp.id === 'EMP-MANAGER-THUNDM'
+      ? '#9f1239'
+      : shadeHexColor(suitBase, -26);
 
   const docColors = isDoneDoc
     ? { cover: '#10b981', edge: '#d1fae5', glow: 'rgba(16, 185, 129, 0.7)' }
@@ -4815,7 +4846,7 @@ export function drawDetailedIsoCharacter(
         fwdX,
         fwdY,
         isBackView,
-        isFemaleManager ? '#e11d48' : roleMeta.primaryColor
+        isFemaleManager ? suitBase : roleMeta.primaryColor
       );
       drawStylizedLimbSegment(
         ctx,
@@ -4823,9 +4854,9 @@ export function drawDetailedIsoCharacter(
         leg.hipY,
         leg.kneeX,
         leg.kneeY,
-        isFemaleManager ? 4.3 : 4.5,
-        isFemaleManager ? '#881337' : '#1e293b',
-        isFemaleManager ? '#be123c' : '#475569'
+        isFemaleManager ? 3.8 : 4.5,
+        isFemaleManager ? suitDark : '#1e293b',
+        isFemaleManager ? suitMid : '#475569'
       );
       drawStylizedLimbSegment(
         ctx,
@@ -4833,10 +4864,82 @@ export function drawDetailedIsoCharacter(
         leg.kneeY,
         leg.ankleX,
         leg.ankleY,
-        isFemaleManager ? 3.9 : 4.1,
-        isFemaleManager ? '#4c0519' : '#0f172a',
-        isFemaleManager ? '#9f1239' : '#334155'
+        isFemaleManager ? 3.3 : 4.1,
+        isFemaleManager ? '#d97706' : '#0f172a',
+        isFemaleManager ? '#fde68a' : '#334155'
       );
+    }
+
+    // VÁY XÒE CHỮ A XẾP LY (PLEATED A-LINE FLARED SKIRT) CHO CẢ 3 SẾP NỮ: ThuNDM, doannt19 & vanltb8
+    if (isFemaleManager) {
+      const skirtSway = isWalking ? legSwing * 1.6 : 0;
+      const skirtTopY = pelvisY - 2.4;
+      const skirtBotY = pelvisY + 4.8;
+      const topHalfW = 6.8;
+      const botHalfW = 9.8;
+
+      const skirtGrad = ctx.createLinearGradient(
+        pelvisX - botHalfW,
+        skirtTopY,
+        pelvisX + botHalfW,
+        skirtBotY
+      );
+      skirtGrad.addColorStop(0, suitHi);
+      skirtGrad.addColorStop(0.5, suitMid);
+      skirtGrad.addColorStop(1, suitDark);
+
+      ctx.fillStyle = skirtGrad;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.05;
+      ctx.beginPath();
+      ctx.moveTo(pelvisX - topHalfW, skirtTopY);
+      ctx.lineTo(pelvisX + topHalfW, skirtTopY);
+      ctx.quadraticCurveTo(
+        pelvisX + botHalfW + 0.8 + skirtSway,
+        (skirtTopY + skirtBotY) * 0.5,
+        pelvisX + botHalfW + skirtSway,
+        skirtBotY
+      );
+      // Gấu váy lượn sóng xếp ly mềm mại
+      ctx.quadraticCurveTo(
+        pelvisX + botHalfW * 0.35 + skirtSway,
+        skirtBotY + 1.8,
+        pelvisX + skirtSway * 0.6,
+        skirtBotY + 1.1
+      );
+      ctx.quadraticCurveTo(
+        pelvisX - botHalfW * 0.35 + skirtSway,
+        skirtBotY + 1.8,
+        pelvisX - botHalfW + skirtSway,
+        skirtBotY
+      );
+      ctx.quadraticCurveTo(
+        pelvisX - botHalfW - 0.8 + skirtSway,
+        (skirtTopY + skirtBotY) * 0.5,
+        pelvisX - topHalfW,
+        skirtTopY
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Đường xếp ly dọc chân váy (Pleat folds)
+      ctx.strokeStyle = suitDark;
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(pelvisX - 2.6, skirtTopY + 1.0);
+      ctx.lineTo(pelvisX - 4.0 + skirtSway * 0.7, skirtBotY + 0.6);
+      ctx.moveTo(pelvisX + 2.6, skirtTopY + 1.0);
+      ctx.lineTo(pelvisX + 4.0 + skirtSway * 0.7, skirtBotY + 0.6);
+      ctx.stroke();
+
+      // Viền gấu váy ánh kim & Thắt lưng eo vàng sang trọng
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 1.15;
+      ctx.beginPath();
+      ctx.moveTo(pelvisX - topHalfW + 0.4, skirtTopY + 0.5);
+      ctx.lineTo(pelvisX + topHalfW - 0.4, skirtTopY + 0.5);
+      ctx.stroke();
     }
   }
 
@@ -5799,6 +5902,8 @@ export function drawDetailedIsoCharacter(
           : '❤️';
       const labelText = isManager
         ? `👑 ${cleanAcc} ${bossSuffix}`
+        : emp.isCheckingOut
+        ? `🏠 ${cleanAcc} 👋`
         : emp.isSmokingAtAtrium
         ? `🚬 ${cleanAcc} 💨`
         : emp.isHotfixSprinter
@@ -5812,7 +5917,7 @@ export function drawDetailedIsoCharacter(
         : cleanAcc;
       ctx.font = isManager
         ? '800 7.8px Inter, system-ui, sans-serif'
-        : mvpRank || emp.isSmokingAtAtrium
+        : mvpRank || emp.isSmokingAtAtrium || emp.isCheckingOut
         ? '800 7.2px Inter, system-ui, sans-serif'
         : '800 7.0px Inter, system-ui, sans-serif';
       const lw = ctx.measureText(labelText).width + (isManager ? 13 : mvpRank ? 10 : 9);
@@ -5827,6 +5932,8 @@ export function drawDetailedIsoCharacter(
         ? '#b45309'
         : managerMood === 'worried'
         ? '#312e81'
+        : emp.isCheckingOut
+        ? '#9a3412'
         : emp.isSmokingAtAtrium
         ? '#334155'
         : emp.isHotfixSprinter
@@ -5841,6 +5948,8 @@ export function drawDetailedIsoCharacter(
       ctx.fill();
       ctx.strokeStyle = isManager
         ? '#fde047'
+        : emp.isCheckingOut
+        ? '#fb923c'
         : emp.isSmokingAtAtrium
         ? '#f97316'
         : emp.isHotfixSprinter
@@ -5857,7 +5966,7 @@ export function drawDetailedIsoCharacter(
         ? '#38bdf8'
         : roleMeta.primaryColor;
       ctx.lineWidth =
-        isManager || emp.isHotfixSprinter || emp.isSmokingAtAtrium
+        isManager || emp.isHotfixSprinter || emp.isSmokingAtAtrium || emp.isCheckingOut
           ? 1.45
           : emp.isProjectManager || isSelected || mvpRank
           ? 1.3
@@ -5866,6 +5975,8 @@ export function drawDetailedIsoCharacter(
 
       ctx.fillStyle = isManager
         ? '#fff1f2'
+        : emp.isCheckingOut
+        ? '#fef08a'
         : emp.isSmokingAtAtrium
         ? '#fef08a'
         : emp.isHotfixSprinter
@@ -5881,9 +5992,14 @@ export function drawDetailedIsoCharacter(
       ctx.textBaseline = 'middle';
       ctx.fillText(labelText, headIso.x, headIso.y + 0.3);
 
-      // Bong bóng thoại của 4 Sếp khi đi tuần tra 4 Khoang phòng!
-      if (isManager && emp.roamingSpeechText) {
-        const speech = emp.roamingSpeechText;
+      // Bong bóng thoại của 4 Sếp đi tuần tra HOẶC nhân viên đi về sau 2h không có event / nhận bàn trống từ Giếng trời!
+      const floatingCharSpeech = isManager
+        ? emp.roamingSpeechText
+        : (emp.isCheckingOut || emp.isWalkingFromEntrance) && emp.checkoutSpeechText
+        ? emp.checkoutSpeechText
+        : null;
+      if (floatingCharSpeech) {
+        const speech = floatingCharSpeech;
         ctx.font = '700 7.6px Inter, system-ui, sans-serif';
         const sw = ctx.measureText(speech).width + 14;
         const sh = 15;
@@ -5891,8 +6007,11 @@ export function drawDetailedIsoCharacter(
         const sx = headIso.x - sw / 2;
         const sy = headIso.y - lh / 2 - sh - 5 + floatY;
 
-        const bubbleColors =
-          managerMood === 'angry'
+        const bubbleColors = !isManager
+          ? emp.isCheckingOut
+            ? { bg: 'rgba(255, 247, 237, 0.98)', border: '#ea580c', text: '#7c2d12' }
+            : { bg: 'rgba(240, 253, 244, 0.98)', border: '#16a34a', text: '#14532d' }
+          : managerMood === 'angry'
             ? { bg: 'rgba(254, 242, 242, 0.98)', border: '#dc2626', text: '#7f1d1d' }
             : managerMood === 'happy'
             ? { bg: 'rgba(254, 252, 232, 0.98)', border: '#f59e0b', text: '#78350f' }

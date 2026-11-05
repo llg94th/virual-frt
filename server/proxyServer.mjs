@@ -35,96 +35,24 @@ const PORT = Number(process.env.PORT || 8787);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 
 // ============================================================================
-// 1. DEFAULT SAMPLE XML FEEDS (Used when testing locally without VPN or Seed Mode)
+// 1. REAL-TIME CONNECTION DIAGNOSTIC LOG BUFFER (NO FAKE SEED XML!)
 // ============================================================================
 
-const SEED_FRT_JIRA_ACTIVITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:usr="http://streams.atlassian.com/syndication/username/1.0" xmlns:activity="http://activitystrea.ms/spec/1.0/">
-  <id>https://reqs.frt.vn/activity?maxResults=10&amp;providers=issues&amp;os_authType=basic&amp;title=undefined</id>
-  <title type="text">Activity Stream — FRT Pharmacy (NHÀ THUỐC)</title>
-  <updated>2026-11-05T09:32:00Z</updated>
-  <entry>
-    <id>urn:uuid:frt-activity-2846-1</id>
-    <title type="html">thanhdq13 changed the status of FRT-104 to QA Testing and assigned to trantnn</title>
-    <summary type="html">Tối ưu API tồn kho thuốc Long Châu • Chuyển bản build oneclickv4 sang QA kiểm thử</summary>
-    <author>
-      <name>Đỗ Quang Thanh</name>
-      <email>thanhdq13@frt.vn</email>
-      <usr:username>thanhdq13</usr:username>
-    </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-104" />
-    <updated>2026-11-05T09:32:00Z</updated>
-  </entry>
-  <entry>
-    <id>urn:uuid:frt-activity-2846-2</id>
-    <title type="html">baonat updated FRT-103 to Code Review for luutv6</title>
-    <summary type="html">Cập nhật giao diện POS Nhà Thuốc • Nhờ Lead LuuTV6 review PR</summary>
-    <author>
-      <name>Nguyễn Anh Thiên Bảo</name>
-      <email>baonat@frt.vn</email>
-      <usr:username>baonat</usr:username>
-    </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-103" />
-    <updated>2026-11-05T09:30:10Z</updated>
-  </entry>
-  <entry>
-    <id>urn:uuid:frt-activity-2846-3</id>
-    <title type="html">trantnn resolved FRT-105 as Done and delivered to dongnq6</title>
-    <summary type="html">Nghiệm thu hoàn tất UAT đặt thuốc Online • Mang hồ sơ DONE về bàn PM DongNQ6</summary>
-    <author>
-      <name>Trần Thị Ngọc Trân</name>
-      <email>trantnn@frt.vn</email>
-      <usr:username>trantnn</usr:username>
-    </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-105" />
-    <updated>2026-11-05T09:28:45Z</updated>
-  </entry>
-</feed>`;
+const MAX_CONNECTION_LOGS = 80;
+const connectionLogs = [];
 
-const SEED_FRT_JENKINS_RSS_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <title>oneclickv4-build-ci all builds</title>
-  <link type="text/html" href="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/" rel="alternate"/>
-  <updated>2026-11-05T09:34:00Z</updated>
-  <author><name>Jenkins Server</name></author>
-  <id>urn:uuid:jenkins-oneclickv4-build-ci</id>
-  <entry>
-    <title>oneclickv4-build-ci #2846 (stable)</title>
-    <link type="text/html" href="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/2846/" rel="alternate"/>
-    <id>tag:hudson.dev.java.net,2026:oneclickv4-build-ci:2846</id>
-    <published>2026-11-05T09:34:00Z</published>
-    <updated>2026-11-05T09:34:00Z</updated>
-    <author><name>tienhk</name></author>
-    <content type="html">Started by user tienhk for issue FRT-104 (oneclickv4-build-ci pipeline)</content>
-  </entry>
-  <entry>
-    <title>oneclickv4-build-ci #2845 (stable)</title>
-    <link type="text/html" href="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/2845/" rel="alternate"/>
-    <id>tag:hudson.dev.java.net,2026:oneclickv4-build-ci:2845</id>
-    <published>2026-11-05T09:31:00Z</published>
-    <updated>2026-11-05T09:31:00Z</updated>
-    <author><name>sonna2</name></author>
-    <content type="html">Started by user sonna2 for issue FRT-103</content>
-  </entry>
-  <entry>
-    <title>oneclickv4-build-ci #2844 (back to normal)</title>
-    <link type="text/html" href="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/2844/" rel="alternate"/>
-    <id>tag:hudson.dev.java.net,2026:oneclickv4-build-ci:2844</id>
-    <published>2026-11-05T09:22:00Z</published>
-    <updated>2026-11-05T09:22:00Z</updated>
-    <author><name>chiennd22</name></author>
-    <content type="html">Started by user chiennd22 for issue FRT-101</content>
-  </entry>
-  <entry>
-    <title>oneclickv4-build-ci #2843 (broken)</title>
-    <link type="text/html" href="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/2843/" rel="alternate"/>
-    <id>tag:hudson.dev.java.net,2026:oneclickv4-build-ci:2843</id>
-    <published>2026-11-05T09:05:00Z</published>
-    <updated>2026-11-05T09:05:00Z</updated>
-    <author><name>manhpt13</name></author>
-    <content type="html">Started by user manhpt13 for issue FRT-102</content>
-  </entry>
-</feed>`;
+function pushConnectionLog(entry) {
+  const logItem = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    timestamp: new Date().toISOString(),
+    ...entry,
+  };
+  connectionLogs.push(logItem);
+  while (connectionLogs.length > MAX_CONNECTION_LOGS) {
+    connectionLogs.shift();
+  }
+  return logItem;
+}
 
 // ============================================================================
 // 2. CASE-INSENSITIVE FRT ACCOUNT -> 30 EMPLOYEE SEAT MAPPING
@@ -248,12 +176,13 @@ const DEFAULT_PROXY_CONFIG = {
   jiraUsername: '',
   jiraSecret: '',
   jenkinsUrl: 'https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/rssAll',
+  jenkinsUatUrl: 'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll',
   jenkinsAuthType: 'NONE', // 'NONE' | 'BASIC' | 'BEARER' | 'COOKIE'
   jenkinsUsername: '',
   jenkinsSecret: '',
   pollIntervalSec: 10,
-  privacySanitize: true,
-  useSeedFallbackWhenOffline: true,
+  privacySanitize: false,
+  useSeedFallbackWhenOffline: false,
 };
 
 function getEncryptionKey32Bytes() {
@@ -427,7 +356,7 @@ const seenFingerprints = new Map();
 let currentSeq = 0;
 const eventRingBuffer = [];
 let jenkinsSnapshot = [];
-let highestJenkinsBuildNumber = 0;
+const highestJenkinsBuildByJob = new Map();
 
 // Active raw XML buffers (updated by upstream polling or manual XML ingest)
 let customIngestedJiraXml = null;
@@ -446,6 +375,7 @@ const dedupStats = {
   lastPollSource: 'init',
   lastJiraHttpStatus: null,
   lastJenkinsHttpStatus: null,
+  lastJenkinsUatHttpStatus: null,
   lastError: null,
 };
 
@@ -550,8 +480,31 @@ function formatRelativeTime(isoStr) {
   return `${Math.round(diffHours / 24)}d ago`;
 }
 
+function hashStringToIndex(str, mod) {
+  let h = 2166136261;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % Math.max(1, mod);
+}
+
+function extractAllXmlTagValues(block, tagName) {
+  const results = [];
+  const regex = new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`, 'gi');
+  let m;
+  while ((m = regex.exec(block)) !== null) {
+    const val = stripHtmlTags(m[1]).trim();
+    if (val && !results.includes(val)) {
+      results.push(val);
+    }
+  }
+  return results;
+}
+
 /**
- * Parse raw Jira Activity Atom XML into normalized entries
+ * Parse raw Jira Activity Atom XML into normalized entries (100% REAL DATA, NO FAKE FALLBACK ACCOUNTS!)
  */
 export function parseRawJiraActivityXml(xmlText) {
   if (!xmlText || typeof xmlText !== 'string') return [];
@@ -571,19 +524,25 @@ export function parseRawJiraActivityXml(xmlText) {
     const cleanSummary = stripHtmlTags(rawSummaryHtml);
     const combinedText = `${cleanTitle} ${cleanSummary}`;
 
-    const usrUsername =
-      stripHtmlTags(extractXmlTagText(block, ['usr:username'])) ||
-      stripHtmlTags(extractXmlTagText(block, ['name', 'email', 'dc:creator', 'creator'])) ||
-      '';
+    // Extract author specifically from <author> block first
+    const authorBlock = extractXmlTagText(block, ['author']) || block;
+    const allUsrUsernames = extractAllXmlTagValues(block, 'usr:username');
+    const authorUsername =
+      stripHtmlTags(extractXmlTagText(authorBlock, ['usr:username'])) ||
+      allUsrUsernames[0] ||
+      stripHtmlTags(extractXmlTagText(authorBlock, ['email'])).replace(/@.*$/, '') ||
+      stripHtmlTags(extractXmlTagText(authorBlock, ['name', 'dc:creator', 'creator'])) ||
+      (cleanTitle.split(/\s+/)[0] || 'jira-user');
+
     const linkHref = extractXmlLinkHref(block);
     const updatedAt =
       stripHtmlTags(extractXmlTagText(block, ['updated', 'published', 'pubDate'])) ||
-      '2026-11-05T09:30:00Z';
+      new Date().toISOString();
 
     const keyMatch =
       combinedText.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
       linkHref.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
-    const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `FRT-${101 + (idx % 8)}`;
+    const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `JIRA-${idx + 1}`;
 
     const upperText = combinedText.toUpperCase();
     const toStatus =
@@ -594,40 +553,49 @@ export function parseRawJiraActivityXml(xmlText) {
         ? 'DONE'
         : upperText.includes('QA') ||
           upperText.includes('TEST') ||
-          upperText.includes('KIỂM THỬ')
+          upperText.includes('KIỂM THỬ') ||
+          upperText.includes('UAT')
         ? 'QA_TESTING'
-        : upperText.includes('REVIEW') || upperText.includes('PR')
+        : upperText.includes('REVIEW') || upperText.includes('PR') || upperText.includes('MERGE')
         ? 'CODE_REVIEW'
         : upperText.includes('DEPLOY') || upperText.includes('RELEASE')
         ? 'READY_FOR_DEPLOY'
         : 'IN_PROGRESS';
 
     const isReturnToPM = toStatus === 'DONE';
-    const resolvedAuthor = resolveEmployeeByAccount(usrUsername);
+    const resolvedAuthor = resolveEmployeeByAccount(authorUsername);
     const mentioned = extractMentionedAccounts(combinedText);
 
+    // Keep 100% real author account from Jira XML!
+    const fromAccount = resolvedAuthor?.canonicalAccount || authorUsername.trim();
+    const fallbackEmpNum = (hashStringToIndex(fromAccount, 30) + 1).toString().padStart(2, '0');
     const fromEmployeeId =
-      resolvedAuthor?.employeeId || mentioned[0]?.employeeId || 'EMP-04';
-    let toEmployeeId = 'EMP-01';
-    if (!isReturnToPM) {
-      const secondMention = mentioned.find((m) => m.employeeId !== fromEmployeeId);
-      if (secondMention) {
-        toEmployeeId = secondMention.employeeId;
-      } else if (toStatus === 'CODE_REVIEW') {
-        toEmployeeId = 'EMP-05';
-      } else if (toStatus === 'QA_TESTING') {
-        toEmployeeId = 'EMP-25';
-      } else if (toStatus === 'READY_FOR_DEPLOY') {
-        toEmployeeId = 'EMP-29';
-      } else {
-        toEmployeeId = fromEmployeeId === 'EMP-01' ? 'EMP-07' : 'EMP-04';
-      }
-    }
+      resolvedAuthor?.employeeId || mentioned[0]?.employeeId || `EMP-${fallbackEmpNum}`;
 
-    const fromEmp = EMPLOYEE_BY_ID.get(fromEmployeeId) || { account: 'ThanhDQ13' };
-    const toEmp = EMPLOYEE_BY_ID.get(toEmployeeId) || { account: 'DongNQ6' };
-    const fromAccount = resolvedAuthor?.canonicalAccount || fromEmp.account;
-    const toAccount = toEmp.account;
+    // Determine target account from 2nd <usr:username> in XML or mentions in text
+    const secondXmlUsername = allUsrUsernames.find(
+      (u) => normalizeAccountKey(u) !== normalizeAccountKey(fromAccount)
+    );
+    const secondMention = mentioned.find((m) => m.employeeId !== fromEmployeeId);
+    const resolvedSecond = secondXmlUsername ? resolveEmployeeByAccount(secondXmlUsername) : null;
+
+    let toAccount =
+      resolvedSecond?.canonicalAccount ||
+      secondXmlUsername ||
+      secondMention?.canonicalAccount ||
+      (isReturnToPM ? 'PM (DONE)' : ticketKey);
+
+    let toEmployeeId =
+      resolvedSecond?.employeeId ||
+      secondMention?.employeeId ||
+      (isReturnToPM
+        ? 'EMP-01'
+        : `EMP-${((hashStringToIndex(`${fromAccount}:${ticketKey}`, 29) + 2) % 30 + 1)
+            .toString()
+            .padStart(2, '0')}`);
+    if (toEmployeeId === fromEmployeeId) {
+      toEmployeeId = fromEmployeeId === 'EMP-01' ? 'EMP-04' : 'EMP-01';
+    }
 
     const fingerprint = computeServerJiraFingerprint({
       entryId: rawId,
@@ -657,7 +625,7 @@ export function parseRawJiraActivityXml(xmlText) {
 }
 
 /**
- * Parse raw Jenkins RSS/Atom XML into normalized build items
+ * Parse raw Jenkins RSS/Atom XML into normalized build items (100% REAL DATA!)
  */
 export function parseRawJenkinsRssXml(xmlText) {
   if (!xmlText || typeof xmlText !== 'string') return [];
@@ -668,7 +636,6 @@ export function parseRawJenkinsRssXml(xmlText) {
     entryBlocks.push(match[1]);
   }
 
-  const fallbackDevOps = ['TienHK', 'SonNA2', 'ChienND22', 'ManhPT13', 'BaoNAT'];
   const builds = entryBlocks.map((block, idx) => {
     const rawTitle = stripHtmlTags(extractXmlTagText(block, ['title']));
     const rawId =
@@ -679,7 +646,7 @@ export function parseRawJenkinsRssXml(xmlText) {
       'https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/';
     const publishedAt =
       stripHtmlTags(extractXmlTagText(block, ['published', 'updated', 'pubDate'])) ||
-      '2026-11-05T09:34:00Z';
+      new Date().toISOString();
     const authorText = stripHtmlTags(
       extractXmlTagText(block, ['name', 'dc:creator', 'creator'])
     );
@@ -691,7 +658,7 @@ export function parseRawJenkinsRssXml(xmlText) {
       rawTitle.match(/#(\d+)/) ||
       link.match(/\/(\d+)\/?$/) ||
       rawId.match(/:(\d+)$/);
-    const buildNumber = numMatch ? parseInt(numMatch[1], 10) : 2846 - idx;
+    const buildNumber = numMatch ? parseInt(numMatch[1], 10) : idx + 1;
 
     const parenMatch = rawTitle.match(/\(([^)]+)\)/);
     const statusText = parenMatch ? parenMatch[1].trim() : 'stable';
@@ -709,33 +676,42 @@ export function parseRawJenkinsRssXml(xmlText) {
         ? 'BUILDING'
         : 'SUCCESS';
 
-    const isUatJob = /oneclickv4-build-uat/i.test(`${rawTitle} ${link} ${rawId}`);
-    const isReleaseJob = /oneclickv4-build-release/i.test(`${rawTitle} ${link} ${rawId}`);
-    const jobName = isUatJob
-      ? 'oneclickv4-build-uat'
-      : isReleaseJob
-      ? 'oneclickv4-build-release'
-      : 'oneclickv4-build-ci';
+    const jobTitlePrefix = rawTitle.split('#')[0]?.trim();
+    const isUatJob = /uat/i.test(`${rawTitle} ${link} ${rawId}`);
+    const isReleaseJob = /release|prod/i.test(`${rawTitle} ${link} ${rawId}`);
+    const jobName =
+      jobTitlePrefix ||
+      (isUatJob
+        ? 'oneclickv4-build-uat'
+        : isReleaseJob
+        ? 'oneclickv4-build-release'
+        : 'oneclickv4-build-ci');
     const clusterId = isUatJob ? 'UAT' : isReleaseJob ? 'RELEASE' : 'CI';
     const combinedMeta = `${authorText} ${contentText} ${rawTitle}`;
+
+    // Extract real user from "Started by user XYZ" or <author><name>
+    const startedByMatch =
+      combinedMeta.match(/Started by user\s+([a-zA-Z0-9._-]+)/i) ||
+      combinedMeta.match(/by\s+([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/i);
+    const rawUserFromJenkins =
+      (startedByMatch ? startedByMatch[1].replace(/@.*$/, '') : '') ||
+      (authorText && !/jenkins|hudson|anonymous|system/i.test(authorText) ? authorText : '');
+
     const resolvedAccount =
-      resolveEmployeeByAccount(authorText) ||
+      resolveEmployeeByAccount(rawUserFromJenkins) ||
       extractMentionedAccounts(combinedMeta)[0];
     const triggeredBy =
       resolvedAccount?.canonicalAccount ||
-      fallbackDevOps[idx % fallbackDevOps.length];
-    const employeeId = resolvedAccount?.employeeId || 'EMP-29';
+      rawUserFromJenkins ||
+      jobName;
+    const fallbackDevOpsIdx = (hashStringToIndex(`${jobName}:${buildNumber}`, 30) + 1)
+      .toString()
+      .padStart(2, '0');
+    const employeeId = resolvedAccount?.employeeId || `EMP-${fallbackDevOpsIdx}`;
 
     const ticketMatch = combinedMeta.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
-    const ticketKey = ticketMatch ? ticketMatch[1].toUpperCase() : `FRT-${104 - (idx % 4)}`;
-    const timeAgo =
-      idx === 0
-        ? '2m ago'
-        : idx === 1
-        ? '11m ago'
-        : idx === 2
-        ? '28m ago'
-        : formatRelativeTime(publishedAt);
+    const ticketKey = ticketMatch ? ticketMatch[1].toUpperCase() : jobName;
+    const timeAgo = formatRelativeTime(publishedAt);
 
     const fingerprint = computeServerJenkinsFingerprint(
       jobName,
@@ -837,15 +813,16 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
     }
   }
 
-  // 2. Process Jenkins CI RSS XML entries
+  // 2. Process Jenkins CI & UAT RSS XML entries
   if (jenkinsXml && jenkinsXml.trim()) {
     const parsedBuilds = parseRawJenkinsRssXml(jenkinsXml);
     if (parsedBuilds.length > 0) {
-      jenkinsSnapshot = parsedBuilds.slice(0, 5).map((b) => ({
+      jenkinsSnapshot = parsedBuilds.slice(0, 8).map((b) => ({
         id: b.id,
         fingerprint: b.fingerprint,
         buildNumber: b.buildNumber,
         jobName: b.jobName,
+        clusterId: b.clusterId || 'CI',
         statusText: b.statusText,
         status: b.status,
         result: b.result,
@@ -860,9 +837,14 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
       }));
     }
 
-    const newestBuildNumberInFeed =
-      parsedBuilds.length > 0 ? parsedBuilds[0].buildNumber : 0;
-    const isInitialBootstrap = highestJenkinsBuildNumber === 0;
+    // Track newest build number per jobName (e.g. oneclickv4-build-ci vs oneclickv4-build-uat)
+    const newestBuildInFeedByJob = new Map();
+    for (const b of parsedBuilds) {
+      const prevMax = newestBuildInFeedByJob.get(b.jobName) || 0;
+      if (b.buildNumber > prevMax) {
+        newestBuildInFeedByJob.set(b.jobName, b.buildNumber);
+      }
+    }
 
     // Iterate through all entries in the RSS feed
     for (const build of parsedBuilds) {
@@ -877,16 +859,20 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
         continue; // STRICTLY DROP DUPLICATE!
       }
 
-      // Only emit an active walk-to-server event for the latest build on bootstrap
+      const prevHighestForJob = highestJenkinsBuildByJob.get(build.jobName) || 0;
+      const newestInFeedForJob = newestBuildInFeedByJob.get(build.jobName) || 0;
+      const isInitialBootstrapForJob = prevHighestForJob === 0;
+
+      // Only emit an active walk-to-server event for the latest build of each job on bootstrap
       // or when a new buildNumber / status transition appears!
-      const shouldEmitWalkEvent = isInitialBootstrap
-        ? build.buildNumber === newestBuildNumberInFeed
-        : build.buildNumber >= highestJenkinsBuildNumber;
+      const shouldEmitWalkEvent = isInitialBootstrapForJob
+        ? build.buildNumber === newestInFeedForJob
+        : build.buildNumber >= prevHighestForJob;
 
       if (shouldEmitWalkEvent) {
-        highestJenkinsBuildNumber = Math.max(
-          highestJenkinsBuildNumber,
-          build.buildNumber
+        highestJenkinsBuildByJob.set(
+          build.jobName,
+          Math.max(prevHighestForJob, build.buildNumber)
         );
         currentSeq += 1;
         dedupStats.uniqueEventsEmitted += 1;
@@ -898,6 +884,7 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
           kind: 'JENKINS_BUILD',
           id: build.id,
           jobName: build.jobName,
+          clusterId: build.clusterId || 'CI',
           buildNumber: build.buildNumber,
           status: build.status,
           statusText: build.statusText,
@@ -930,7 +917,7 @@ function resetRamDedupCache() {
   seenFingerprints.clear();
   eventRingBuffer.length = 0;
   currentSeq = 0;
-  highestJenkinsBuildNumber = 0;
+  highestJenkinsBuildByJob.clear();
   customIngestedJiraXml = null;
   customIngestedJenkinsXml = null;
   dedupStats.totalPolls = 0;
@@ -947,7 +934,7 @@ function resetRamDedupCache() {
 }
 
 // ============================================================================
-// 6. UPSTREAM HTTP/HTTPS FETCHER WITH AUTHENTICATION & POLL COALESCING
+// 6. UPSTREAM HTTP/HTTPS FETCHER WITH AUTHENTICATION & DIAGNOSTIC LOGGER
 // ============================================================================
 
 function buildUpstreamAuthHeaders(authType, username, secret) {
@@ -972,6 +959,7 @@ function buildUpstreamAuthHeaders(authType, username, secret) {
 }
 
 function fetchUrlText(targetUrl, headers, timeoutMs = 6500) {
+  const startedAt = Date.now();
   return new Promise((resolve, reject) => {
     const validation = validateUpstreamUrl(targetUrl);
     if (!validation.ok) {
@@ -999,9 +987,13 @@ function fetchUrlText(targetUrl, headers, timeoutMs = 6500) {
         });
         res.on('end', () => {
           const body = Buffer.concat(chunks).toString('utf8');
+          const durationMs = Date.now() - startedAt;
           resolve({
             status: res.statusCode || 0,
             ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
+            durationMs,
+            contentType: String(res.headers['content-type'] || ''),
+            byteLength: Buffer.byteLength(body, 'utf8'),
             body,
           });
         });
@@ -1009,13 +1001,129 @@ function fetchUrlText(targetUrl, headers, timeoutMs = 6500) {
     );
 
     req.on('timeout', () => {
-      req.destroy(new Error(`Timeout after ${timeoutMs}ms`));
+      req.destroy(new Error(`Timeout sau ${timeoutMs}ms`));
     });
     req.on('error', (err) => {
       reject(err);
     });
     req.end();
   });
+}
+
+/**
+ * Thực thi kết nối tới Jira hoặc Jenkins RSS và ghi nhận log chẩn đoán chi tiết vào `connectionLogs`.
+ */
+async function diagnoseAndFetchUpstream({
+  target,
+  url,
+  kind, // 'JIRA' | 'JENKINS'
+  authType,
+  username,
+  secret,
+  timeoutMs = 5500,
+}) {
+  const cleanUrl = String(url || '').trim();
+  if (!cleanUrl) {
+    const emptyLog = pushConnectionLog({
+      target,
+      url: '(chưa cấu hình URL)',
+      authType,
+      username: username || '(trống)',
+      ok: false,
+      status: 0,
+      durationMs: 0,
+      byteLength: 0,
+      entriesCount: 0,
+      message: '⚠️ Chưa nhập URL cho nguồn này.',
+      sampleItems: [],
+      bodyPreview: '',
+    });
+    return { ok: false, body: '', logEntry: emptyLog };
+  }
+
+  const startedAt = Date.now();
+  try {
+    const headers = buildUpstreamAuthHeaders(authType, username, secret);
+    const res = await fetchUrlText(cleanUrl, headers, timeoutMs);
+    const bodyTrimmed = res.body.trim();
+    const isXmlFeed =
+      bodyTrimmed.includes('<entry') ||
+      bodyTrimmed.includes('<feed') ||
+      bodyTrimmed.includes('<item') ||
+      bodyTrimmed.includes('<rss');
+    const isHtmlLogin =
+      !isXmlFeed &&
+      (bodyTrimmed.toLowerCase().includes('<!doctype html') ||
+        bodyTrimmed.toLowerCase().includes('<html') ||
+        bodyTrimmed.toLowerCase().includes('login'));
+
+    let entriesCount = 0;
+    let sampleItems = [];
+    if (res.ok && isXmlFeed) {
+      if (kind === 'JIRA') {
+        const parsed = parseRawJiraActivityXml(res.body);
+        entriesCount = parsed.length;
+        sampleItems = parsed.slice(0, 3).map(
+          (it) => `[${it.ticketKey}] ${it.fromAccount} ➔ ${it.toAccount} (${it.toStatus})`
+        );
+      } else {
+        const parsed = parseRawJenkinsRssXml(res.body);
+        entriesCount = parsed.length;
+        sampleItems = parsed.slice(0, 3).map(
+          (b) => `${b.jobName} #${b.buildNumber} (${b.status}) by ${b.triggeredByAccount} [${b.ticketKey}]`
+        );
+      }
+    }
+
+    const ok = Boolean(res.ok && isXmlFeed);
+    let message = '';
+    if (ok) {
+      message = `✅ Kết nối thành công HTTP ${res.status} (${res.durationMs}ms, ${res.byteLength} bytes) — Đọc được ${entriesCount} <entry> XML.`;
+    } else if (res.status === 401 || res.status === 403) {
+      message = `❌ Lỗi xác thực HTTP ${res.status} (${res.durationMs}ms) — Kiểm tra lại Username / Password / Token / Cookie!`;
+    } else if (isHtmlLogin) {
+      message = `⚠️ Server trả về trang HTML Login thay vì XML (HTTP ${res.status}, ${res.byteLength} bytes) — Sai thông tin đăng nhập hoặc phiên Cookie hết hạn!`;
+    } else {
+      message = `❌ Phản hồi không hợp lệ HTTP ${res.status} (${res.durationMs}ms, ${res.byteLength} bytes) — Không tìm thấy thẻ <entry>/<feed>/<rss>.`;
+    }
+
+    const logEntry = pushConnectionLog({
+      target,
+      url: cleanUrl,
+      authType,
+      username: username || '(none)',
+      ok,
+      status: res.status,
+      durationMs: res.durationMs,
+      byteLength: res.byteLength,
+      contentType: res.contentType,
+      entriesCount,
+      message,
+      sampleItems,
+      bodyPreview: stripHtmlTags(bodyTrimmed.slice(0, 260)),
+    });
+
+    return { ok, status: res.status, body: ok ? res.body : '', logEntry };
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const logEntry = pushConnectionLog({
+      target,
+      url: cleanUrl,
+      authType,
+      username: username || '(none)',
+      ok: false,
+      status: 0,
+      durationMs,
+      byteLength: 0,
+      contentType: '',
+      entriesCount: 0,
+      message: `❌ Lỗi kết nối mạng (${durationMs}ms): ${errMsg}`,
+      sampleItems: [],
+      bodyPreview: errMsg,
+    });
+    return { ok: false, status: 0, body: '', logEntry };
+  }
 }
 
 let inFlightPollPromise = null;
@@ -1030,83 +1138,80 @@ async function executeUpstreamPollCycle(reason = 'auto-poll') {
     let jenkinsXml = '';
     let jiraLiveOk = false;
     let jenkinsLiveOk = false;
+    let jenkinsUatLiveOk = false;
     const errors = [];
 
     const hasJiraCredentials =
       proxyConfig.jiraAuthType === 'NONE' ||
       Boolean(proxyConfig.jiraUsername || proxyConfig.jiraSecret);
 
-    // Try upstream fetch if credentials are provided or user explicitly clicks test-fetch
+    // 1. Poll Jira Activity XML
     if (hasJiraCredentials && proxyConfig.jiraUrl) {
-      try {
-        const jiraHeaders = buildUpstreamAuthHeaders(
-          proxyConfig.jiraAuthType,
-          proxyConfig.jiraUsername,
-          proxyConfig.jiraSecret
-        );
-        const res = await fetchUrlText(proxyConfig.jiraUrl, jiraHeaders, 4500);
-        dedupStats.lastJiraHttpStatus = res.status;
-        if (
-          res.ok &&
-          (res.body.includes('<entry') ||
-            res.body.includes('<feed') ||
-            res.body.includes('<item'))
-        ) {
-          jiraXml = res.body;
-          jiraLiveOk = true;
-        } else {
-          errors.push(`Jira HTTP ${res.status}`);
-        }
-      } catch (err) {
-        dedupStats.lastJiraHttpStatus = 0;
-        errors.push(`Jira: ${err.message}`);
+      const jiraDiag = await diagnoseAndFetchUpstream({
+        target: 'JIRA',
+        url: proxyConfig.jiraUrl,
+        kind: 'JIRA',
+        authType: proxyConfig.jiraAuthType,
+        username: proxyConfig.jiraUsername,
+        secret: proxyConfig.jiraSecret,
+        timeoutMs: 5000,
+      });
+      dedupStats.lastJiraHttpStatus = jiraDiag.status;
+      if (jiraDiag.ok) {
+        jiraXml = jiraDiag.body;
+        jiraLiveOk = true;
+      } else {
+        errors.push(`Jira: ${jiraDiag.logEntry.message}`);
       }
     }
 
+    const effectiveJenkinsAuthType =
+      proxyConfig.jenkinsAuthType !== 'NONE'
+        ? proxyConfig.jenkinsAuthType
+        : proxyConfig.jiraAuthType;
+    const effectiveJenkinsUser =
+      proxyConfig.jenkinsUsername || proxyConfig.jiraUsername;
+    const effectiveJenkinsSecret =
+      proxyConfig.jenkinsSecret || proxyConfig.jiraSecret;
+
+    // 2. Poll Jenkins CI RSS (`jenkinsUrl`)
     if (proxyConfig.jenkinsUrl && (hasJiraCredentials || proxyConfig.jenkinsSecret)) {
-      try {
-        const jenkinsHeaders = buildUpstreamAuthHeaders(
-          proxyConfig.jenkinsAuthType !== 'NONE'
-            ? proxyConfig.jenkinsAuthType
-            : proxyConfig.jiraAuthType,
-          proxyConfig.jenkinsUsername || proxyConfig.jiraUsername,
-          proxyConfig.jenkinsSecret || proxyConfig.jiraSecret
-        );
-        const res = await fetchUrlText(proxyConfig.jenkinsUrl, jenkinsHeaders, 4500);
-        dedupStats.lastJenkinsHttpStatus = res.status;
-        if (
-          res.ok &&
-          (res.body.includes('<entry') ||
-            res.body.includes('<feed') ||
-            res.body.includes('<item') ||
-            res.body.includes('<rss'))
-        ) {
-          jenkinsXml = res.body;
-          jenkinsLiveOk = true;
-        } else {
-          errors.push(`Jenkins HTTP ${res.status}`);
-        }
-        // Đồng thời lắng nghe thêm luồng `https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll`
-        try {
-          const uatUrl = proxyConfig.jenkinsUrl.includes('oneclickv4-build-ci')
-            ? proxyConfig.jenkinsUrl.replace('oneclickv4-build-ci', 'oneclickv4-build-uat')
-            : 'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll';
-          const uatRes = await fetchUrlText(uatUrl, jenkinsHeaders, 4500);
-          if (
-            uatRes.ok &&
-            (uatRes.body.includes('<entry') ||
-              uatRes.body.includes('<feed') ||
-              uatRes.body.includes('<item'))
-          ) {
-            jenkinsXml = jenkinsXml ? `${jenkinsXml}\n${uatRes.body}` : uatRes.body;
-            jenkinsLiveOk = true;
-          }
-        } catch {
-          // Ignore optional UAT upstream fetch error
-        }
-      } catch (err) {
-        dedupStats.lastJenkinsHttpStatus = 0;
-        errors.push(`Jenkins: ${err.message}`);
+      const ciDiag = await diagnoseAndFetchUpstream({
+        target: 'JENKINS_CI',
+        url: proxyConfig.jenkinsUrl,
+        kind: 'JENKINS',
+        authType: effectiveJenkinsAuthType,
+        username: effectiveJenkinsUser,
+        secret: effectiveJenkinsSecret,
+        timeoutMs: 5000,
+      });
+      dedupStats.lastJenkinsHttpStatus = ciDiag.status;
+      if (ciDiag.ok) {
+        jenkinsXml = ciDiag.body;
+        jenkinsLiveOk = true;
+      } else {
+        errors.push(`Jenkins CI: ${ciDiag.logEntry.message}`);
+      }
+    }
+
+    // 3. Poll Jenkins UAT RSS (`jenkinsUatUrl`)
+    if (proxyConfig.jenkinsUatUrl && (hasJiraCredentials || proxyConfig.jenkinsSecret)) {
+      const uatDiag = await diagnoseAndFetchUpstream({
+        target: 'JENKINS_UAT',
+        url: proxyConfig.jenkinsUatUrl,
+        kind: 'JENKINS',
+        authType: effectiveJenkinsAuthType,
+        username: effectiveJenkinsUser,
+        secret: effectiveJenkinsSecret,
+        timeoutMs: 5000,
+      });
+      dedupStats.lastJenkinsUatHttpStatus = uatDiag.status;
+      if (uatDiag.ok) {
+        jenkinsXml = jenkinsXml ? `${jenkinsXml}\n${uatDiag.body}` : uatDiag.body;
+        jenkinsUatLiveOk = true;
+        jenkinsLiveOk = true;
+      } else {
+        errors.push(`Jenkins UAT: ${uatDiag.logEntry.message}`);
       }
     }
 
@@ -1116,11 +1221,8 @@ async function executeUpstreamPollCycle(reason = 'auto-poll') {
         jiraXml = customIngestedJiraXml || '';
         jenkinsXml = customIngestedJenkinsXml || '';
         sourceUsed = 'custom-ingested-xml';
-      } else if (proxyConfig.useSeedFallbackWhenOffline) {
-        jiraXml = SEED_FRT_JIRA_ACTIVITY_XML;
-        jenkinsXml = SEED_FRT_JENKINS_RSS_XML;
-        sourceUsed = 'seed-xml-cache';
       } else {
+        // Không bao giờ tự bơm dữ liệu mẫu (Seed XML) nữa!
         sourceUsed = 'upstream-offline';
       }
     }
@@ -1132,6 +1234,7 @@ async function executeUpstreamPollCycle(reason = 'auto-poll') {
       sourceUsed,
       jiraLiveOk,
       jenkinsLiveOk,
+      jenkinsUatLiveOk,
       lastError: dedupStats.lastError,
     };
   })().finally(() => {
@@ -1487,6 +1590,7 @@ function renderAdminHtmlPage() {
           </p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secondary" onclick="triggerTestConnection()">🔌 Test Connection (Jira + Jenkins CI + UAT)</button>
           <button type="button" class="btn btn-primary" onclick="triggerTestPoll()">🔄 Poll &amp; Test Deduplication Ngay</button>
           <button type="button" class="btn btn-danger" onclick="triggerResetCache()">♻️ Reset RAM Dedup Cache</button>
         </div>
@@ -1522,7 +1626,7 @@ function renderAdminHtmlPage() {
 
     <!-- SECTION 2: CREDENTIAL VAULT FORM -->
     <form id="credForm" class="card" onsubmit="saveCredentials(event)">
-      <h2 style="margin:0 0 12px; font-size:16px; color:#fcd34d;">🔑 Cấu hình Upstream URL &amp; Credential (Lưu mã hóa AES-256-GCM tại server/.credentials.enc.json)</h2>
+      <h2 style="margin:0 0 12px; font-size:16px; color:#fcd34d;">🔑 Cấu hình Upstream URL &amp; Credential (Lưu mã hóa AES-256-GCM tại server/.credentials.enc.json — 100% Dữ liệu Thật, Không Seed Mẫu)</h2>
 
       <div id="masterKeyRow" style="margin-bottom:16px; padding:12px; background:#020617; border:1px solid #334155; border-radius:10px;">
         <label>Header <code>X-Admin-Master-Key</code> (Chỉ cần nhập nếu máy chủ đặt biến môi trường <code>ADMIN_MASTER_KEY</code>):</label>
@@ -1556,12 +1660,16 @@ function renderAdminHtmlPage() {
           </div>
         </div>
 
-        <!-- Jenkins Column -->
+        <!-- Jenkins Column (CI + UAT) -->
         <div style="padding:14px; background:#020617; border:1px solid #1e293b; border-radius:12px;">
-          <h3 style="margin:0 0 10px; font-size:14px; color:#38bdf8;">🖥️ 2. Nguồn Jenkins CI RSS (jenkins-osp.frt.vn)</h3>
+          <h3 style="margin:0 0 10px; font-size:14px; color:#38bdf8;">🖥️ 2. Nguồn Jenkins CI &amp; UAT RSS (jenkins-osp.frt.vn)</h3>
           <div style="margin-bottom:10px;">
-            <label>Jenkins RSS All URL:</label>
-            <input type="text" id="jenkinsUrl" required />
+            <label>Jenkins CI RSS All URL (oneclickv4-build-ci):</label>
+            <input type="text" id="jenkinsUrl" required placeholder="https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/rssAll" />
+          </div>
+          <div style="margin-bottom:10px;">
+            <label>Jenkins UAT RSS All URL (oneclickv4-build-uat):</label>
+            <input type="text" id="jenkinsUatUrl" placeholder="https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll" />
           </div>
           <div style="margin-bottom:10px;">
             <label>Kiểu xác thực Jenkins:</label>
@@ -1583,7 +1691,7 @@ function renderAdminHtmlPage() {
         </div>
       </div>
 
-      <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid #1e293b;">
+      <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid #1e293b;">
         <div style="width:160px;">
           <label>Chu kỳ Server Poll (giây):</label>
           <input type="number" id="pollIntervalSec" min="5" max="120" value="10" />
@@ -1592,19 +1700,46 @@ function renderAdminHtmlPage() {
           <input type="checkbox" id="privacySanitize" checked />
           <span>🛡️ Bật <strong>Privacy Sanitization</strong> (Ẩn nội dung nhạy cảm/email trên API Public)</span>
         </label>
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
-          <input type="checkbox" id="useSeedFallbackWhenOffline" checked />
-          <span>🧪 Dùng Seed XML mẫu khi chưa nối VPN / chưa nhập Credential</span>
-        </label>
-        <div style="margin-left:auto;">
+        <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secondary" onclick="triggerTestConnection()">🔌 Test Connection Ngay (Jira + Jenkins CI + UAT)</button>
           <button type="submit" class="btn btn-primary">💾 Mã hóa AES-256-GCM &amp; Lưu Cấu Hình</button>
         </div>
       </div>
     </form>
 
+    <!-- SECTION 2.5: LIVE CONNECTION DIAGNOSTIC LOGS (JIRA vs JENKINS CI vs JENKINS UAT) -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div>
+          <h2 style="margin:0; font-size:16px; color:#34d399;">📡 Nhật ký Kiểm tra Kết nối (Test Connection Logs — Jira &amp; Jenkins CI / UAT)</h2>
+          <p style="margin:2px 0 0; font-size:12px; color:#94a3b8;">
+            Hiển thị chi tiết mã HTTP, thời gian phản hồi (ms), dung lượng XML, phát hiện lỗi Redirect trang Login HTML và danh sách mẫu các bản ghi đọc được.
+          </p>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="triggerTestConnection()">🧪 Chạy Test Connection (3 Nguồn)</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Nguồn</th>
+              <th>Trạng thái HTTP</th>
+              <th>Độ trễ / Dung lượng</th>
+              <th>Số Entry XML</th>
+              <th>Chi tiết Chẩn đoán &amp; Bản ghi Mẫu (Real XML)</th>
+            </tr>
+          </thead>
+          <tbody id="connectionLogsTableBody">
+            <tr><td colspan="6" style="color:#64748b;">Chưa có log kết nối. Hãy bấm "🔌 Test Connection Ngay" để kiểm tra kết nối Jira, Jenkins CI và Jenkins UAT.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- SECTION 3: RECENT DEDUPLICATED EVENTS RING BUFFER -->
     <div class="card">
-      <h2 style="margin:0 0 10px; font-size:16px; color:#a78bfa;">📜 Nhật ký Sự kiện Duy Nhất trong Ring Buffer (Tối đa 100 events gần nhất)</h2>
+      <h2 style="margin:0 0 10px; font-size:16px; color:#a78bfa;">📜 Nhật ký Sự kiện Duy Nhất trong Ring Buffer (Tối đa 100 events thật gần nhất)</h2>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -1612,7 +1747,7 @@ function renderAdminHtmlPage() {
               <th>Seq (#)</th>
               <th>Loại</th>
               <th>Ticket / Build</th>
-              <th>Luồng Nhân Vật</th>
+              <th>Luồng Nhân Vật (Real Account)</th>
               <th>Fingerprint (Khóa chống trùng lặp)</th>
               <th>Thời gian</th>
             </tr>
@@ -1656,17 +1791,47 @@ function renderAdminHtmlPage() {
         document.getElementById('jiraUsername').value = cfg.jiraUsername || '';
         document.getElementById('jiraSecretStatus').textContent = cfg.hasJiraSecret ? 'Đã mã hóa AES-256-GCM ✅' : 'Chưa lưu';
         document.getElementById('jenkinsUrl').value = cfg.jenkinsUrl || '';
+        document.getElementById('jenkinsUatUrl').value = cfg.jenkinsUatUrl || 'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll';
         document.getElementById('jenkinsAuthType').value = cfg.jenkinsAuthType || 'NONE';
         document.getElementById('jenkinsUsername').value = cfg.jenkinsUsername || '';
         document.getElementById('jenkinsSecretStatus').textContent = cfg.hasJenkinsSecret ? 'Đã mã hóa AES-256-GCM ✅' : 'Chưa lưu';
         document.getElementById('pollIntervalSec').value = cfg.pollIntervalSec || 10;
         document.getElementById('privacySanitize').checked = Boolean(cfg.privacySanitize);
-        document.getElementById('useSeedFallbackWhenOffline').checked = Boolean(cfg.useSeedFallbackWhenOffline);
 
         renderStatsAndTable(data);
+        renderConnectionLogs(data.connectionLogs || []);
       } catch (err) {
         showToast('Không thể tải trạng thái Admin: ' + err.message, true);
       }
+    }
+
+    function renderConnectionLogs(logs) {
+      const tbody = document.getElementById('connectionLogsTableBody');
+      if (!logs || logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#64748b;">Chưa có log kết nối. Hãy bấm "🔌 Test Connection Ngay" để kiểm tra kết nối Jira, Jenkins CI và Jenkins UAT.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = logs.map(item => {
+        const statusBadge = item.ok
+          ? '<span style="color:#34d399;font-weight:700;">🟢 HTTP ' + item.status + ' OK</span>'
+          : '<span style="color:#f43f5e;font-weight:700;">🔴 ' + (item.status ? ('HTTP ' + item.status) : 'ERR') + '</span>';
+        const targetBadge = item.target === 'JIRA'
+          ? '<span style="color:#fbbf24;font-weight:700;">JIRA</span>'
+          : (item.target === 'JENKINS_UAT'
+              ? '<span style="color:#c084fc;font-weight:700;">JENKINS_UAT</span>'
+              : '<span style="color:#38bdf8;font-weight:700;">JENKINS_CI</span>');
+        const samplesHtml = (item.sampleItems && item.sampleItems.length > 0)
+          ? '<div style="margin-top:4px;color:#cbd5e1;font-size:11px;">• ' + item.sampleItems.join('<br/>• ') + '</div>'
+          : (item.bodyPreview ? '<div style="margin-top:4px;color:#fda4af;font-size:11px;">Snippet: ' + item.bodyPreview + '</div>' : '');
+        return '<tr>' +
+          '<td style="color:#94a3b8;white-space:nowrap;">' + (item.time || '').slice(11, 19) + '</td>' +
+          '<td>' + targetBadge + '<div style="font-size:10px;color:#64748b;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (item.url || '') + '">' + (item.url || '') + '</div></td>' +
+          '<td>' + statusBadge + '<div style="font-size:10px;color:#94a3b8;">Auth: ' + (item.authType || 'NONE') + ' (' + (item.username || '-') + ')</div></td>' +
+          '<td style="white-space:nowrap;">' + (item.durationMs ?? 0) + ' ms<br/><span style="color:#64748b;font-size:11px;">' + (item.byteLength ?? 0) + ' B</span></td>' +
+          '<td style="font-weight:700;color:#38bdf8;">' + (item.entriesCount ?? 0) + ' entries</td>' +
+          '<td><div style="font-weight:600;color:' + (item.ok ? '#6ee7b7' : '#fda4af') + ';">' + (item.message || '') + '</div>' + samplesHtml + '</td>' +
+        '</tr>';
+      }).join('');
     }
 
     function renderStatsAndTable(data) {
@@ -1681,18 +1846,18 @@ function renderAdminHtmlPage() {
       const tbody = document.getElementById('eventsTableBody');
       const events = data.recentEvents || [];
       if (events.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color:#64748b;">Chưa có sự kiện nào trong Ring Buffer. Hãy bấm "Poll & Test Deduplication Ngay".</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#64748b;">Chưa có sự kiện thật nào trong Ring Buffer (Đã tắt hoàn toàn Seed mẫu). Hãy bấm "🔌 Test Connection" hoặc "🔄 Poll & Test Deduplication Ngay".</td></tr>';
         return;
       }
       tbody.innerHTML = events.slice().reverse().map(ev => {
         const isJira = ev.kind === 'JIRA_ACTIVITY';
         const badge = isJira
           ? '<span style="color:#fbbf24;">JIRA_ACTIVITY</span>'
-          : '<span style="color:#38bdf8;">JENKINS_BUILD</span>';
+          : '<span style="color:#38bdf8;">JENKINS_BUILD (' + (ev.clusterId || 'CI') + ')</span>';
         const keyCol = isJira ? ev.ticketKey : ('#' + ev.buildNumber + ' (' + ev.status + ')');
         const actorCol = isJira
           ? (ev.fromAccount + ' ➔ ' + ev.toAccount + ' [' + ev.toStatus + ']')
-          : (ev.triggeredByAccount + ' ➔ Server CI [' + ev.ticketKey + ']');
+          : (ev.triggeredByAccount + ' ➔ Server ' + (ev.clusterId || 'CI') + ' [' + ev.ticketKey + ']');
         return '<tr>' +
           '<td style="color:#38bdf8;font-weight:700;">#' + ev.seq + '</td>' +
           '<td>' + badge + '</td>' +
@@ -1712,12 +1877,13 @@ function renderAdminHtmlPage() {
         jiraUsername: document.getElementById('jiraUsername').value.trim(),
         jiraSecret: document.getElementById('jiraSecret').value,
         jenkinsUrl: document.getElementById('jenkinsUrl').value.trim(),
+        jenkinsUatUrl: document.getElementById('jenkinsUatUrl').value.trim(),
         jenkinsAuthType: document.getElementById('jenkinsAuthType').value,
         jenkinsUsername: document.getElementById('jenkinsUsername').value.trim(),
         jenkinsSecret: document.getElementById('jenkinsSecret').value,
         pollIntervalSec: Number(document.getElementById('pollIntervalSec').value) || 10,
         privacySanitize: document.getElementById('privacySanitize').checked,
-        useSeedFallbackWhenOffline: document.getElementById('useSeedFallbackWhenOffline').checked,
+        useSeedFallbackWhenOffline: false,
       };
       const res = await fetch('/api/admin/credentials', {
         method: 'POST',
@@ -1733,6 +1899,37 @@ function renderAdminHtmlPage() {
       document.getElementById('jenkinsSecret').value = '';
       showToast(data.message || 'Đã mã hóa AES-256-GCM và lưu Credential thành công!');
       await loadAdminState();
+    }
+
+    async function triggerTestConnection() {
+      showToast('🔌 Đang kiểm tra kết nối trực tiếp tới Jira, Jenkins CI và Jenkins UAT...');
+      const payload = {
+        jiraUrl: document.getElementById('jiraUrl').value.trim(),
+        jiraAuthType: document.getElementById('jiraAuthType').value,
+        jiraUsername: document.getElementById('jiraUsername').value.trim(),
+        jiraSecret: document.getElementById('jiraSecret').value,
+        jenkinsUrl: document.getElementById('jenkinsUrl').value.trim(),
+        jenkinsUatUrl: document.getElementById('jenkinsUatUrl').value.trim(),
+        jenkinsAuthType: document.getElementById('jenkinsAuthType').value,
+        jenkinsUsername: document.getElementById('jenkinsUsername').value.trim(),
+        jenkinsSecret: document.getElementById('jenkinsSecret').value,
+      };
+      try {
+        const res = await fetch('/api/admin/test-connection', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Lỗi Test Connection', true);
+          return;
+        }
+        renderConnectionLogs(data.connectionLogs || []);
+        showToast(data.message, !data.allOk);
+      } catch (err) {
+        showToast('Lỗi gọi API test-connection: ' + err.message, true);
+      }
     }
 
     async function triggerTestPoll() {
@@ -1891,16 +2088,20 @@ export function createOfficeProxyServer() {
               jiraUsername: proxyConfig.jiraUsername,
               hasJiraSecret: Boolean(proxyConfig.jiraSecret),
               jenkinsUrl: proxyConfig.jenkinsUrl,
+              jenkinsUatUrl:
+                proxyConfig.jenkinsUatUrl ||
+                'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll',
               jenkinsAuthType: proxyConfig.jenkinsAuthType,
               jenkinsUsername: proxyConfig.jenkinsUsername,
               hasJenkinsSecret: Boolean(proxyConfig.jenkinsSecret),
               pollIntervalSec: proxyConfig.pollIntervalSec,
               privacySanitize: proxyConfig.privacySanitize,
-              useSeedFallbackWhenOffline: proxyConfig.useSeedFallbackWhenOffline,
+              useSeedFallbackWhenOffline: false,
             },
             dedupStats: getPublicDedupStatsSnapshot(),
             recentEvents: eventRingBuffer.slice(-30),
             jenkinsSnapshot,
+            connectionLogs,
           });
           return;
         }
@@ -1918,10 +2119,23 @@ export function createOfficeProxyServer() {
           if (body.jenkinsUrl) {
             const checkJenkins = validateUpstreamUrl(body.jenkinsUrl);
             if (!checkJenkins.ok) {
-              sendJson(res, 400, { ok: false, error: `Jenkins URL không hợp lệ: ${checkJenkins.reason}` });
+              sendJson(res, 400, { ok: false, error: `Jenkins CI URL không hợp lệ: ${checkJenkins.reason}` });
               return;
             }
             proxyConfig.jenkinsUrl = checkJenkins.url;
+          }
+          if (body.jenkinsUatUrl !== undefined) {
+            const rawUat = String(body.jenkinsUatUrl || '').trim();
+            if (rawUat) {
+              const checkJenkinsUat = validateUpstreamUrl(rawUat);
+              if (!checkJenkinsUat.ok) {
+                sendJson(res, 400, { ok: false, error: `Jenkins UAT URL không hợp lệ: ${checkJenkinsUat.reason}` });
+                return;
+              }
+              proxyConfig.jenkinsUatUrl = checkJenkinsUat.url;
+            } else {
+              proxyConfig.jenkinsUatUrl = '';
+            }
           }
           if (body.jiraAuthType) proxyConfig.jiraAuthType = String(body.jiraAuthType);
           if (body.jiraUsername !== undefined) proxyConfig.jiraUsername = String(body.jiraUsername).trim();
@@ -1939,16 +2153,98 @@ export function createOfficeProxyServer() {
           if (body.privacySanitize !== undefined) {
             proxyConfig.privacySanitize = Boolean(body.privacySanitize);
           }
-          if (body.useSeedFallbackWhenOffline !== undefined) {
-            proxyConfig.useSeedFallbackWhenOffline = Boolean(body.useSeedFallbackWhenOffline);
-          }
+          proxyConfig.useSeedFallbackWhenOffline = false;
 
           saveEncryptedCredentials(proxyConfig);
           restartBackgroundPollTimer();
 
           sendJson(res, 200, {
             ok: true,
-            message: '🔒 Đã mã hóa AES-256-GCM và lưu Credential vào server/.credentials.enc.json thành công!',
+            message: '🔒 Đã mã hóa AES-256-GCM và lưu Credential (Jira + Jenkins CI + Jenkins UAT) vào server/.credentials.enc.json thành công!',
+          });
+          return;
+        }
+
+        if (pathname === '/api/admin/test-connection' && method === 'POST') {
+          const body = await readJsonBody(req);
+          const testJiraUrl = String(body.jiraUrl || proxyConfig.jiraUrl || '').trim();
+          const testJiraAuthType = String(body.jiraAuthType || proxyConfig.jiraAuthType || 'BASIC');
+          const testJiraUser =
+            body.jiraUsername !== undefined
+              ? String(body.jiraUsername).trim()
+              : proxyConfig.jiraUsername;
+          const testJiraSecret =
+            body.jiraSecret && String(body.jiraSecret).trim().length > 0
+              ? String(body.jiraSecret)
+              : proxyConfig.jiraSecret;
+
+          const testJenkinsUrl = String(body.jenkinsUrl || proxyConfig.jenkinsUrl || '').trim();
+          const testJenkinsUatUrl = String(
+            body.jenkinsUatUrl !== undefined
+              ? body.jenkinsUatUrl
+              : proxyConfig.jenkinsUatUrl || 'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll'
+          ).trim();
+          const rawJenkinsAuthType = String(
+            body.jenkinsAuthType || proxyConfig.jenkinsAuthType || 'NONE'
+          );
+          const effectiveJenkinsAuthType =
+            rawJenkinsAuthType !== 'NONE' ? rawJenkinsAuthType : testJiraAuthType;
+          const testJenkinsUser =
+            (body.jenkinsUsername !== undefined
+              ? String(body.jenkinsUsername).trim()
+              : proxyConfig.jenkinsUsername) || testJiraUser;
+          const testJenkinsSecret =
+            (body.jenkinsSecret && String(body.jenkinsSecret).trim().length > 0
+              ? String(body.jenkinsSecret)
+              : proxyConfig.jenkinsSecret) || testJiraSecret;
+
+          const [jiraRes, ciRes, uatRes] = await Promise.all([
+            diagnoseAndFetchUpstream({
+              target: 'JIRA',
+              url: testJiraUrl,
+              kind: 'JIRA',
+              authType: testJiraAuthType,
+              username: testJiraUser,
+              secret: testJiraSecret,
+              timeoutMs: 6000,
+            }),
+            diagnoseAndFetchUpstream({
+              target: 'JENKINS_CI',
+              url: testJenkinsUrl,
+              kind: 'JENKINS',
+              authType: effectiveJenkinsAuthType,
+              username: testJenkinsUser,
+              secret: testJenkinsSecret,
+              timeoutMs: 6000,
+            }),
+            diagnoseAndFetchUpstream({
+              target: 'JENKINS_UAT',
+              url: testJenkinsUatUrl,
+              kind: 'JENKINS',
+              authType: effectiveJenkinsAuthType,
+              username: testJenkinsUser,
+              secret: testJenkinsSecret,
+              timeoutMs: 6000,
+            }),
+          ]);
+
+          const allOk = Boolean(jiraRes.ok && ciRes.ok && (!testJenkinsUatUrl || uatRes.ok));
+          const summaryParts = [
+            `Jira: ${jiraRes.ok ? `OK (${jiraRes.logEntry.entriesCount} entries)` : `FAIL (HTTP ${jiraRes.status || 'ERR'})`}`,
+            `Jenkins CI: ${ciRes.ok ? `OK (${ciRes.logEntry.entriesCount} builds)` : `FAIL (HTTP ${ciRes.status || 'ERR'})`}`,
+            `Jenkins UAT: ${uatRes.ok ? `OK (${uatRes.logEntry.entriesCount} builds)` : `FAIL (HTTP ${uatRes.status || 'ERR'})`}`,
+          ];
+
+          sendJson(res, 200, {
+            ok: true,
+            allOk,
+            results: {
+              jira: jiraRes.logEntry,
+              jenkinsCi: ciRes.logEntry,
+              jenkinsUat: uatRes.logEntry,
+            },
+            connectionLogs,
+            message: `${allOk ? '✅ Tất cả kết nối đều THÀNH CÔNG!' : '⚠️ Kết quả kiểm tra kết nối:'} ${summaryParts.join(' | ')}`,
           });
           return;
         }
@@ -1961,9 +2257,12 @@ export function createOfficeProxyServer() {
             pollResult,
             latestSeq: currentSeq,
             dedupStats: getPublicDedupStatsSnapshot(),
+            connectionLogs,
             message:
               totalNew > 0
                 ? `✅ Poll hoàn tất (${pollResult.sourceUsed}): Phát hiện ${totalNew} sự kiện MỚI (seq=${currentSeq}), đã lọc bỏ ${pollResult.droppedInThisBatch} bản ghi trùng lặp!`
+                : pollResult.sourceUsed === 'upstream-offline'
+                ? `⚠️ Chưa lấy được XML thật từ Jira / Jenkins (${pollResult.lastError || 'Kiểm tra bảng Nhật ký Kết nối bên dưới'}). Không dùng dữ liệu mẫu!`
                 : `🛡️ 0 sự kiện mới (Đã lọc bỏ ${pollResult.droppedInThisBatch} sự kiện trùng lặp trong RAM Cache • Tổng đã chặn: ${dedupStats.duplicatesDropped})!`,
           });
           return;

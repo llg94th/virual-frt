@@ -310,16 +310,53 @@ function validateUpstreamUrl(rawUrl) {
   }
 }
 
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  const entityMap = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&aacute;': 'á',
+    '&agrave;': 'à',
+    '&atilde;': 'ã',
+    '&acirc;': 'â',
+    '&eacute;': 'é',
+    '&egrave;': 'è',
+    '&etilde;': 'ẽ',
+    '&ecirc;': 'ê',
+    '&iacute;': 'í',
+    '&igrave;': 'ì',
+    '&itilde;': 'ĩ',
+    '&oacute;': 'ó',
+    '&ograve;': 'ò',
+    '&otilde;': 'õ',
+    '&ocirc;': 'ô',
+    '&uacute;': 'ú',
+    '&ugrave;': 'ù',
+    '&utilde;': 'ũ',
+    '&yacute;': 'ý',
+  };
+  let out = String(str);
+  // Decode up to 2 passes to handle double-escaped entities like `&amp;oacute;` or `&lt;a href=...&gt;`
+  for (let pass = 0; pass < 2; pass++) {
+    out = out.replace(
+      /&(?:nbsp|amp|lt|gt|quot|#39|apos|[a-z]+);/gi,
+      (match) => entityMap[match.toLowerCase()] ?? match
+    );
+  }
+  return out;
+}
+
 function stripHtmlTags(html) {
   if (!html) return '';
-  return String(html)
+  // Quan trọng: Phải giải mã `&lt;a href="..."&gt;` thành `<a href="...">` TRƯỚC khi xóa thẻ `<...>`!
+  const decoded = decodeHtmlEntities(html);
+  return decoded
     .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -503,8 +540,15 @@ function extractAllXmlTagValues(block, tagName) {
   return results;
 }
 
+// Global memory of the most recent real actor per Jira ticket key (e.g. AL-5090 -> huyenttm4 -> cuongph27 -> thundm)
+const lastActorByTicketKey = new Map();
+
 /**
  * Parse raw Jira Activity Atom XML into normalized entries (100% REAL DATA, NO FAKE FALLBACK ACCOUNTS!)
+ * Supports FRT Jira format where:
+ * - `<author><email>thundm@fpt.com</email><name>Nguyễn Đình Minh Thư ⏰</name><usr:username>37699</usr:username></author>`
+ * - `<author><email>cuongph27@fpt.com</email><name>cuongph27</name><usr:username>cuongph27</usr:username></author>`
+ * - `<activity:object><title type="text">AL-5090</title><summary type="text">[Core Specimen] Định nghĩa IndexGroup</summary></activity:object>`
  */
 export function parseRawJiraActivityXml(xmlText) {
   if (!xmlText || typeof xmlText !== 'string') return [];
@@ -515,24 +559,52 @@ export function parseRawJiraActivityXml(xmlText) {
     entryBlocks.push(match[1]);
   }
 
-  return entryBlocks.map((block, idx) => {
+  // First pass: parse raw fields for each entry
+  const rawItems = entryBlocks.map((block, idx) => {
     const rawId =
       stripHtmlTags(extractXmlTagText(block, ['id', 'guid'])) || `frt-entry-${idx}`;
     const rawTitleHtml = extractXmlTagText(block, ['title']);
     const rawSummaryHtml = extractXmlTagText(block, ['summary', 'content', 'description']);
     const cleanTitle = stripHtmlTags(rawTitleHtml);
     const cleanSummary = stripHtmlTags(rawSummaryHtml);
-    const combinedText = `${cleanTitle} ${cleanSummary}`;
 
-    // Extract author specifically from <author> block first
+    // Extract <activity:object> block for exact ticket key & issue summary
+    const objectBlock = extractXmlTagText(block, ['activity:object', 'object']);
+    const objectTicketTitle = stripHtmlTags(extractXmlTagText(objectBlock, ['title']));
+    const objectIssueSummary = stripHtmlTags(extractXmlTagText(objectBlock, ['summary']));
+
+    // Extract <author> block
     const authorBlock = extractXmlTagText(block, ['author']) || block;
-    const allUsrUsernames = extractAllXmlTagValues(block, 'usr:username');
-    const authorUsername =
-      stripHtmlTags(extractXmlTagText(authorBlock, ['usr:username'])) ||
-      allUsrUsernames[0] ||
-      stripHtmlTags(extractXmlTagText(authorBlock, ['email'])).replace(/@.*$/, '') ||
-      stripHtmlTags(extractXmlTagText(authorBlock, ['name', 'dc:creator', 'creator'])) ||
-      (cleanTitle.split(/\s+/)[0] || 'jira-user');
+    const authorEmail = stripHtmlTags(extractXmlTagText(authorBlock, ['email']));
+    const emailPrefix = authorEmail.includes('@')
+      ? authorEmail.split('@')[0].trim()
+      : '';
+    const rawUsrUsername = stripHtmlTags(
+      extractXmlTagText(authorBlock, ['usr:username', 'username'])
+    );
+    // In FRT Jira, some users have numeric LDAP IDs in <usr:username> (e.g. 37699 for thundm@fpt.com)
+    const nonNumericUsrUsername =
+      rawUsrUsername && !/^\d+$/.test(rawUsrUsername) ? rawUsrUsername : '';
+    const authorDisplayName = stripHtmlTags(
+      extractXmlTagText(authorBlock, ['name', 'dc:creator', 'creator'])
+    ).trim();
+
+    // Priority: 1) email prefix (`thundm`, `cuongph27`, `huyenttm4`), 2) non-numeric usr:username, 3) author <name>
+    const realAuthorAccount =
+      emailPrefix ||
+      nonNumericUsrUsername ||
+      authorDisplayName ||
+      rawUsrUsername ||
+      'jira-user';
+
+    // Collect all non-numeric usernames/emails in the entry block (in case of assignee/target person)
+    const allEmailsInBlock = extractAllXmlTagValues(block, 'email')
+      .map((e) => (e.includes('@') ? e.split('@')[0].trim() : ''))
+      .filter(Boolean);
+    const allUsrInBlock = extractAllXmlTagValues(block, 'usr:username').filter(
+      (u) => !/^\d+$/.test(u)
+    );
+    const candidateTargetUsers = [...new Set([...allEmailsInBlock, ...allUsrInBlock])];
 
     const linkHref = extractXmlLinkHref(block);
     const updatedAt =
@@ -540,57 +612,93 @@ export function parseRawJiraActivityXml(xmlText) {
       new Date().toISOString();
 
     const keyMatch =
-      combinedText.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
+      objectTicketTitle.match(/^([A-Z][A-Z0-9_]{1,9}-\d+)$/i) ||
+      cleanTitle.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
       linkHref.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
     const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `JIRA-${idx + 1}`;
 
-    const upperText = combinedText.toUpperCase();
+    const isCreatedVerb =
+      /<category[^>]*term=["']created["']/i.test(block) ||
+      /schema\/1\.0\/post/i.test(block) ||
+      /\bcreated\b/i.test(cleanTitle);
+
+    // Classify status strictly using cleanTitle (never match substring 'PR' inside 'ViewProfile'!)
     const toStatus =
-      upperText.includes('DONE') ||
-      upperText.includes('RESOLVED') ||
-      upperText.includes('CLOSED') ||
-      upperText.includes('HOÀN THÀNH')
+      /\b(done|resolved|closed|hoàn thành)\b/i.test(cleanTitle)
         ? 'DONE'
-        : upperText.includes('QA') ||
-          upperText.includes('TEST') ||
-          upperText.includes('KIỂM THỬ') ||
-          upperText.includes('UAT')
+        : /\b(qa|testing|kiểm thử|uat)\b/i.test(cleanTitle)
         ? 'QA_TESTING'
-        : upperText.includes('REVIEW') || upperText.includes('PR') || upperText.includes('MERGE')
+        : /\b(code review|in review|pull request|merge request|review)\b/i.test(cleanTitle)
         ? 'CODE_REVIEW'
-        : upperText.includes('DEPLOY') || upperText.includes('RELEASE')
+        : /\b(fix version|release\/|deploy|ready for deploy)\b/i.test(cleanTitle)
         ? 'READY_FOR_DEPLOY'
+        : isCreatedVerb
+        ? 'TODO'
         : 'IN_PROGRESS';
 
-    const isReturnToPM = toStatus === 'DONE';
-    const resolvedAuthor = resolveEmployeeByAccount(authorUsername);
-    const mentioned = extractMentionedAccounts(combinedText);
+    const displaySummary =
+      objectIssueSummary
+        ? `[${ticketKey}] ${objectIssueSummary} — ${cleanTitle}`
+        : cleanTitle || cleanSummary || `Cập nhật Jira ${ticketKey}`;
 
-    // Keep 100% real author account from Jira XML!
-    const fromAccount = resolvedAuthor?.canonicalAccount || authorUsername.trim();
-    const fallbackEmpNum = (hashStringToIndex(fromAccount, 30) + 1).toString().padStart(2, '0');
-    const fromEmployeeId =
-      resolvedAuthor?.employeeId || mentioned[0]?.employeeId || `EMP-${fallbackEmpNum}`;
+    return {
+      rawId,
+      ticketKey,
+      cleanTitle,
+      cleanSummary,
+      displaySummary,
+      realAuthorAccount,
+      authorDisplayName,
+      candidateTargetUsers,
+      toStatus,
+      updatedAt,
+    };
+  });
 
-    // Determine target account from 2nd <usr:username> in XML or mentions in text
-    const secondXmlUsername = allUsrUsernames.find(
+  // Process chronologically (oldest -> newest) so `lastActorByTicketKey` links real collaborators on the same ticket
+  const chronological = [...rawItems].reverse();
+  const parsedByRawId = new Map();
+
+  for (const item of chronological) {
+    const resolvedAuthor = resolveEmployeeByAccount(item.realAuthorAccount);
+    // Keep exact real account from XML (e.g. `cuongph27`, `huyenttm4`, `thundm`)
+    const fromAccount = item.realAuthorAccount;
+    const fallbackEmpNum = (hashStringToIndex(fromAccount, 30) + 1)
+      .toString()
+      .padStart(2, '0');
+    const fromEmployeeId = resolvedAuthor?.employeeId || `EMP-${fallbackEmpNum}`;
+
+    const isReturnToPM = item.toStatus === 'DONE';
+
+    // Find target collaborator:
+    // 1) Explicit 2nd user in the same XML entry
+    // 2) Previous real user who created/updated the same ticket (`AL-5090`: huyenttm4 -> cuongph27 -> thundm)
+    // 3) The ticketKey itself if this is the first activity on the ticket
+    const explicitSecondUser = item.candidateTargetUsers.find(
       (u) => normalizeAccountKey(u) !== normalizeAccountKey(fromAccount)
     );
-    const secondMention = mentioned.find((m) => m.employeeId !== fromEmployeeId);
-    const resolvedSecond = secondXmlUsername ? resolveEmployeeByAccount(secondXmlUsername) : null;
+    const prevTicketCollaborator = lastActorByTicketKey.get(item.ticketKey);
+    const targetUserAccount =
+      explicitSecondUser ||
+      (prevTicketCollaborator &&
+      normalizeAccountKey(prevTicketCollaborator) !== normalizeAccountKey(fromAccount)
+        ? prevTicketCollaborator
+        : '');
 
-    let toAccount =
-      resolvedSecond?.canonicalAccount ||
-      secondXmlUsername ||
-      secondMention?.canonicalAccount ||
-      (isReturnToPM ? 'PM (DONE)' : ticketKey);
+    // Update last actor for this ticket key
+    lastActorByTicketKey.set(item.ticketKey, fromAccount);
 
+    const toAccount =
+      targetUserAccount || (isReturnToPM ? 'PM (DONE)' : item.ticketKey);
+
+    const resolvedTarget = targetUserAccount
+      ? resolveEmployeeByAccount(targetUserAccount)
+      : null;
     let toEmployeeId =
-      resolvedSecond?.employeeId ||
-      secondMention?.employeeId ||
+      resolvedTarget?.employeeId ||
       (isReturnToPM
         ? 'EMP-01'
-        : `EMP-${((hashStringToIndex(`${fromAccount}:${ticketKey}`, 29) + 2) % 30 + 1)
+        : `EMP-${((hashStringToIndex(targetUserAccount || `${fromAccount}:${item.ticketKey}`, 29) + 2) % 30 + 1)
             .toString()
             .padStart(2, '0')}`);
     if (toEmployeeId === fromEmployeeId) {
@@ -598,34 +706,41 @@ export function parseRawJiraActivityXml(xmlText) {
     }
 
     const fingerprint = computeServerJiraFingerprint({
-      entryId: rawId,
-      ticketKey,
+      entryId: item.rawId,
+      ticketKey: item.ticketKey,
       fromAccount,
       toAccount,
-      toStatus,
-      updatedTimestamp: updatedAt,
+      toStatus: item.toStatus,
+      updatedTimestamp: item.updatedAt,
     });
 
-    return {
-      id: rawId,
+    parsedByRawId.set(item.rawId, {
+      id: item.rawId,
       fingerprint,
-      ticketKey,
-      summary: cleanSummary || cleanTitle || `Cập nhật Jira ${ticketKey}`,
-      rawTitle: cleanTitle || `Activity on ${ticketKey}`,
+      ticketKey: item.ticketKey,
+      summary: item.displaySummary,
+      rawTitle: item.cleanTitle || `Activity on ${item.ticketKey}`,
       authorAccount: fromAccount,
+      authorDisplayName: item.authorDisplayName || fromAccount,
       fromAccount,
       toAccount,
       fromEmployeeId,
       toEmployeeId,
-      toStatus,
+      toStatus: item.toStatus,
       isReturnToPM,
-      updatedAt,
-    };
-  });
+      updatedAt: item.updatedAt,
+    });
+  }
+
+  return rawItems.map((it) => parsedByRawId.get(it.rawId));
 }
 
 /**
  * Parse raw Jenkins RSS/Atom XML into normalized build items (100% REAL DATA!)
+ * Supports FRT Jenkins `oneclickv4-build-ci` & `oneclickv4-build-uat` format:
+ * - `<title>oneclickv4-build-ci bo-ci-agentos-worker:ci-41475 (stable)</title>`
+ * - `<title>oneclickv4-build-ci lab-ci-lab-payment:ci-41449 (broken since this build)</title>`
+ * - `<title>oneclickv4-build-ci #41362 (aborted)</title>`
  */
 export function parseRawJenkinsRssXml(xmlText) {
   if (!xmlText || typeof xmlText !== 'string') return [];
@@ -654,13 +769,8 @@ export function parseRawJenkinsRssXml(xmlText) {
       extractXmlTagText(block, ['content', 'summary', 'description'])
     );
 
-    const numMatch =
-      rawTitle.match(/#(\d+)/) ||
-      link.match(/\/(\d+)\/?$/) ||
-      rawId.match(/:(\d+)$/);
-    const buildNumber = numMatch ? parseInt(numMatch[1], 10) : idx + 1;
-
-    const parenMatch = rawTitle.match(/\(([^)]+)\)/);
+    // 1. Extract status inside trailing parentheses: `(stable)`, `(broken since this build)`, `(back to normal)`, `(aborted)`
+    const parenMatch = rawTitle.match(/\(([^)]+)\)\s*$/);
     const statusText = parenMatch ? parenMatch[1].trim() : 'stable';
     const lowerStatus = statusText.toLowerCase();
 
@@ -676,20 +786,46 @@ export function parseRawJenkinsRssXml(xmlText) {
         ? 'BUILDING'
         : 'SUCCESS';
 
-    const jobTitlePrefix = rawTitle.split('#')[0]?.trim();
-    const isUatJob = /uat/i.test(`${rawTitle} ${link} ${rawId}`);
-    const isReleaseJob = /release|prod/i.test(`${rawTitle} ${link} ${rawId}`);
+    // 2. Parse jobName, serviceName, and buildTag from `<title>` without `(...)`
+    // Example: `oneclickv4-build-ci bo-ci-agentos-worker:ci-41475`
+    const titleWithoutStatus = rawTitle.replace(/\s*\([^)]+\)\s*$/, '').trim();
+    const titleTokens = titleWithoutStatus.split(/\s+/).filter(Boolean);
+    const firstToken = titleTokens[0] || '';
+    const secondToken = titleTokens.slice(1).join(' ').trim();
+
+    let serviceName = '';
+    let buildTag = '';
+    if (secondToken.includes(':')) {
+      const colonIdx = secondToken.indexOf(':');
+      serviceName = secondToken.slice(0, colonIdx).trim();
+      buildTag = secondToken.slice(colonIdx + 1).trim();
+    } else if (secondToken.startsWith('#')) {
+      buildTag = secondToken;
+    } else if (secondToken) {
+      serviceName = secondToken;
+    }
+
+    const numMatch =
+      link.match(/\/(\d+)\/?$/) ||
+      rawId.match(/:(\d+)$/) ||
+      buildTag.match(/(\d+)$/) ||
+      rawTitle.match(/#(\d+)/);
+    const buildNumber = numMatch ? parseInt(numMatch[1], 10) : idx + 1;
+
+    const isUatJob = /oneclickv4-build-uat|\buat\b/i.test(`${firstToken} ${link} ${rawId}`);
+    const isReleaseJob = /oneclickv4-build-release|\brelease\b/i.test(`${firstToken} ${link} ${rawId}`);
     const jobName =
-      jobTitlePrefix ||
-      (isUatJob
+      firstToken && !firstToken.includes(':')
+        ? firstToken
+        : isUatJob
         ? 'oneclickv4-build-uat'
         : isReleaseJob
         ? 'oneclickv4-build-release'
-        : 'oneclickv4-build-ci');
+        : 'oneclickv4-build-ci';
     const clusterId = isUatJob ? 'UAT' : isReleaseJob ? 'RELEASE' : 'CI';
-    const combinedMeta = `${authorText} ${contentText} ${rawTitle}`;
 
-    // Extract real user from "Started by user XYZ" or <author><name>
+    // 3. Extract real user if present (`Started by user ...`), otherwise use real microservice name (`bo-ci-agentos-worker`)
+    const combinedMeta = `${authorText} ${contentText}`;
     const startedByMatch =
       combinedMeta.match(/Started by user\s+([a-zA-Z0-9._-]+)/i) ||
       combinedMeta.match(/by\s+([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/i);
@@ -697,20 +833,26 @@ export function parseRawJenkinsRssXml(xmlText) {
       (startedByMatch ? startedByMatch[1].replace(/@.*$/, '') : '') ||
       (authorText && !/jenkins|hudson|anonymous|system/i.test(authorText) ? authorText : '');
 
-    const resolvedAccount =
-      resolveEmployeeByAccount(rawUserFromJenkins) ||
-      extractMentionedAccounts(combinedMeta)[0];
     const triggeredBy =
-      resolvedAccount?.canonicalAccount ||
       rawUserFromJenkins ||
+      serviceName ||
       jobName;
-    const fallbackDevOpsIdx = (hashStringToIndex(`${jobName}:${buildNumber}`, 30) + 1)
+
+    const resolvedAccount = rawUserFromJenkins
+      ? resolveEmployeeByAccount(rawUserFromJenkins)
+      : null;
+    const fallbackDevOpsIdx = (hashStringToIndex(triggeredBy, 30) + 1)
       .toString()
       .padStart(2, '0');
     const employeeId = resolvedAccount?.employeeId || `EMP-${fallbackDevOpsIdx}`;
 
-    const ticketMatch = combinedMeta.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
-    const ticketKey = ticketMatch ? ticketMatch[1].toUpperCase() : jobName;
+    // Real build target / ticket label: e.g. `ci-41475` or `bo-ci-agentos-worker`
+    const jiraKeyMatch = combinedMeta.match(/\b([A-Z]{2,8}-\d+)\b/);
+    const ticketKey =
+      (jiraKeyMatch ? jiraKeyMatch[1].toUpperCase() : '') ||
+      buildTag ||
+      serviceName ||
+      `#${buildNumber}`;
     const timeAgo = formatRelativeTime(publishedAt);
 
     const fingerprint = computeServerJenkinsFingerprint(
@@ -724,6 +866,8 @@ export function parseRawJenkinsRssXml(xmlText) {
       fingerprint,
       buildNumber,
       jobName,
+      serviceName: serviceName || jobName,
+      buildTag: buildTag || `#${buildNumber}`,
       clusterId,
       statusText,
       status: statusNormalized,
@@ -795,9 +939,10 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
         ticketKey: item.ticketKey,
         summary: sanitizedSummary,
         rawTitle: proxyConfig.privacySanitize
-          ? `${item.fromAccount} transitioned ${item.ticketKey} to ${item.toStatus} (${item.toAccount})`
+          ? `${item.fromAccount} (${item.authorDisplayName || item.fromAccount}) transitioned ${item.ticketKey} to ${item.toStatus} (${item.toAccount})`
           : item.rawTitle,
         authorAccount: item.fromAccount,
+        authorDisplayName: item.authorDisplayName || item.fromAccount,
         fromAccount: item.fromAccount,
         toAccount: item.toAccount,
         fromEmployeeId: item.fromEmployeeId,
@@ -884,6 +1029,8 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
           kind: 'JENKINS_BUILD',
           id: build.id,
           jobName: build.jobName,
+          serviceName: build.serviceName || build.jobName,
+          buildTag: build.buildTag || `#${build.buildNumber}`,
           clusterId: build.clusterId || 'CI',
           buildNumber: build.buildNumber,
           status: build.status,

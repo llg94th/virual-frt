@@ -2431,6 +2431,63 @@ export class OfficeSimulationEngine {
   }
 
   /**
+   * Liên kết động tài khoản thật từ Jira/Jenkins (VD: `cuongph27`, `huyenttm4`, `thundm`, `bo-ci-agentos-worker`)
+   * vào nhân vật 2D trên bản đồ:
+   * - Nếu đã có nhân vật bàn làm việc mang account này, trả về đúng nhân vật đó.
+   * - Nếu chưa có, cập nhật `emp.account` và `emp.displayName` của nhân vật tại `fallbackEmployeeId`
+   *   sang đúng account thật để bảng tên trên đầu nhân vật & Nhật ký Hoạt động hiển thị chuẩn 100%!
+   */
+  private bindRealAccountToEmployeeSlot(
+    fallbackEmployeeId: string,
+    realAccount?: string
+  ): Employee | undefined {
+    const cleanAcc = (realAccount || '')
+      .trim()
+      .replace(/@.*$/, '')
+      .replace(/\s*\(KH\)\s*/i, '');
+    if (
+      !cleanAcc ||
+      /^(unknown|jenkins|hudson|system|jira-bot|jira-system)$/i.test(cleanAcc)
+    ) {
+      return this.state.employeeById[fallbackEmployeeId];
+    }
+
+    const lowerAcc = cleanAcc.toLowerCase();
+
+    // 1. Tìm nhân vật bàn làm việc (không phải Sếp đi tuần tra) đã gắn với account này
+    const existingDeskEmp = this.state.employees.find(
+      (e) =>
+        !e.isManager &&
+        !e.isFemaleManager &&
+        (e.account || '').toLowerCase().replace(/\s*\(kh\)\s*/i, '') === lowerAcc
+    );
+    if (existingDeskEmp) {
+      return existingDeskEmp;
+    }
+
+    // 2. Lấy slot `fallbackEmployeeId` (nếu là Sếp đi tuần tra thì chuyển sang 1 bàn làm việc để đi giao tài liệu)
+    let targetEmp = this.state.employeeById[fallbackEmployeeId];
+    if (!targetEmp || targetEmp.isManager || targetEmp.isFemaleManager) {
+      let hash = 0;
+      for (let i = 0; i < lowerAcc.length; i++) {
+        hash = (hash * 31 + lowerAcc.charCodeAt(i)) >>> 0;
+      }
+      const deskSlotId = `EMP-${((hash % 30) + 1).toString().padStart(2, '0')}`;
+      targetEmp = this.state.employeeById[deskSlotId] ?? this.state.employees[0];
+    }
+
+    if (targetEmp && !targetEmp.isManager && !targetEmp.isFemaleManager) {
+      const seatSuffix = targetEmp.seatCode
+        ? targetEmp.seatCode.replace('FT3.III2A.', '')
+        : targetEmp.deskId;
+      targetEmp.account = cleanAcc;
+      targetEmp.displayName = `${cleanAcc} (${seatSuffix})`;
+    }
+
+    return targetEmp;
+  }
+
+  /**
    * Trả về bàn làm việc hiện tại của nhân viên (ưu tiên `assignedDeskId` / `checkedInDeskId` khi nhận bàn trống,
    * fallback về `deskId` mặc định).
    */
@@ -3695,6 +3752,12 @@ export class OfficeSimulationEngine {
       if (resolved) {
         chosenEmp = this.state.employeeById[resolved.employeeId];
       }
+      if (!chosenEmp || chosenEmp.isManager || chosenEmp.isFemaleManager) {
+        chosenEmp = this.bindRealAccountToEmployeeSlot(
+          params?.employeeId || candidateIds[this.jenkinsCandidateIndex % candidateIds.length],
+          params.account
+        );
+      }
     }
     if (!chosenEmp && params?.employeeId) {
       chosenEmp = this.state.employeeById[params.employeeId];
@@ -3788,12 +3851,14 @@ export class OfficeSimulationEngine {
       this.state.tickets.find((t) => t.assigneeId === chosenEmp?.id && t.status !== 'DONE') ??
       this.state.tickets.find((t) => t.status === 'CODE_REVIEW' || t.status === 'QA_TESTING') ??
       this.state.tickets[0];
-    const ticketKey = params?.ticketKey || activeTicket?.key || 'FRT-104';
+    const ticketKey =
+      params?.ticketKey || activeTicket?.key || `#${buildNum}`;
 
     const buildTask: ActiveJenkinsBuildTask = {
       id: `JENKINS-BUILD-${buildNum}-${Date.now()}`,
       employeeId: chosenEmp.id,
-      employeeAccount: chosenEmp.account || chosenEmp.displayName,
+      employeeAccount:
+        params?.account || chosenEmp.account || chosenEmp.displayName,
       employeeSeatCode: chosenEmp.seatCode || '1.318',
       jobName: targetStation.jobName,
       clusterId: targetStation.id as 'CI' | 'UAT' | 'RELEASE',
@@ -4017,6 +4082,21 @@ export class OfficeSimulationEngine {
       this.clientDedupStats.uniqueEventsEmitted += 1;
 
       const nowIso = entry.updatedAt || new Date().toISOString();
+      const boundSender = this.bindRealAccountToEmployeeSlot(
+        entry.fromEmployeeId,
+        entry.fromAccount || entry.authorAccount
+      );
+      const boundReceiver = entry.isReturnToPM
+        ? this.state.employeeById[PROJECT_MANAGER.id]
+        : this.bindRealAccountToEmployeeSlot(
+            entry.toEmployeeId,
+            entry.toAccount
+          );
+      const resolvedFromId = boundSender?.id || entry.fromEmployeeId;
+      const resolvedToId = entry.isReturnToPM
+        ? PROJECT_MANAGER.id
+        : boundReceiver?.id || entry.toEmployeeId;
+
       const webhookEvent: JiraWebhookEvent = {
         eventId: `JIRA-ACT-${entry.id}-${Date.now()}`,
         fingerprint: fp,
@@ -4031,8 +4111,8 @@ export class OfficeSimulationEngine {
           priority: 'HIGH',
           status: entry.toStatus,
           reporterId: this.state.config.pmEmployeeId,
-          assigneeId: entry.toEmployeeId,
-          previousAssigneeId: entry.fromEmployeeId,
+          assigneeId: resolvedToId,
+          previousAssigneeId: resolvedFromId,
           storyPoints: 5,
           documentStackSize: 4,
           workflowChain: [],
@@ -4042,12 +4122,12 @@ export class OfficeSimulationEngine {
           updatedAt: nowIso,
           history: [],
         },
-        fromEmployeeId: entry.fromEmployeeId,
-        toEmployeeId: entry.toEmployeeId,
+        fromEmployeeId: resolvedFromId,
+        toEmployeeId: resolvedToId,
         fromStatus: null,
         toStatus: entry.toStatus,
         isReturnToPM: entry.isReturnToPM,
-        summaryMessage: `[reqs.frt.vn] ${entry.authorAccount}: ${entry.rawTitle}`,
+        summaryMessage: `[reqs.frt.vn] ${entry.fromAccount || entry.authorAccount}: ${entry.rawTitle}`,
       };
       this.handleJiraWebhookEvent(webhookEvent);
     }
@@ -4320,10 +4400,21 @@ export class OfficeSimulationEngine {
               const nowIso = ev.updatedAt || ev.emittedAt || new Date().toISOString();
               const toStatus: TicketStatus = ev.toStatus || 'IN_PROGRESS';
               const isReturnToPM = Boolean(ev.isReturnToPM || toStatus === 'DONE');
-              const fromEmpId = ev.fromEmployeeId || 'EMP-04';
+              const boundSender = this.bindRealAccountToEmployeeSlot(
+                ev.fromEmployeeId || 'EMP-04',
+                ev.fromAccount || ev.authorAccount
+              );
+              const boundReceiver = isReturnToPM
+                ? this.state.employeeById[PROJECT_MANAGER.id]
+                : this.bindRealAccountToEmployeeSlot(
+                    ev.toEmployeeId || PROJECT_MANAGER.id,
+                    ev.toAccount
+                  );
+              const fromEmpId =
+                boundSender?.id || ev.fromEmployeeId || 'EMP-04';
               const toEmpId = isReturnToPM
                 ? PROJECT_MANAGER.id
-                : ev.toEmployeeId || PROJECT_MANAGER.id;
+                : boundReceiver?.id || ev.toEmployeeId || PROJECT_MANAGER.id;
 
               const webhookEvent: JiraWebhookEvent = {
                 eventId: `STREAM-JIRA-${ev.seq}-${Date.now()}`,

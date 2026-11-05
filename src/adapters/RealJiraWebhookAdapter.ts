@@ -421,17 +421,66 @@ export function extractMentionedFrtAccounts(text: string): {
   return found.sort((a, b) => a.index - b.index);
 }
 
+function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  const entityMap: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&aacute;': 'á',
+    '&agrave;': 'à',
+    '&atilde;': 'ã',
+    '&acirc;': 'â',
+    '&eacute;': 'é',
+    '&egrave;': 'è',
+    '&etilde;': 'ẽ',
+    '&ecirc;': 'ê',
+    '&iacute;': 'í',
+    '&igrave;': 'ì',
+    '&itilde;': 'ĩ',
+    '&oacute;': 'ó',
+    '&ograve;': 'ò',
+    '&otilde;': 'õ',
+    '&ocirc;': 'ô',
+    '&uacute;': 'ú',
+    '&ugrave;': 'ù',
+    '&utilde;': 'ũ',
+    '&yacute;': 'ý',
+  };
+  let out = String(str);
+  for (let pass = 0; pass < 2; pass++) {
+    out = out.replace(
+      /&(?:nbsp|amp|lt|gt|quot|#39|apos|[a-z]+);/gi,
+      (match) => entityMap[match.toLowerCase()] ?? match
+    );
+  }
+  return out;
+}
+
 function stripHtmlTags(html: string): string {
-  return html
+  if (!html) return '';
+  // Giải mã `&lt;a href="..."&gt;` thành `<a href="...">` TRƯỚC khi xóa thẻ `<...>`
+  return decodeHtmlEntities(html)
     .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+function hashAccountToEmployeeIndex(str: string, mod: number): number {
+  let h = 2166136261;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % Math.max(1, mod);
+}
+
+const lastClientActorByTicketKey = new Map<string, string>();
 
 function formatRelativeTimeFromIso(isoStr?: string): string {
   if (!isoStr) return 'vừa xong';
@@ -451,6 +500,7 @@ export interface ParsedJiraActivityEntry {
   summary: string;
   rawTitle: string;
   authorAccount: string;
+  authorDisplayName?: string;
   fromAccount: string;
   toAccount: string;
   fromEmployeeId: string;
@@ -462,6 +512,8 @@ export interface ParsedJiraActivityEntry {
 
 /**
  * Bộ đọc Atom XML thực tế cho `https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic&title=undefined`
+ * Giữ nguyên 100% tên account thực tế từ `<author><email>` (`thundm`, `cuongph27`, `huyenttm4`...) hoặc `<usr:username>`,
+ * tuyệt đối không ghi đè sang `ThanhDQ13 -> LuuTV6`!
  */
 export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEntry[] {
   if (!xmlText || !xmlText.trim()) return [];
@@ -473,7 +525,7 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
       const doc = parser.parseFromString(xmlText, 'text/xml');
       const entries = Array.from(doc.querySelectorAll('entry, item'));
 
-      entries.forEach((entry, idx) => {
+      const rawItems = entries.map((entry, idx) => {
         const id =
           entry.querySelector('id, guid')?.textContent?.trim() ||
           `FRT-ACT-${Date.now()}-${idx}`;
@@ -482,104 +534,180 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
           entry.querySelector('summary, content, description')?.textContent || '';
         const cleanTitle = stripHtmlTags(rawTitleHtml);
         const cleanSummary = stripHtmlTags(rawSummaryHtml);
-        const combinedText = `${cleanTitle} ${cleanSummary}`;
 
-        // Extract author username / name / email
-        const usrUsername =
+        const objEl =
+          entry.getElementsByTagName('activity:object')[0] ||
+          entry.querySelector('object');
+        const objectTicketTitle = stripHtmlTags(
+          objEl?.querySelector('title')?.textContent || ''
+        );
+        const objectIssueSummary = stripHtmlTags(
+          objEl?.querySelector('summary')?.textContent || ''
+        );
+
+        // Extract author email prefix (`thundm@fpt.com` -> `thundm`, `cuongph27@fpt.com` -> `cuongph27`), non-numeric `usr:username`, and `<name>`
+        const authorEl = entry.querySelector('author') || entry;
+        const authorEmail =
+          authorEl.querySelector('email')?.textContent?.trim() || '';
+        const emailPrefix = authorEmail.includes('@')
+          ? authorEmail.split('@')[0].trim()
+          : '';
+        const rawUsrUsername =
+          authorEl.getElementsByTagName('usr:username')[0]?.textContent?.trim() ||
           entry.getElementsByTagName('usr:username')[0]?.textContent?.trim() ||
-          entry.querySelector('author > name, author > email, creator')?.textContent?.trim() ||
           '';
+        const nonNumericUsrUsername =
+          rawUsrUsername && !/^\d+$/.test(rawUsrUsername) ? rawUsrUsername : '';
+        const authorDisplayName = stripHtmlTags(
+          authorEl.querySelector('name, creator')?.textContent || ''
+        );
+
+        const realAuthorAccount =
+          emailPrefix ||
+          nonNumericUsrUsername ||
+          authorDisplayName ||
+          rawUsrUsername ||
+          'jira-user';
 
         const linkHref =
           entry.querySelector('link')?.getAttribute('href') ||
           entry.querySelector('link')?.textContent ||
           '';
 
-        // Extract Jira Issue Key (e.g., FRT-104, OSP-205, REQ-101)
         const keyMatch =
-          combinedText.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
+          objectTicketTitle.match(/^([A-Z][A-Z0-9_]{1,9}-\d+)$/i) ||
+          cleanTitle.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
           linkHref.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
-        const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `FRT-${101 + (idx % 8)}`;
+        const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `JIRA-${idx + 1}`;
 
-        // Detect status transition from activity text
-        const upperText = combinedText.toUpperCase();
+        const categoryTerm =
+          entry.querySelector('category')?.getAttribute('term') || '';
+        const verbText =
+          entry.getElementsByTagName('activity:verb')[0]?.textContent || '';
+        const isCreatedVerb =
+          /created/i.test(categoryTerm) ||
+          /schema\/1\.0\/post/i.test(verbText) ||
+          /\bcreated\b/i.test(cleanTitle);
+
+        // Classify status strictly using cleanTitle (never match substring 'PR' inside 'ViewProfile'!)
         const toStatus: TicketStatus =
-          upperText.includes('DONE') ||
-          upperText.includes('RESOLVED') ||
-          upperText.includes('CLOSED') ||
-          upperText.includes('HOÀN THÀNH')
+          /\b(done|resolved|closed|hoàn thành)\b/i.test(cleanTitle)
             ? 'DONE'
-            : upperText.includes('QA') ||
-              upperText.includes('TEST') ||
-              upperText.includes('KIỂM THỬ')
+            : /\b(qa|testing|kiểm thử|uat)\b/i.test(cleanTitle)
             ? 'QA_TESTING'
-            : upperText.includes('REVIEW') || upperText.includes('PR')
+            : /\b(code review|in review|pull request|merge request|review)\b/i.test(
+                cleanTitle
+              )
             ? 'CODE_REVIEW'
-            : upperText.includes('DEPLOY') || upperText.includes('RELEASE')
+            : /\b(fix version|release\/|deploy|ready for deploy)\b/i.test(cleanTitle)
             ? 'READY_FOR_DEPLOY'
+            : isCreatedVerb
+            ? 'TODO'
             : 'IN_PROGRESS';
 
-        const isReturnToPM = toStatus === 'DONE';
-
-        // Resolve author & mentioned accounts case-insensitively
-        const resolvedAuthor = resolveEmployeeByAccountCaseInsensitive(usrUsername);
-        const mentioned = extractMentionedFrtAccounts(combinedText);
-
-        const fromEmpId =
-          resolvedAuthor?.employeeId ||
-          mentioned[0]?.employeeId ||
-          'EMP-04'; // Default ThanhDQ13
-
-        let toEmpId = PROJECT_MANAGER.id;
-        if (!isReturnToPM) {
-          const secondMention = mentioned.find((m) => m.employeeId !== fromEmpId);
-          if (secondMention) {
-            toEmpId = secondMention.employeeId;
-          } else if (toStatus === 'CODE_REVIEW') {
-            toEmpId = 'EMP-05'; // Lead LuuTV6
-          } else if (toStatus === 'QA_TESTING') {
-            toEmpId = 'EMP-25'; // QA Lead TranTNN
-          } else if (toStatus === 'READY_FOR_DEPLOY') {
-            toEmpId = 'EMP-29'; // DevOps TienHK
-          } else {
-            toEmpId = fromEmpId === 'EMP-01' ? 'EMP-07' : 'EMP-04';
-          }
-        }
-
-        const fromEmp = EMPLOYEE_BY_ID[fromEmpId] ?? PROJECT_MANAGER;
-        const toEmp = EMPLOYEE_BY_ID[toEmpId] ?? PROJECT_MANAGER;
-        const fromAccount =
-          resolvedAuthor?.canonicalAccount || fromEmp.account || fromEmp.displayName;
-        const toAccount = toEmp.account || toEmp.displayName;
         const updatedAt =
           entry.querySelector('updated, published, pubDate')?.textContent?.trim() ||
-          '2026-11-05T09:30:00Z';
+          new Date().toISOString();
+
+        const displaySummary = objectIssueSummary
+          ? `[${ticketKey}] ${objectIssueSummary} — ${cleanTitle}`
+          : cleanTitle || cleanSummary || `Cập nhật Jira ${ticketKey}`;
+
+        return {
+          id,
+          ticketKey,
+          cleanTitle,
+          displaySummary,
+          realAuthorAccount,
+          authorDisplayName,
+          toStatus,
+          updatedAt,
+        };
+      });
+
+      // Process chronologically (oldest -> newest) so collaborators on the same ticket link naturally
+      const chronological = [...rawItems].reverse();
+      const byId = new Map<string, ParsedJiraActivityEntry>();
+
+      for (const item of chronological) {
+        const resolvedAuthor = resolveEmployeeByAccountCaseInsensitive(
+          item.realAuthorAccount
+        );
+        const fromAccount = item.realAuthorAccount;
+        const fallbackEmpNum = (
+          hashAccountToEmployeeIndex(fromAccount, 30) + 1
+        )
+          .toString()
+          .padStart(2, '0');
+        const fromEmpId = resolvedAuthor?.employeeId || `EMP-${fallbackEmpNum}`;
+
+        const isReturnToPM = item.toStatus === 'DONE';
+        const prevCollaborator = lastClientActorByTicketKey.get(item.ticketKey);
+        const targetUserAccount =
+          prevCollaborator &&
+          normalizeFrtAccountKey(prevCollaborator) !==
+            normalizeFrtAccountKey(fromAccount)
+            ? prevCollaborator
+            : '';
+
+        lastClientActorByTicketKey.set(item.ticketKey, fromAccount);
+
+        const toAccount =
+          targetUserAccount || (isReturnToPM ? 'PM (DONE)' : item.ticketKey);
+        const resolvedTarget = targetUserAccount
+          ? resolveEmployeeByAccountCaseInsensitive(targetUserAccount)
+          : null;
+
+        let toEmpId =
+          resolvedTarget?.employeeId ||
+          (isReturnToPM
+            ? PROJECT_MANAGER.id
+            : `EMP-${(
+                ((hashAccountToEmployeeIndex(
+                  targetUserAccount || `${fromAccount}:${item.ticketKey}`,
+                  29
+                ) +
+                  2) %
+                  30) +
+                1
+              )
+                .toString()
+                .padStart(2, '0')}`);
+        if (toEmpId === fromEmpId) {
+          toEmpId = fromEmpId === 'EMP-01' ? 'EMP-04' : 'EMP-01';
+        }
 
         const fingerprint = computeJiraActivityFingerprint({
-          entryId: id,
-          ticketKey,
+          entryId: item.id,
+          ticketKey: item.ticketKey,
           fromAccount,
           toAccount,
-          toStatus,
-          updatedTimestamp: updatedAt,
+          toStatus: item.toStatus,
+          updatedTimestamp: item.updatedAt,
         });
 
-        results.push({
-          id,
+        byId.set(item.id, {
+          id: item.id,
           fingerprint,
-          ticketKey,
-          summary: cleanSummary || cleanTitle || `Cập nhật Jira ${ticketKey}`,
-          rawTitle: cleanTitle || `Activity on ${ticketKey}`,
+          ticketKey: item.ticketKey,
+          summary: item.displaySummary,
+          rawTitle: item.cleanTitle || `Activity on ${item.ticketKey}`,
           authorAccount: fromAccount,
+          authorDisplayName: item.authorDisplayName || fromAccount,
           fromAccount,
           toAccount,
           fromEmployeeId: fromEmpId,
           toEmployeeId: toEmpId,
-          toStatus,
+          toStatus: item.toStatus,
           isReturnToPM,
-          updatedAt,
+          updatedAt: item.updatedAt,
         });
-      });
+      }
+
+      for (const it of rawItems) {
+        const parsed = byId.get(it.id);
+        if (parsed) results.push(parsed);
+      }
     }
   } catch (err) {
     console.warn('[parseJiraActivityAtomXml] XML parse warning:', err);
@@ -590,7 +718,8 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
 
 /**
  * Bộ đọc Atom / RSS XML thực tế cho `https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/rssAll`
- * Hỗ trợ cả `<feed><entry>` (Atom) và `<rss><channel><item>` (RSS 2.0).
+ * và `https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll`.
+ * Hỗ trợ chuẩn cấu trúc `<title>oneclickv4-build-ci bo-ci-agentos-worker:ci-41475 (stable)</title>`.
  */
 export function parseJenkinsRssXml(xmlText: string): JenkinsBuildJobItem[] {
   if (!xmlText || !xmlText.trim()) return [];
@@ -603,7 +732,9 @@ export function parseJenkinsRssXml(xmlText: string): JenkinsBuildJobItem[] {
       const entries = Array.from(doc.querySelectorAll('entry, item'));
 
       entries.forEach((entry, idx) => {
-        const rawTitle = entry.querySelector('title')?.textContent?.trim() || '';
+        const rawTitle = stripHtmlTags(
+          entry.querySelector('title')?.textContent || ''
+        );
         const rawId =
           entry.querySelector('id, guid')?.textContent?.trim() ||
           `jenkins-build-${Date.now()}-${idx}`;
@@ -614,21 +745,14 @@ export function parseJenkinsRssXml(xmlText: string): JenkinsBuildJobItem[] {
         const publishedAt =
           entry.querySelector('published, updated, pubDate')?.textContent?.trim() ||
           new Date().toISOString();
-        const authorText =
-          entry.querySelector('author > name, creator')?.textContent?.trim() || '';
+        const authorText = stripHtmlTags(
+          entry.querySelector('author > name, creator')?.textContent || ''
+        );
         const contentText = stripHtmlTags(
           entry.querySelector('content, summary, description')?.textContent || ''
         );
 
-        // Parse build number from `#2845` in title or `/2845/` in link or `:2845` in id
-        const numMatch =
-          rawTitle.match(/#(\d+)/) ||
-          link.match(/\/(\d+)\/?$/) ||
-          rawId.match(/:(\d+)$/);
-        const buildNumber = numMatch ? parseInt(numMatch[1], 10) : 2845 - idx;
-
-        // Parse status inside parentheses: `oneclickv4-build-ci #2845 (stable)`
-        const parenMatch = rawTitle.match(/\(([^)]+)\)/);
+        const parenMatch = rawTitle.match(/\(([^)]+)\)\s*$/);
         const statusText = parenMatch ? parenMatch[1].trim() : 'stable';
         const lowerStatus = statusText.toLowerCase();
 
@@ -644,35 +768,66 @@ export function parseJenkinsRssXml(xmlText: string): JenkinsBuildJobItem[] {
             ? 'BUILDING'
             : 'SUCCESS';
 
-        // Map engineer account case-insensitively (`tienhk` -> `TienHK`, `sonna2` -> `SonNA2`...)
-        const combinedMeta = `${authorText} ${contentText} ${rawTitle}`;
-        const resolvedAccount =
-          resolveEmployeeByAccountCaseInsensitive(authorText) ||
-          extractMentionedFrtAccounts(combinedMeta)[0];
-        const fallbackDevOpsAccounts = ['TienHK', 'SonNA2', 'ChienND22', 'ManhPT13', 'BaoNAT'];
-        const triggeredBy =
-          resolvedAccount?.canonicalAccount ||
-          fallbackDevOpsAccounts[idx % fallbackDevOpsAccounts.length];
+        // Parse `<jobName> <serviceName>:<buildTag>` from `<title>`
+        const titleWithoutStatus = rawTitle.replace(/\s*\([^)]+\)\s*$/, '').trim();
+        const titleTokens = titleWithoutStatus.split(/\s+/).filter(Boolean);
+        const firstToken = titleTokens[0] || '';
+        const secondToken = titleTokens.slice(1).join(' ').trim();
 
-        const ticketMatch = combinedMeta.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
-        const ticketKey = ticketMatch ? ticketMatch[1].toUpperCase() : `FRT-${104 - (idx % 4)}`;
-        const timeAgo =
-          idx === 0
-            ? '2m ago'
-            : idx === 1
-            ? '11m ago'
-            : idx === 2
-            ? '28m ago'
-            : formatRelativeTimeFromIso(publishedAt);
+        let serviceName = '';
+        let buildTag = '';
+        if (secondToken.includes(':')) {
+          const colonIdx = secondToken.indexOf(':');
+          serviceName = secondToken.slice(0, colonIdx).trim();
+          buildTag = secondToken.slice(colonIdx + 1).trim();
+        } else if (secondToken.startsWith('#')) {
+          buildTag = secondToken;
+        } else if (secondToken) {
+          serviceName = secondToken;
+        }
 
-        const isUatJob = /oneclickv4-build-uat/i.test(`${rawTitle} ${link} ${rawId}`);
-        const isReleaseJob = /oneclickv4-build-release/i.test(`${rawTitle} ${link} ${rawId}`);
-        const jobName = isUatJob
-          ? 'oneclickv4-build-uat'
-          : isReleaseJob
-          ? 'oneclickv4-build-release'
-          : 'oneclickv4-build-ci';
+        const numMatch =
+          link.match(/\/(\d+)\/?$/) ||
+          rawId.match(/:(\d+)$/) ||
+          buildTag.match(/(\d+)$/) ||
+          rawTitle.match(/#(\d+)/);
+        const buildNumber = numMatch ? parseInt(numMatch[1], 10) : idx + 1;
+
+        const isUatJob = /oneclickv4-build-uat|\buat\b/i.test(
+          `${firstToken} ${link} ${rawId}`
+        );
+        const isReleaseJob = /oneclickv4-build-release|\brelease\b/i.test(
+          `${firstToken} ${link} ${rawId}`
+        );
+        const jobName =
+          firstToken && !firstToken.includes(':')
+            ? firstToken
+            : isUatJob
+            ? 'oneclickv4-build-uat'
+            : isReleaseJob
+            ? 'oneclickv4-build-release'
+            : 'oneclickv4-build-ci';
         const clusterId = isUatJob ? 'UAT' : isReleaseJob ? 'RELEASE' : 'CI';
+
+        const combinedMeta = `${authorText} ${contentText}`;
+        const startedByMatch =
+          combinedMeta.match(/Started by user\s+([a-zA-Z0-9._-]+)/i) ||
+          combinedMeta.match(/by\s+([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/i);
+        const rawUserFromJenkins =
+          (startedByMatch ? startedByMatch[1].replace(/@.*$/, '') : '') ||
+          (authorText && !/jenkins|hudson|anonymous|system/i.test(authorText)
+            ? authorText
+            : '');
+
+        const triggeredBy = rawUserFromJenkins || serviceName || jobName;
+        const jiraKeyMatch = combinedMeta.match(/\b([A-Z]{2,8}-\d+)\b/);
+        const ticketKey =
+          (jiraKeyMatch ? jiraKeyMatch[1].toUpperCase() : '') ||
+          buildTag ||
+          serviceName ||
+          `#${buildNumber}`;
+        const timeAgo = formatRelativeTimeFromIso(publishedAt);
+
         const fingerprint = computeJenkinsBuildFingerprint(
           jobName,
           buildNumber,

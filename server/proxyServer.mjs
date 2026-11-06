@@ -28,8 +28,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
-const CREDENTIALS_FILE = path.join(__dirname, '.credentials.enc.json');
-const MASTER_KEY_FILE = path.join(__dirname, '.master.key');
+// VAULT_DIR: thư mục lưu credential/master key (Docker mount volume riêng, không đè lên code server/)
+const VAULT_DIR = process.env.VAULT_DIR ? path.resolve(process.env.VAULT_DIR) : __dirname;
+const CREDENTIALS_FILE = path.join(VAULT_DIR, '.credentials.enc.json');
+const MASTER_KEY_FILE = path.join(VAULT_DIR, '.master.key');
 
 const PORT = Number(process.env.PORT || 8787);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
@@ -383,7 +385,9 @@ function sanitizePublicText(text, ticketKey, toStatus, fromAcc, toAcc, privacySa
 // 5. LAYER 1: SERVER RAM CACHE DEDUPLICATOR (`seenFingerprints` + `currentSeq`)
 // ============================================================================
 
-const MAX_SEEN_FINGERPRINTS = 2000;
+// Phải lớn hơn tổng số entry Jenkins RSS đọc mỗi lượt (~2500/poll cho CI+UAT); nếu nhỏ hơn, fingerprint Jira
+// bị đẩy khỏi cache giữa 2 lần poll và cùng một sự kiện Jira bị phát lại liên tục.
+const MAX_SEEN_FINGERPRINTS = Math.max(2000, Number(process.env.MAX_SEEN_FINGERPRINTS) || 50000);
 const MAX_RING_BUFFER_EVENTS = 100;
 
 /**
@@ -688,17 +692,33 @@ export function parseRawJiraActivityXml(xmlText) {
       /schema\/1\.0\/post/i.test(block) ||
       /\bcreated\b/i.test(cleanTitle);
 
-    // Classify status strictly using cleanTitle (never match substring 'PR' inside 'ViewProfile'!)
+    // CHỈ entry chuyển trạng thái thật (verb `jira/transition`, hoặc tiêu đề "changed the status to") mới tạo sự kiện.
+    // Comment / đính kèm file / sửa field / thêm fix version... bị bỏ qua, không có chuyến đi mang tài liệu.
+    const isTransition =
+      /streams\.atlassian\.com\/syndication\/verbs\/jira\/transition/i.test(block) ||
+      /\bchanged the status to\b/i.test(cleanTitle) ||
+      /\btransitioned\b/i.test(cleanTitle);
+
+    // Trạng thái đích thật nằm trong <category term="3. Testing"/> của entry transition
+    const categoryTerms = [...block.matchAll(/<category[^>]*\bterm=["']([^"']*)["']/gi)].map((m) =>
+      m[1].trim()
+    );
+    const statusTerm = isTransition
+      ? categoryTerms.find((t) => t && !/^(comment|created)$/i.test(t)) || ''
+      : '';
+    const classifySource = statusTerm || cleanTitle;
+
+    // Classify status strictly (never match substring 'PR' inside 'ViewProfile'!)
     const toStatus =
-      /\b(done|resolved|closed|hoàn thành)\b/i.test(cleanTitle)
+      /\b(done|resolved|closed|hoàn thành)\b/i.test(classifySource)
         ? 'DONE'
-        : /\b(qa|testing|kiểm thử|uat)\b/i.test(cleanTitle)
+        : /\b(qa|testing|kiểm thử|uat)\b/i.test(classifySource)
         ? 'QA_TESTING'
-        : /\b(code review|in review|pull request|merge request|review)\b/i.test(cleanTitle)
+        : /\b(code review|in review|pull request|merge request|review)\b/i.test(classifySource)
         ? 'CODE_REVIEW'
-        : /\b(fix version|release\/|deploy|ready for deploy)\b/i.test(cleanTitle)
+        : /\b(fix version|release\/|deploy|ready for deploy)\b/i.test(classifySource)
         ? 'READY_FOR_DEPLOY'
-        : isCreatedVerb
+        : isCreatedVerb || /\b(confirm|open|to ?do|backlog)\b/i.test(statusTerm)
         ? 'TODO'
         : 'IN_PROGRESS';
 
@@ -719,6 +739,7 @@ export function parseRawJiraActivityXml(xmlText) {
       allUsrInBlock,
       profileMentions,
       toStatus,
+      isTransition,
       updatedAt,
     };
   });
@@ -783,6 +804,9 @@ export function parseRawJiraActivityXml(xmlText) {
     // Update last actor for this ticket key
     lastActorByTicketKey.set(item.ticketKey, fromAccount);
 
+    // Không phải transition -> chỉ ghi nhận người cộng tác trên ticket, không phát sự kiện
+    if (!item.isTransition) continue;
+
     const defaultCoordinatorAccount =
       normalizeAccountKey(fromAccount) === 'dongnq6' ? 'ThanhDQ13' : 'DongNQ6';
     const toAccount =
@@ -827,7 +851,7 @@ export function parseRawJiraActivityXml(xmlText) {
     });
   }
 
-  return rawItems.map((it) => parsedByRawId.get(it.rawId));
+  return rawItems.map((it) => parsedByRawId.get(it.rawId)).filter(Boolean);
 }
 
 /**

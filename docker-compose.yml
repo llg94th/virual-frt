@@ -15,9 +15,13 @@ services:
       - BIND_HOST=0.0.0.0
       - ADMIN_MASTER_KEY=${ADMIN_MASTER_KEY:-}
       - ALLOWED_UPSTREAM_HOSTS=reqs.frt.vn,jenkins-osp.frt.vn
+      # Trong Docker, request từ host đi qua bridge nên socket không phải loopback.
+      # Port đã bind 127.0.0.1 ở host; request qua Cloudflare vẫn bị chặn bằng header cf-*.
+      - ALLOW_REMOTE_ADMIN=true
+      - VAULT_DIR=/app/vault
     volumes:
       # Lưu bền vững file mã hóa AES-256-GCM (.credentials.enc.json & .master.key) khi cập nhật container
-      - frt_office_vault:/app/server
+      - frt_office_vault:/app/vault
 
   # Tùy chọn: Chạy kèm Cloudflare Tunnel ngay trong Docker Compose
   # cloudflared:

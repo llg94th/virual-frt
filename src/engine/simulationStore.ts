@@ -22,7 +22,6 @@ import {
   Employee,
   EmployeeStatus,
   IJiraAdapter,
-  INACTIVITY_CHECKOUT_MS,
   IslandHeatmapStat,
   JenkinsBuildJobItem,
   JiraTicket,
@@ -311,8 +310,6 @@ export interface OfficeSimulationActions {
   resetNewDayEmptyDesks: () => void;
   /** 🚬 Test Full Chỗ -> Ra Giếng Trời Hút Thuốc: Lấp đầy ghế và cử các thành viên còn lại ra hành lang Giếng trời hút thuốc */
   triggerTestFullSeatsSmoking: () => void;
-  /** 🏠 Test 2h Không Event (Đi Về): Giả lập 1–2 nhân viên đã 2 giờ không có event mới -> đứng dậy rời bàn đi ra 🚪 CỬA RA VÀO về nhà và nhường ghế trống */
-  triggerTestInactivityCheckout: () => void;
   /** Thay đổi giới hạn số ghế mở trong ngày (12 ghế để dễ test full, 30 ghế, hoặc FULL 96 ghế) */
   setMaxOpenSeats: (limit: 12 | 30 | 'FULL') => void;
   /** Trigger or toggle high-intensity Sprint Rush mode */
@@ -423,7 +420,6 @@ const HANDOVER_DURATION_MS = 620;
 const SPEECH_BUBBLE_DURATION_MS = 3200;
 const PM_CELEBRATION_DURATION_MS = 2800;
 const MAX_ACTIVITY_LOGS = 80;
-export { INACTIVITY_CHECKOUT_MS };
 
 /**
  * Danh sách các nhân viên quanh 9 cụm đảo bàn của Khoang NHÀ THUỐC (`FT3.III2A.1`)
@@ -1716,30 +1712,6 @@ export class OfficeSimulationEngine {
       semanticChangeOccurred = true;
     }
 
-    // 4d. Quy tắc Tự Động Đi Về Sau 2 Giờ Không Có Event Mới (`INACTIVITY_CHECKOUT_MS = 2 * 60 * 60 * 1000` = 7_200_000 ms)
-    for (const emp of this.state.employees) {
-      if (
-        (emp.checkedInToday || emp.isCheckedIn || emp.isSmokingAtAtrium) &&
-        !emp.isManager &&
-        !emp.isFemaleManager &&
-        !emp.isCheckingOut &&
-        emp.lastEventAt &&
-        emp.lastEventAt > 0 &&
-        nowWall - emp.lastEventAt >= INACTIVITY_CHECKOUT_MS
-      ) {
-        const isBusyInTransfer = this.state.activeTransfers.some(
-          (t) => t.fromEmployeeId === emp.id || t.toEmployeeId === emp.id
-        );
-        const isBusyInJenkins =
-          this.state.activeJenkinsBuild?.employeeId === emp.id;
-
-        if (!isBusyInTransfer && !isBusyInJenkins) {
-          this.initiateEmployeeCheckout(emp, nowWall);
-          semanticChangeOccurred = true;
-        }
-      }
-    }
-
     // 5. Auto-Pilot & Sprint Rush periodic ticket progression + periodic Jenkins build (ONLY in MOCK_PILOT mode)
     if (
       this.state.dataSourceMode === 'MOCK_PILOT' &&
@@ -2491,15 +2463,21 @@ export class OfficeSimulationEngine {
     // Nếu người gửi và người nhận trùng nhau (1 user tự cập nhật ticket của mình),
     // ưu tiên chọn 1 đồng nghiệp thật đang ngồi làm việc trong văn phòng để phối hợp,
     // hoặc chỉ check-in ngồi làm việc tại bàn (TUYỆT ĐỐI KHÔNG trỏ về mock PM DongNQ6!)
-    if (toId === fromId) {
-      const otherRealColleague = this.state.employees.find(
+    // CHỈ đổi Assignee mới có chuyến đi mang hồ sơ (chế độ MOCK giữ hành vi cũ). Các sự kiện khác (VD: đổi trạng thái)
+    // chỉ cập nhật ticket + ghi log lịch sử, nhân vật ngồi tại bàn, KHÔNG đi bộ.
+    const walksWithDocs =
+      event.isAssigneeChange === true || this.state.dataSourceMode === 'MOCK_PILOT';
+    if (!walksWithDocs || toId === fromId) {
+      const otherRealColleague = walksWithDocs
+        ? this.state.employees.find(
         (e) =>
           e.id !== fromId &&
           !e.isManager &&
           !e.isFemaleManager &&
           e.isCheckedIn &&
           Boolean(e.account && e.account.trim())
-      );
+      )
+        : undefined;
       if (otherRealColleague) {
         toId = otherRealColleague.id;
       } else {
@@ -3652,85 +3630,6 @@ export class OfficeSimulationEngine {
       } thành viên có event sau cùng đã kéo nhau ra hành lang 3 Giếng Trời tụ tập hút thuốc 🚬 💨!`,
       type: 'HANDOFF',
     });
-
-    this.emitChange(true);
-  };
-
-  /**
-   * 🏠 Test 2h Không Event (Đi Về) (`triggerTestInactivityCheckout`):
-   * - Chọn ngay 2 nhân viên đang ngồi tại bàn làm việc (hoặc tự động cho 2 nhân viên ngồi vào bàn nếu đang trống 100% đầu ngày),
-   *   tua nhanh `emp.lastEventAt = Date.now() - INACTIVITY_CHECKOUT_MS - 10_000` (đã quá 2 giờ không có event mới).
-   * - Nhân viên đứng dậy khỏi bàn ngay lập tức, giải phóng bàn về TRỐNG (`assignedDeskId = undefined`),
-   *   hiện bong bóng thoại `"👋 2h rồi không có event mới, mình xin phép tan ca về nhé! 🏠"`,
-   *   đi bộ theo lộ trình A* ra `🚪 CỬA RA VÀO` về nhà!
-   * - Nếu đang có người đứng hút thuốc ở Giếng trời (`isSmokingOverflow === true`), tự động cho người đó
-   *   đi bộ từ Giếng trời vào nhận ngay chiếc bàn vừa trống (`"🎉 Có người về rồi, vào nhận bàn ngồi code thôi!"`)!
-   */
-  public triggerTestInactivityCheckout = (): void => {
-    const nowWall = Date.now();
-    this.state.config = {
-      ...this.state.config,
-      isRunning: true,
-    };
-
-    const busyIds = new Set<string>();
-    for (const t of this.state.activeTransfers) {
-      busyIds.add(t.fromEmployeeId);
-      busyIds.add(t.toEmployeeId);
-    }
-    if (this.state.activeJenkinsBuild) {
-      busyIds.add(this.state.activeJenkinsBuild.employeeId);
-    }
-
-    let seatedCandidates = this.state.employees.filter(
-      (e) =>
-        !e.isManager &&
-        !e.isFemaleManager &&
-        e.isCheckedIn &&
-        !e.isCheckingOut &&
-        !busyIds.has(e.id)
-    );
-
-    // Nếu chưa có đủ 2 nhân viên đang ngồi bàn rảnh (VD vừa bấm Reset Ngày Mới),
-    // đặt sẵn 2 nhân viên ngồi tại bàn để User bấm nút là thấy ngay 2 người đứng dậy đi về!
-    if (seatedCandidates.length < 2) {
-      const fallbackPool = this.state.employees.filter(
-        (e) =>
-          !e.isManager &&
-          !e.isFemaleManager &&
-          !e.isCheckingOut &&
-          !e.isSmokingAtAtrium &&
-          !busyIds.has(e.id)
-      );
-      for (const emp of fallbackPool) {
-        if (seatedCandidates.length >= 2) break;
-        if (!seatedCandidates.includes(emp)) {
-          const desk = DESK_BY_ID[emp.deskId];
-          emp.isCheckedIn = true;
-          emp.checkedInToday = true;
-          emp.checkedInDeskId = emp.deskId;
-          emp.assignedDeskId = emp.deskId;
-          emp.isSmokingAtAtrium = false;
-          emp.isSmokingOverflow = false;
-          emp.isWalkingFromEntrance = false;
-          if (desk) {
-            emp.currentPosition = { ...desk.seatPosition };
-            emp.facing = desk.orientation;
-            emp.isoDirection = directionToIsoDirection(desk.orientation);
-            emp.facingAngle = isoDirectionToAngle(emp.isoDirection);
-          }
-          emp.status = 'WORKING';
-          emp.state = 'WORKING';
-          seatedCandidates.push(emp);
-        }
-      }
-    }
-
-    const chosenToCheckout = seatedCandidates.slice(0, 2);
-    for (const emp of chosenToCheckout) {
-      emp.lastEventAt = nowWall - INACTIVITY_CHECKOUT_MS - 10_000;
-      this.initiateEmployeeCheckout(emp, nowWall);
-    }
 
     this.emitChange(true);
   };
@@ -4953,6 +4852,7 @@ export class OfficeSimulationEngine {
                 fromStatus: null,
                 toStatus,
                 isReturnToPM,
+                isAssigneeChange: ev.isAssigneeChange === true,
                 summaryMessage: `[reqs.frt.vn #${ev.seq}] ${
                   ev.authorAccount || ev.fromAccount || 'FRT'
                 }: ${ev.rawTitle || ev.summary}`,
@@ -5519,7 +5419,6 @@ export function useOfficeSimulation(): OfficeSimulationStoreValue {
     clearMockData: engine.clearMockData,
     resetNewDayEmptyDesks: engine.resetNewDayEmptyDesks,
     triggerTestFullSeatsSmoking: engine.triggerTestFullSeatsSmoking,
-    triggerTestInactivityCheckout: engine.triggerTestInactivityCheckout,
     setMaxOpenSeats: engine.setMaxOpenSeats,
     triggerSprintRush: engine.triggerSprintRush,
     stopSprintRush: engine.stopSprintRush,

@@ -138,7 +138,6 @@ export interface OfficeCanvas2DProps {
   /** Callback Test nhanh Kịch bản Full Chỗ -> Ra Giếng Trời Hút Thuốc (`🚬 💨`) */
   onTriggerTestFullSeatsSmoking?: () => void;
   /** Callback Test nhanh Quy tắc 2h Không Có Event Mới -> Nhân viên đứng dậy đi ra `🚪 CỬA RA VÀO` về nhà (`🏠`) */
-  onTriggerTestInactivityCheckout?: () => void;
   /** Số nhân viên đã Check-in chiếm chỗ ngồi trong ngày */
   checkedInCount?: number;
   /** Số nhân viên đến muộn hết chỗ đang tụ tập ở Giếng trời hút thuốc */
@@ -659,7 +658,6 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   onTriggerJenkinsBrokenHotfix,
   onResetNewDay,
   onTriggerTestFullSeatsSmoking,
-  onTriggerTestInactivityCheckout,
   checkedInCount,
   smokingCount,
   mvpLeaderboard = [],
@@ -2473,17 +2471,6 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                     title="Test Kịch bản Full Chỗ Ngồi — Thành viên đến sau ra Giếng trời hút thuốc (🚬 💨)"
                   >
                     <span>🚬 Test Full Chỗ ({smokingCount ?? 0} hút thuốc)</span>
-                  </button>
-                )}
-
-                {onTriggerTestInactivityCheckout && (
-                  <button
-                    type="button"
-                    onClick={onTriggerTestInactivityCheckout}
-                    className="px-2.5 py-1 rounded-lg text-xs font-extrabold transition flex items-center gap-1 border bg-orange-600 hover:bg-orange-500 text-white border-orange-400 shadow-sm"
-                    title="Test nhanh Quy tắc 2h Không Có Event Mới — 1–2 nhân viên đứng dậy rời bàn, đi ra 🚪 CỬA RA VÀO về nhà và nhường lại ghế trống!"
-                  >
-                    <span>🏠 Test 2h Không Event (Đi Về)</span>
                   </button>
                 )}
 

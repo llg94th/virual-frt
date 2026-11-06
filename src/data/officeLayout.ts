@@ -1904,17 +1904,17 @@ export const JENKINS_SERVER_STATION: JenkinsServerStation = {
   jobName: 'oneclickv4-build-ci',
   rssUrl: 'https://jenkins-osp.frt.vn/job/oneclickv4-build-ci/rssAll',
   proxyRssUrl: '/api/frt-jenkins-rss',
-  wx: 1352,
-  wy: 586,
-  ww: 108,
-  wh: 32,
-  consolePosition: { x: 1398, y: 604 },
-  operatorPosition: gridToPixel(46, 20), // { x: 1395, y: 615 }
-  operatorGrid: { col: 46, row: 20 },
+  wx: 760,
+  wy: 742,
+  ww: 96,
+  wh: 30,
+  consolePosition: { x: 804, y: 758 },
+  operatorPosition: gridToPixel(28, 26), // { x: 855, y: 795 } ngay trên hành lang walkable col=28, row=26
+  operatorGrid: { col: 28, row: 26 },
   operatorFacing: 'UP',
   cameraFocusWorld: {
-    x: 1404,
-    y: 602,
+    x: 808,
+    y: 758,
     zoom: 1.62,
   },
 };
@@ -1964,17 +1964,17 @@ export const JENKINS_RELEASE_SERVER_STATION: JenkinsServerStation = {
   jobName: 'oneclickv4-build-release',
   rssUrl: 'https://jenkins-osp.frt.vn/job/oneclickv4-build-uat/rssAll',
   proxyRssUrl: '/api/frt-jenkins-uat-rss',
-  wx: 760,
-  wy: 742,
-  ww: 96,
-  wh: 30,
-  consolePosition: { x: 804, y: 758 },
-  operatorPosition: gridToPixel(28, 26), // { x: 855, y: 795 } ngay trên hành lang walkable col=28, row=26
-  operatorGrid: { col: 28, row: 26 },
+  wx: 1352,
+  wy: 586,
+  ww: 108,
+  wh: 32,
+  consolePosition: { x: 1398, y: 604 },
+  operatorPosition: gridToPixel(46, 20), // { x: 1395, y: 615 }
+  operatorGrid: { col: 46, row: 20 },
   operatorFacing: 'UP',
   cameraFocusWorld: {
-    x: 808,
-    y: 758,
+    x: 1404,
+    y: 602,
     zoom: 1.62,
   },
 };

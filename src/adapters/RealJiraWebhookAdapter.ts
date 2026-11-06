@@ -124,6 +124,8 @@ export interface PublicOfficeStreamEvent {
   toEmployeeId?: string;
   toStatus?: TicketStatus;
   isReturnToPM?: boolean;
+  /** true = Jira đổi Assignee (duy nhất loại này làm nhân vật đi bộ mang hồ sơ) */
+  isAssigneeChange?: boolean;
   updatedAt?: string;
   jobName?: string;
   buildNumber?: number;

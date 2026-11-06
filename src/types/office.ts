@@ -163,8 +163,6 @@ export type Role =
 /** Alias tương thích cho Role */
 export type EmployeeRole = Role;
 
-/** Quy tắc tự động tan ca đi về sau 2 giờ không phát sinh event mới (2h = 7,200,000 ms) */
-export const INACTIVITY_CHECKOUT_MS = 2 * 60 * 60 * 1000;
 
 /** Trạng thái hoạt động tức thời của nhân viên trong mô phỏng */
 export type EmployeeStatus =
@@ -674,6 +672,8 @@ export interface JiraWebhookEvent {
   toStatus: TicketStatus;
   /** Cờ báo hiệu đây là bước hoàn tất ticket để mang tài liệu về bàn PM */
   isReturnToPM: boolean;
+  /** Đổi Assignee thật trên Jira: duy nhất loại sự kiện LIVE làm nhân vật đi bộ mang hồ sơ sang người nhận */
+  isAssigneeChange?: boolean;
   summaryMessage: string;
 }
 

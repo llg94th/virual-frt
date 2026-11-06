@@ -33,6 +33,8 @@ const VAULT_DIR = process.env.VAULT_DIR ? path.resolve(process.env.VAULT_DIR) : 
 const CREDENTIALS_FILE = path.join(VAULT_DIR, '.credentials.enc.json');
 const MASTER_KEY_FILE = path.join(VAULT_DIR, '.master.key');
 const ACTIVE_USERS_TODAY_FILE = path.join(VAULT_DIR, '.active-users-today.json');
+const ASSIGNEE_HISTORY_FILE = path.join(VAULT_DIR, '.assignee-history.json');
+const MAX_ASSIGNEE_HISTORY = 10;
 
 const PORT = Number(process.env.PORT || 8787);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
@@ -61,7 +63,6 @@ function pushConnectionLog(entry) {
 // 2. TODAY'S WORKING USERS REGISTRY (100% REAL USERS FROM JIRA/JENKINS, NO MOCK USERNAMES!)
 // ============================================================================
 
-const INACTIVITY_CHECKOUT_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 function getTodayDateKey() {
   const d = new Date();
@@ -257,7 +258,8 @@ function getActiveUsersTodaySnapshot() {
 
   return allUsers.map((u) => {
     const idleMs = Math.max(0, newestEventMs - (u.lastEventAtMs || newestEventMs));
-    const isWorking = idleMs < INACTIVITY_CHECKOUT_WINDOW_MS;
+    // Không còn rule tự về sau 2h: mọi user trong ngày đều coi là đang làm việc
+    const isWorking = true;
     return {
       ...u,
       isWorking,
@@ -701,6 +703,143 @@ function extractMentionedUsersFromJiraHtml(rawHtml) {
 }
 
 /**
+ * Trích các lần ĐỔI ASSIGNEE từ Jira Activity XML (chỉ lịch sử assignee, không lấy transition/comment/...).
+ * Hai dạng trong feed FRT:
+ * - Tiêu đề: `longth66 changed the Assignee to 'tanth9' on DASF-168`
+ * - Nội dung "updated N fields": `<li>Changed the Assignee to 'vanltb8'`
+ */
+function matchAssigneeChange(decodedHtml) {
+  const am = String(decodedHtml || '').match(
+    /Changed the Assignee to\s*'?\s*(?:<a\b[^>]*ViewProfile\.jspa\?name=([^"&'\s>]+)[^>]*>([\s\S]*?)<\/a>|([^'<\n]+))/i
+  );
+  if (!am) return null;
+  const ldap = (am[1] || '').trim();
+  const text = stripHtmlTags(am[2] || am[3] || '').trim();
+  const account = (/^\d+$/.test(ldap) ? '' : ldap) || text;
+  if (!account || /^unassigned$/i.test(account)) return null;
+  return { account, text: text || account };
+}
+
+export function extractAssigneeChangesFromJiraXml(xmlText) {
+  if (!xmlText || typeof xmlText !== 'string') return [];
+  const out = [];
+  const entryRegex = /<entry(?:\s[^>]*)?>([\s\S]*?)<\/entry>/gi;
+  let m;
+  while ((m = entryRegex.exec(xmlText)) !== null) {
+    const block = m[1];
+    const rawTitleHtml = extractXmlTagText(block, ['title']);
+    const rawContentHtml = extractXmlTagText(block, ['content', 'summary']);
+    const decoded = decodeHtmlEntities(`${rawTitleHtml}\n${rawContentHtml}`);
+    const am = matchAssigneeChange(decoded);
+    if (!am) continue;
+    const assigneeAccount = am.account;
+    const assigneeText = am.text;
+
+    const objectBlock = extractXmlTagText(block, ['activity:object', 'object']);
+    const objectTitle = stripHtmlTags(extractXmlTagText(objectBlock, ['title']));
+    const cleanTitle = stripHtmlTags(rawTitleHtml);
+    const linkHref = extractXmlLinkHref(block);
+    const keyMatch =
+      objectTitle.match(/^([A-Z][A-Z0-9_]{1,9}-\d+)$/i) ||
+      cleanTitle.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/) ||
+      linkHref.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
+    const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : '';
+    if (!ticketKey) continue;
+
+    const authorBlock = extractXmlTagText(block, ['author']) || block;
+    const authorEmail = stripHtmlTags(extractXmlTagText(authorBlock, ['email']));
+    const byAccount =
+      (authorEmail.includes('@') ? authorEmail.split('@')[0].trim() : '') ||
+      stripHtmlTags(extractXmlTagText(authorBlock, ['usr:username', 'username'])) ||
+      stripHtmlTags(extractXmlTagText(authorBlock, ['name']));
+    const byDisplayName = stripHtmlTags(extractXmlTagText(authorBlock, ['name'])).trim();
+    const entryId =
+      stripHtmlTags(extractXmlTagText(block, ['id', 'guid'])) || `${ticketKey}-${assigneeAccount}`;
+    const at =
+      stripHtmlTags(extractXmlTagText(block, ['updated', 'published', 'pubDate'])) ||
+      new Date().toISOString();
+
+    out.push({
+      id: `${entryId}|${assigneeAccount.toLowerCase()}`,
+      ticketKey,
+      summary: stripHtmlTags(extractXmlTagText(objectBlock, ['summary'])).trim(),
+      byAccount,
+      byDisplayName: byDisplayName || byAccount,
+      assigneeAccount,
+      assigneeDisplayName: assigneeText || assigneeAccount,
+      at,
+    });
+  }
+  return out;
+}
+
+/** Ring buffer tối đa 10 mục lịch sử Jira gần nhất (mới nhất đứng đầu), lưu qua restart trong VAULT_DIR */
+const assigneeHistory = [];
+
+function loadPersistedAssigneeHistory() {
+  try {
+    if (!fs.existsSync(ASSIGNEE_HISTORY_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(ASSIGNEE_HISTORY_FILE, 'utf8'));
+    if (Array.isArray(raw?.items)) {
+      assigneeHistory.length = 0;
+      assigneeHistory.push(...raw.items.slice(0, MAX_ASSIGNEE_HISTORY));
+    }
+  } catch {
+    // ignore corrupt snapshot
+  }
+}
+
+function ingestJiraHistory(jiraXml, parsedJira = []) {
+  // Lịch sử overlay: đổi assignee (có đi bộ giao hồ sơ) + đổi trạng thái (chỉ là log)
+  const found = extractAssigneeChangesFromJiraXml(jiraXml).map((x) => ({
+    ...x,
+    kind: 'ASSIGNEE',
+    targetLabel: x.assigneeDisplayName || x.assigneeAccount,
+  }));
+  for (const p of parsedJira) {
+    if (!p || p.isAssigneeChange) continue;
+    found.push({
+      id: `${p.id}|status`,
+      kind: 'STATUS',
+      ticketKey: p.ticketKey,
+      summary: String(p.summary || '')
+        .replace(/^[[^]]+]s*/, '')
+        .split(' — ')[0]
+        .trim(),
+      byAccount: p.authorAccount,
+      byDisplayName: p.authorDisplayName || p.authorAccount,
+      targetLabel: p.statusLabel || p.toStatus,
+      at: p.updatedAt,
+    });
+  }
+  found.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  if (found.length === 0) return 0;
+  const known = new Set(assigneeHistory.map((x) => x.id));
+  // found: mới nhất -> cũ nhất; thêm từ cũ đến mới để giữ thứ tự thời gian
+  const fresh = found.filter((x) => !known.has(x.id)).reverse();
+  if (fresh.length === 0) return 0;
+  for (const item of fresh) {
+    assigneeHistory.unshift(item);
+  }
+  assigneeHistory.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  if (assigneeHistory.length > MAX_ASSIGNEE_HISTORY) {
+    assigneeHistory.length = MAX_ASSIGNEE_HISTORY;
+  }
+  try {
+    fs.writeFileSync(
+      ASSIGNEE_HISTORY_FILE,
+      JSON.stringify({ updatedAt: new Date().toISOString(), items: assigneeHistory }, null, 2),
+      'utf8'
+    );
+  } catch {
+    // ignore fs write warnings
+  }
+  return fresh.length;
+}
+
+loadPersistedAssigneeHistory();
+
+/**
  * Parse raw Jira Activity Atom XML into normalized entries (100% REAL DATA, NO FAKE FALLBACK ACCOUNTS!)
  * Supports FRT Jira format where:
  * - `<author><email>ngannn10@fpt.com</email><name>Nguyễn Ngọc Ngân</name><usr:username>106123</usr:username></author>`
@@ -810,6 +949,14 @@ export function parseRawJiraActivityXml(xmlText) {
       /\bchanged the status to\b/i.test(cleanTitle) ||
       /\btransitioned\b/i.test(cleanTitle);
 
+    // Đổi assignee (tiêu đề hoặc trong danh sách "updated N fields") -> DUY NHẤT loại này tạo chuyến đi mang hồ sơ
+    // Lấy <content> riêng (rawSummaryHtml có thể trúng <summary> của activity:object thay vì nội dung "updated N fields")
+    const assigneeChange = matchAssigneeChange(
+      decodeHtmlEntities(
+        `${rawTitleHtml}\n${extractXmlTagText(block, ['content'])}\n${rawSummaryHtml}`
+      )
+    );
+
     // Trạng thái đích thật nằm trong <category term="3. Testing"/> của entry transition
     const categoryTerms = [...block.matchAll(/<category[^>]*\bterm=["']([^"']*)["']/gi)].map((m) =>
       m[1].trim()
@@ -852,6 +999,8 @@ export function parseRawJiraActivityXml(xmlText) {
       profileMentions,
       toStatus,
       isTransition,
+      statusTerm,
+      assigneeChange,
       updatedAt,
     };
   });
@@ -878,7 +1027,9 @@ export function parseRawJiraActivityXml(xmlText) {
         .toString()
         .padStart(2, '0')}`;
 
-    const isReturnToPM = item.toStatus === 'DONE';
+    // DUY NHẤT đổi Assignee (tiêu đề hoặc trong "updated N fields") mới tạo chuyến đi mang hồ sơ
+    const isAssigneeChange = Boolean(item.assigneeChange);
+    const isReturnToPM = !isAssigneeChange && item.toStatus === 'DONE';
 
     // Resolve any profile mentions in <title>/<content>/<summary> (e.g. "changed the Assignee to 'Lê Nguyễn Tấn Lộc'" or "@Bùi Thị Huyền Trân")
     const resolvedMentionUsers = [];
@@ -959,15 +1110,16 @@ export function parseRawJiraActivityXml(xmlText) {
     // Update last actor for this ticket key
     lastActorByTicketKey.set(item.ticketKey, fromAccount);
 
-    // Chỉ tạo sự kiện đi bộ giao tài liệu khi là chuyển trạng thái (transition), đổi Assignee hoặc có tag đồng nghiệp thứ 2.
-    // Các thao tác sửa field nhỏ lẻ của 1 người vẫn đã được ghi nhận vào `activeUsersTodayMap` (ngồi làm việc tại bàn)!
-    const isAssigneeChange = /\bchanged the assignee to\b/i.test(item.cleanTitle);
-    if (!item.isTransition && !isAssigneeChange && !explicitSecondObj) {
+    // Chỉ phát sự kiện cho: đổi Assignee (có đi bộ giao hồ sơ) và chuyển trạng thái (chỉ là log, KHÔNG đi bộ).
+    // Các thao tác khác vẫn đã được ghi nhận vào `activeUsersTodayMap` (ngồi làm việc tại bàn)!
+    if (!item.isTransition && !isAssigneeChange) {
       continue;
     }
 
     // Never fallback to mock accounts like DongNQ6 or ThanhDQ13!
-    const toAccount = targetUserAccount || fromAccount;
+    const toAccount = isAssigneeChange
+      ? item.assigneeChange.account
+      : targetUserAccount || fromAccount;
     const resolvedTarget = resolveEmployeeByAccount(toAccount);
     const toEmployeeId = resolvedTarget?.employeeId || fromEmployeeId;
 
@@ -993,6 +1145,8 @@ export function parseRawJiraActivityXml(xmlText) {
       fromEmployeeId,
       toEmployeeId,
       toStatus: item.toStatus,
+      statusLabel: item.statusTerm || '',
+      isAssigneeChange,
       isReturnToPM,
       updatedAt: item.updatedAt,
     });
@@ -1188,6 +1342,7 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
   // 1. Process Jira Activity XML entries (oldest -> newest so seq increases chronologically)
   if (jiraXml && jiraXml.trim()) {
     const parsedJira = parseRawJiraActivityXml(jiraXml);
+    ingestJiraHistory(jiraXml, parsedJira);
     const chronologicalJira = [...parsedJira].reverse();
 
     for (const item of chronologicalJira) {
@@ -1233,6 +1388,8 @@ function ingestFeedsIntoRamCache(jiraXml, jenkinsXml, sourceLabel = 'poll') {
         toEmployeeId: item.toEmployeeId,
         toStatus: item.toStatus,
         isReturnToPM: item.isReturnToPM,
+        isAssigneeChange: item.isAssigneeChange === true,
+        statusLabel: item.statusLabel || '',
         updatedAt: item.updatedAt,
         emittedAt: new Date().toISOString(),
       };
@@ -2725,6 +2882,23 @@ export function createOfficeProxyServer() {
       }
 
       // ----------------------------------------------------------------------
+      // B00. PUBLIC ASSIGNEE HISTORY API (`GET /api/public/assignee-history`)
+      //      Tối đa 10 lần đổi assignee gần nhất, chỉ đọc từ cache RAM (timer nền cập nhật), không gọi upstream.
+      // ----------------------------------------------------------------------
+      if (pathname === '/api/public/assignee-history' && method === 'GET') {
+        if (!checkPublicRateLimit(req)) {
+          sendJson(res, 429, { ok: false, error: 'Rate limit exceeded.' });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          count: assigneeHistory.length,
+          items: assigneeHistory.slice(0, MAX_ASSIGNEE_HISTORY),
+        });
+        return;
+      }
+
+      // ----------------------------------------------------------------------
       // B0. PUBLIC TODAY'S ACTIVE USERS API (`GET /api/public/active-users`)
       //     Trả về danh sách toàn bộ nhân sự thực tế đang làm việc từ đầu ngày đến hiện tại
       //     để Frontend đặt nhân sự ngồi sẵn vào bàn ngay khi mở trang, KHÔNG bị dồn event gây giật lag!
@@ -2738,9 +2912,8 @@ export function createOfficeProxyServer() {
           return;
         }
 
-        // Đồng bộ luồng upstream nếu cần để danh sách user trong ngày luôn mới nhất
-        await executeUpstreamPollCycle('public-active-users');
-
+        // Chỉ đọc từ cache RAM (`activeUsersTodayMap`) do timer nền (`pollIntervalSec`) cập nhật,
+        // KHÔNG gọi upstream Jira/Jenkins theo từng request.
         const activeUsers = getActiveUsersTodaySnapshot();
         const workingUsersCount = activeUsers.filter((u) => u.isWorking).length;
         const compactJenkinsSnapshot = jenkinsSnapshot.slice(0, 5).map((b) => ({
@@ -2822,6 +2995,7 @@ export function createOfficeProxyServer() {
                 toEmployeeId: ev.toEmployeeId,
                 toStatus: ev.toStatus,
                 isReturnToPM: ev.isReturnToPM,
+                isAssigneeChange: ev.isAssigneeChange === true,
                 summary: ev.summary,
                 updatedAt: ev.updatedAt,
               }

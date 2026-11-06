@@ -100,9 +100,22 @@ function loadPersistedActiveUsersToday() {
     if (!raw || raw.dayKey !== today || !Array.isArray(raw.users)) return;
     activeUsersTodayMap.clear();
     let maxSlot = 0;
+    // File cũ có thể chứa nhiều user trùng `employeeId` (từ thời giới hạn 30 slot): cấp lại slot trống cho bản trùng
+    const usedLoadedEmpIds = new Set();
+    const nextFreeEmpId = () => {
+      for (let i = 1; i <= OFFICE_SEAT_COUNT; i++) {
+        const cid = `EMP-${String(i).padStart(2, '0')}`;
+        if (!usedLoadedEmpIds.has(cid)) return cid;
+      }
+      return null;
+    };
     for (const u of raw.users) {
       const key = normalizeAccountKey(u.account);
       if (!key) continue;
+      if (u.employeeId && usedLoadedEmpIds.has(u.employeeId)) {
+        u.employeeId = nextFreeEmpId() || u.employeeId;
+      }
+      if (u.employeeId) usedLoadedEmpIds.add(u.employeeId);
       activeUsersTodayMap.set(key, u);
       const numMatch = String(u.employeeId || '').match(/EMP-(\d+)/);
       if (numMatch) {

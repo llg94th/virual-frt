@@ -36,10 +36,14 @@ import {
   TicketType,
 } from '../types/office';
 import {
-  EMPLOYEES,
+  EMPLOYEES as ALL_EMPLOYEES,
   EMPLOYEE_BY_ID,
+  EXTRA_SEAT_EMPLOYEE_IDS,
   PROJECT_MANAGER,
 } from '../data/employees';
+
+/** MOCK chỉ dùng nhân sự gốc, không kéo các slot ghế mở rộng dành cho user Jira thật */
+const EMPLOYEES = ALL_EMPLOYEES.filter((e) => !EXTRA_SEAT_EMPLOYEE_IDS.has(e.id));
 
 // ============================================================================
 // 1. REALISTIC FRT ENGINEERING TICKET TEMPLATES

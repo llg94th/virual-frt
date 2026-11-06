@@ -2613,8 +2613,13 @@ export class OfficeSimulationEngine {
         hash = (hash * 31 + lowerAcc.charCodeAt(i)) >>> 0;
       }
       let foundUnbound: Employee | undefined;
-      for (let offset = 0; offset < OFFICE_SEAT_COUNT; offset++) {
-        const slotNum = ((hash + offset) % OFFICE_SEAT_COUNT) + 1; // 1..OFFICE_SEAT_COUNT
+      // LIVE_FRT: dùng toàn bộ ghế. Chế độ MOCK giữ 30 nhân sự gốc để mô phỏng không kéo thêm slot ghế mở rộng.
+      const seatRange =
+        this.state.dataSourceMode === 'LIVE_FRT'
+          ? OFFICE_SEAT_COUNT
+          : Math.min(30, OFFICE_SEAT_COUNT);
+      for (let offset = 0; offset < seatRange; offset++) {
+        const slotNum = ((hash + offset) % seatRange) + 1; // 1..seatRange
         const candidateId = `EMP-${slotNum.toString().padStart(2, '0')}`;
         const candidate = this.state.employeeById[candidateId];
         if (

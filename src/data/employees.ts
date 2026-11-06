@@ -743,12 +743,15 @@ const FEMALE_IDS = new Set([
 // Slot chưa gắn user thật thì không hiện trên bản đồ; khi Jira có user mới và các ghế gốc đã đầy,
 // user được gắn (`bindRealAccountToEmployeeSlot`) vào slot này và ngồi đúng bàn tương ứng.
 // ============================================================================
+/** Id các slot ghế mở rộng (EMP-31..): không tham gia mô phỏng MOCK, chỉ dùng cho user Jira thật */
+export const EXTRA_SEAT_EMPLOYEE_IDS = new Set<string>();
 const EXTRA_SEAT_ROLES: Role[] = ['BACKEND', 'FRONTEND', 'MOBILE', 'QA', 'DEVOPS'];
 {
   const knownIds = new Set(EMPLOYEE_SEEDS.map((e) => e.id));
   DESK_POSITIONS.forEach((desk, idx) => {
     if (knownIds.has(desk.assignedEmployeeId)) return;
     const seatShort = (desk.seatCode || desk.id).replace('FT3.III2A.', '');
+    EXTRA_SEAT_EMPLOYEE_IDS.add(desk.assignedEmployeeId);
     EMPLOYEE_SEEDS.push({
       id: desk.assignedEmployeeId,
       code: desk.seatCode || desk.id,

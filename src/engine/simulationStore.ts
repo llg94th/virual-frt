@@ -46,6 +46,7 @@ import {
 import {
   ALL_JOINED_DESK_ISLANDS,
   ALL_OFFICE_SEAT_SLOTS,
+  OFFICE_SEAT_COUNT,
   ATRIUM_SMOKING_SPOTS,
   BOSS_WING_PATROL_LOOPS,
   DEFAULT_SIMULATION_CONFIG,
@@ -2612,8 +2613,8 @@ export class OfficeSimulationEngine {
         hash = (hash * 31 + lowerAcc.charCodeAt(i)) >>> 0;
       }
       let foundUnbound: Employee | undefined;
-      for (let offset = 0; offset < 30; offset++) {
-        const slotNum = ((hash + offset) % 30) + 1; // 1..30
+      for (let offset = 0; offset < OFFICE_SEAT_COUNT; offset++) {
+        const slotNum = ((hash + offset) % OFFICE_SEAT_COUNT) + 1; // 1..OFFICE_SEAT_COUNT
         const candidateId = `EMP-${slotNum.toString().padStart(2, '0')}`;
         const candidate = this.state.employeeById[candidateId];
         if (
@@ -2695,7 +2696,8 @@ export class OfficeSimulationEngine {
     }
 
     const maxSeatsCfg = this.state.config.maxOpenSeats;
-    const maxSeats = maxSeatsCfg === 12 ? 12 : 30;
+    const maxSeats =
+      maxSeatsCfg === 12 ? 12 : maxSeatsCfg === 30 ? 30 : OFFICE_SEAT_COUNT;
     let seatedCount = this.state.employees.filter(
       (e) =>
         !e.isManager &&
@@ -3092,7 +3094,7 @@ export class OfficeSimulationEngine {
 
     const maxSeatsCfg = this.state.config.maxOpenSeats;
     const maxSeats =
-      maxSeatsCfg === 12 ? 12 : maxSeatsCfg === 30 ? 30 : 30;
+      maxSeatsCfg === 12 ? 12 : maxSeatsCfg === 30 ? 30 : OFFICE_SEAT_COUNT;
     const currentCheckedIn = this.state.employees.filter(
       (e) =>
         !e.isManager &&

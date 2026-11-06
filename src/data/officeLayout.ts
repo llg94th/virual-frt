@@ -1884,6 +1884,80 @@ export const ALL_OFFICE_SEAT_SLOTS: NhaThuocSeatSlot[] = [
 ];
 
 // ============================================================================
+// 6B. MỞ TOÀN BỘ GHẾ CHO USER THẬT: MỌI Ô (TRỪ CỘT) THÀNH MỘT BÀN LÀM VIỆC THẬT
+// ============================================================================
+
+/** Vùng màu luân phiên cho các bàn mở rộng (chỉ để tô màu/khoanh vùng, không ảnh hưởng luồng sự kiện) */
+const EXTRA_DESK_ZONES: ZoneId[] = ['ZONE-BE', 'ZONE-FE', 'ZONE-MOBILE', 'ZONE-QA', 'ZONE-DEVOPS'];
+
+/**
+ * 30 bàn gốc (`DESK-01..30`) có sẵn nhân viên. Mọi ô ghế còn lại (23 ô đệm ở Khoang Đông + 42 ô ở 3 khoang mới)
+ * được nâng thành bàn thật `DESK-31..` (nhân viên `EMP-31..` tạo ở `employees.ts`), để user Jira thật có thể
+ * ngồi vào BẤT KỲ ghế trống nào thay cho các bóng đen trang trí.
+ */
+function expandSeatsToDesks(): DeskPosition[] {
+  const created: DeskPosition[] = [];
+  let n = DESK_POSITIONS.length;
+  const wingById: Record<string, NhaThuocIslandMeta> = Object.fromEntries(
+    EXTRA_WING_ISLANDS.map((isl) => [isl.id, isl])
+  );
+
+  for (const slot of ALL_OFFICE_SEAT_SLOTS) {
+    if (slot.kind === 'PILLAR' || slot.deskId) continue;
+    n += 1;
+    const nn = String(n).padStart(2, '0');
+
+    let handoffCol: number;
+    let handoffRow: number;
+    const wing = wingById[slot.islandId];
+    if (wing) {
+      handoffCol = slot.side === 'LEFT' ? wing.leftHandoffCol : wing.rightHandoffCol;
+      handoffRow = wing.rowHandoffRows[slot.subRow - 1];
+    } else {
+      const colCfg = ISLAND_COL_COORDS[slot.islandCol];
+      const rowCfg = ISLAND_ROW_COORDS[slot.islandRow];
+      handoffCol = slot.side === 'LEFT' ? colCfg.leftHandoffCol : colCfg.rightHandoffCol;
+      handoffRow = rowCfg.rowHandoffRows[slot.subRow - 1];
+    }
+
+    const desk: DeskPosition = {
+      id: `DESK-${nn}`,
+      label: `${slot.seatCode} • ${slot.account}`,
+      zoneId: EXTRA_DESK_ZONES[(n - 1) % EXTRA_DESK_ZONES.length],
+      assignedEmployeeId: `EMP-${nn}`,
+      position: { x: slot.wx, y: slot.wy },
+      x: slot.wx,
+      y: slot.wy,
+      grid: pixelToGrid(slot.wx, slot.wy),
+      width: slot.width,
+      height: slot.height,
+      orientation: slot.orientation,
+      seatPosition: { ...slot.seatPosition },
+      handoffGrid: { col: handoffCol, row: handoffRow },
+      handoffPoint: gridToPixel(handoffCol, handoffRow),
+      nearestWaypointId: '',
+      seatCode: slot.seatCode,
+      account: slot.account,
+      islandId: slot.islandId,
+      rowIndex: slot.rowIndex,
+      colIndex: slot.colIndex,
+      highlightVariant: slot.highlight ?? 'normal',
+      sideNote: slot.sideNote,
+    };
+    // Gắn ô ghế với bàn/nhân viên mới -> canvas không còn vẽ bóng đen trang trí cho ô này
+    slot.deskId = desk.id;
+    slot.assignedEmployeeId = desk.assignedEmployeeId;
+    created.push(desk);
+  }
+  return created;
+}
+
+DESK_POSITIONS.push(...expandSeatsToDesks());
+
+/** Tổng số ghế (= số bàn = số nhân viên bàn làm việc `EMP-01..EMP-N`) trên toàn bản đồ */
+export const OFFICE_SEAT_COUNT: number = DESK_POSITIONS.length;
+
+// ============================================================================
 // 6C. 3 CỤM SERVER BUILD 3D (`JENKINS_SERVER_CLUSTERS`: CI + UAT + RELEASE)
 // ============================================================================
 

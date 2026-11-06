@@ -88,6 +88,8 @@ let activeUsersDayKey = getTodayDateKey();
 /** Map<normalizedKey, ActiveOfficeUserRecord> */
 const activeUsersTodayMap = new Map();
 /** Next sequential seat index 1..30 */
+// Tổng số ghế/slot nhân viên `EMP-01..EMP-N` trên bản đồ (phải khớp `OFFICE_SEAT_COUNT` trong src/data/officeLayout.ts)
+const OFFICE_SEAT_COUNT = Number(process.env.OFFICE_SEAT_COUNT) || 107;
 let nextSeatCursor = 1;
 
 function loadPersistedActiveUsersToday() {
@@ -107,7 +109,7 @@ function loadPersistedActiveUsersToday() {
         maxSlot = Math.max(maxSlot, parseInt(numMatch[1], 10));
       }
     }
-    nextSeatCursor = (maxSlot % 30) + 1;
+    nextSeatCursor = (maxSlot % OFFICE_SEAT_COUNT) + 1;
   } catch {
     // ignore corrupt snapshot
   }
@@ -151,7 +153,7 @@ function isSystemOrTicketString(raw) {
 }
 
 /**
- * Allocate or retrieve a dedicated seat (`EMP-01` .. `EMP-30`) for a real user today.
+ * Allocate or retrieve a dedicated seat (`EMP-01` .. `EMP-<OFFICE_SEAT_COUNT>`) for a real user today.
  * Strictly 100% real accounts — zero mock usernames!
  */
 function registerOrUpdateActiveUserToday({
@@ -179,17 +181,17 @@ function registerOrUpdateActiveUserToday({
 
   let existing = activeUsersTodayMap.get(key);
   if (!existing) {
-    // Find first unoccupied EMP-01 .. EMP-30 slot
+    // Find first unoccupied EMP-01 .. EMP-<OFFICE_SEAT_COUNT> slot
     const usedEmpIds = new Set(
       Array.from(activeUsersTodayMap.values()).map((u) => u.employeeId)
     );
     let chosenEmpId = `EMP-${String(nextSeatCursor).padStart(2, '0')}`;
-    for (let i = 0; i < 30; i++) {
-      const slotNum = ((nextSeatCursor - 1 + i) % 30) + 1;
+    for (let i = 0; i < OFFICE_SEAT_COUNT; i++) {
+      const slotNum = ((nextSeatCursor - 1 + i) % OFFICE_SEAT_COUNT) + 1;
       const cid = `EMP-${String(slotNum).padStart(2, '0')}`;
       if (!usedEmpIds.has(cid)) {
         chosenEmpId = cid;
-        nextSeatCursor = (slotNum % 30) + 1;
+        nextSeatCursor = (slotNum % OFFICE_SEAT_COUNT) + 1;
         break;
       }
     }

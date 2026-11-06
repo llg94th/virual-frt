@@ -16,7 +16,7 @@
  */
 
 import { Employee, Role } from '../types/office';
-import { DESK_BY_ID } from './officeLayout';
+import { DESK_BY_ID, DESK_POSITIONS } from './officeLayout';
 
 /** Bảng màu & nhãn hiển thị chuẩn cho từng Role trong văn phòng */
 export const ROLE_METADATA: Record<
@@ -737,6 +737,35 @@ const FEMALE_IDS = new Set([
   'EMP-25',
   'EMP-26',
 ]);
+
+// ============================================================================
+// NHÂN VIÊN GHẾ MỞ RỘNG (EMP-31..EMP-N): mỗi bàn mở rộng ở `officeLayout.ts` có 1 nhân vật "slot" trống.
+// Slot chưa gắn user thật thì không hiện trên bản đồ; khi Jira có user mới và các ghế gốc đã đầy,
+// user được gắn (`bindRealAccountToEmployeeSlot`) vào slot này và ngồi đúng bàn tương ứng.
+// ============================================================================
+const EXTRA_SEAT_ROLES: Role[] = ['BACKEND', 'FRONTEND', 'MOBILE', 'QA', 'DEVOPS'];
+{
+  const knownIds = new Set(EMPLOYEE_SEEDS.map((e) => e.id));
+  DESK_POSITIONS.forEach((desk, idx) => {
+    if (knownIds.has(desk.assignedEmployeeId)) return;
+    const seatShort = (desk.seatCode || desk.id).replace('FT3.III2A.', '');
+    EMPLOYEE_SEEDS.push({
+      id: desk.assignedEmployeeId,
+      code: desk.seatCode || desk.id,
+      account: '',
+      seatCode: desk.seatCode || desk.id,
+      islandId: desk.islandId || '',
+      name: `Ghế ${seatShort}`,
+      displayName: `Ghế ${seatShort}`,
+      initials: String(idx + 1).padStart(2, '0'),
+      role: EXTRA_SEAT_ROLES[idx % EXTRA_SEAT_ROLES.length],
+      title: `Ghế mở rộng ${seatShort}`,
+      squad: `${desk.islandId || 'Khoang mở rộng'} • ${seatShort}`,
+      deskId: desk.id,
+      skills: [],
+    });
+  });
+}
 
 /**
  * Danh sách nhân sự hoàn chỉnh (4 vị Sếp tuần tra 4 phòng + 30 nhân viên điều phối) với tọa độ khởi tạo khớp 1-1

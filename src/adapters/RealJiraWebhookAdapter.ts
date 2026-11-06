@@ -192,45 +192,85 @@ export const DEFAULT_JENKINS_RECENT_BUILDS: JenkinsBuildJobItem[] = [
 
 /** Mẫu XML thực tế từ `https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic&title=undefined` */
 export const SAMPLE_FRT_JIRA_ACTIVITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:usr="http://streams.atlassian.com/syndication/username/1.0" xmlns:activity="http://activitystrea.ms/spec/1.0/">
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:atlassian="http://streams.atlassian.com/syndication/general/1.0" xmlns:usr="http://streams.atlassian.com/syndication/username/1.0" xmlns:activity="http://activitystrea.ms/spec/1.0/">
   <id>https://reqs.frt.vn/activity?maxResults=10&amp;providers=issues&amp;os_authType=basic&amp;title=undefined</id>
-  <title type="text">Activity Stream — FRT Pharmacy (NHÀ THUỐC)</title>
-  <updated>2026-11-05T09:32:00Z</updated>
+  <title type="text">FPT Retail IS - Jira - Activity Stream</title>
+  <updated>2026-11-06T00:58:35.285Z</updated>
   <entry>
-    <id>urn:uuid:frt-activity-2846-1</id>
-    <title type="html">thanhdq13 changed the status of FRT-104 to QA Testing and assigned to trantnn</title>
-    <summary type="html">Tối ưu API tồn kho thuốc Long Châu • Chuyển bản build oneclickv4 sang QA kiểm thử</summary>
+    <id>urn:uuid:36de079a-97e1-3388-b671-7a3e0e9a0318</id>
+    <title type="html">&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=106123" class="activity-item-user activity-item-author"&gt;Nguyễn Ngọc Ngân&lt;/a&gt; changed the Assignee to '&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=106123" class="activity-item-user"&gt;Nguyễn Ngọc Ngân&lt;/a&gt;' on &lt;a href="https://reqs.frt.vn/browse/TADS-66493"&gt;TADS-66493 - [82735] Kiểm tra shop xem lại ảnh toa thuốc trong đơn nhưng không hiển thị ảnh&lt;/a&gt;</title>
     <author>
-      <name>Đỗ Quang Thanh</name>
-      <email>thanhdq13@frt.vn</email>
-      <usr:username>thanhdq13</usr:username>
+      <name>Nguyễn Ngọc Ngân</name>
+      <email>ngannn10@fpt.com</email>
+      <usr:username>106123</usr:username>
     </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-104" />
-    <updated>2026-11-05T09:32:00Z</updated>
+    <link rel="alternate" href="https://reqs.frt.vn/browse/TADS-66493" />
+    <activity:object>
+      <title type="text">TADS-66493</title>
+      <summary type="text">[82735] Kiểm tra shop xem lại ảnh toa thuốc trong đơn nhưng không hiển thị ảnh</summary>
+    </activity:object>
+    <updated>2026-11-06T00:58:35.285Z</updated>
   </entry>
   <entry>
-    <id>urn:uuid:frt-activity-2846-2</id>
-    <title type="html">baonat updated FRT-103 to Code Review for luutv6</title>
-    <summary type="html">Cập nhật giao diện POS Nhà Thuốc • Nhờ Lead LuuTV6 review PR</summary>
+    <id>urn:uuid:33656d62-6d0f-3e5b-9f36-70c3cfed61b2</id>
+    <title type="html">&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=100442" class="activity-item-user activity-item-author"&gt;Phạm Thanh Sang&lt;/a&gt; attached one file to &lt;a href="https://reqs.frt.vn/browse/TADS-66493"&gt;TADS-66493 - [82735] Kiểm tra shop xem lại ảnh toa thuốc trong đơn nhưng không hiển thị ảnh&lt;/a&gt;</title>
     <author>
-      <name>Nguyễn Anh Thiên Bảo</name>
-      <email>baonat@frt.vn</email>
-      <usr:username>baonat</usr:username>
+      <name>Phạm Thanh Sang</name>
+      <email>sangpt19@fpt.com</email>
+      <usr:username>100442</usr:username>
     </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-103" />
-    <updated>2026-11-05T09:30:10Z</updated>
+    <link rel="alternate" href="https://reqs.frt.vn/browse/TADS-66493" />
+    <activity:object>
+      <title type="text">TADS-66493</title>
+      <summary type="text">[82735] Kiểm tra shop xem lại ảnh toa thuốc trong đơn nhưng không hiển thị ảnh</summary>
+    </activity:object>
+    <updated>2026-11-06T00:57:40.483Z</updated>
   </entry>
   <entry>
-    <id>urn:uuid:frt-activity-2846-3</id>
-    <title type="html">trantnn resolved FRT-105 as Done and delivered to dongnq6</title>
-    <summary type="html">Nghiệm thu hoàn tất UAT đặt thuốc Online • Mang hồ sơ DONE về bàn PM DongNQ6</summary>
+    <id>urn:uuid:06b3f36d-022d-3ff8-874f-631b1a61e80e</id>
+    <title type="html">&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=haind27" class="activity-item-user activity-item-author"&gt;haind27&lt;/a&gt; commented on &lt;a href="https://reqs.frt.vn/browse/FI-35314"&gt;FI-35314 - [LC] Điều chỉnh xuất kho theo FEFO&lt;/a&gt;</title>
     <author>
-      <name>Trần Thị Ngọc Trân</name>
-      <email>trantnn@frt.vn</email>
-      <usr:username>trantnn</usr:username>
+      <name>haind27</name>
+      <email>haind27@fpt.com.vn</email>
+      <usr:username>haind27</usr:username>
     </author>
-    <link rel="alternate" href="https://reqs.frt.vn/browse/FRT-105" />
-    <updated>2026-11-05T09:28:45Z</updated>
+    <link rel="alternate" href="https://reqs.frt.vn/browse/FI-35314" />
+    <activity:object>
+      <title type="text">FI-35314</title>
+      <summary type="text">[LC] Điều chỉnh xuất kho theo FEFO</summary>
+    </activity:object>
+    <updated>2026-11-06T00:54:51.997Z</updated>
+  </entry>
+  <entry>
+    <id>urn:uuid:12fa1530-9f88-3f86-98dc-3c76152988bf</id>
+    <title type="html">&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=70480" class="activity-item-user activity-item-author"&gt;Phạm Thị Thanh Thúy&lt;/a&gt; changed the Assignee to '&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=01833" class="activity-item-user"&gt;Lê Nguyễn Tấn Lộc&lt;/a&gt;' on &lt;a href="https://reqs.frt.vn/browse/TADS-66024"&gt;TADS-66024 - [80312] [RSA] Đơn hàng hoàn tất nhưng vào đơn lại ở trạng thái Hủy&lt;/a&gt;</title>
+    <author>
+      <name>Phạm Thị Thanh Thúy</name>
+      <email>ThuyPTT45@fpt.com</email>
+      <usr:username>70480</usr:username>
+    </author>
+    <link rel="alternate" href="https://reqs.frt.vn/browse/TADS-66024" />
+    <activity:object>
+      <title type="text">TADS-66024</title>
+      <summary type="text">[80312] [RSA] Đơn hàng hoàn tất nhưng vào đơn lại ở trạng thái Hủy</summary>
+    </activity:object>
+    <updated>2026-11-06T00:51:37.386Z</updated>
+  </entry>
+  <entry>
+    <id>urn:uuid:e6c4598c-1f28-3c87-a030-9897636c77be</id>
+    <title type="html">&lt;a href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=35826" class="activity-item-user activity-item-author"&gt;Đoàn Thị Thúy Duyên&lt;/a&gt; commented on &lt;a href="https://reqs.frt.vn/browse/TADS-66110"&gt;TADS-66110 - [81002] [APP LC] Khách hàng thao tác bình chọn nhưng báo lỗi&lt;/a&gt;</title>
+    <content type="html">&lt;p&gt;Chị &lt;a class="user-hover" rel="48891" href="https://reqs.frt.vn/secure/ViewProfile.jspa?name=48891"&gt;Bùi Thị Huyền Trân&lt;/a&gt; kiểm tra giúp em nhé&lt;/p&gt;</content>
+    <author>
+      <name>Đoàn Thị Thúy Duyên</name>
+      <email>DuyenDTT3@fpt.com</email>
+      <usr:username>35826</usr:username>
+    </author>
+    <link rel="alternate" href="https://reqs.frt.vn/browse/TADS-66110" />
+    <activity:object>
+      <title type="text">TADS-66110</title>
+      <summary type="text">[81002] [APP LC] Khách hàng thao tác bình chọn nhưng báo lỗi</summary>
+    </activity:object>
+    <updated>2026-11-06T00:49:10.354Z</updated>
   </entry>
 </feed>`;
 
@@ -481,6 +521,64 @@ function hashAccountToEmployeeIndex(str: string, mod: number): number {
 }
 
 const lastClientActorByTicketKey = new Map<string, string>();
+const knownClientUserAccountLookup = new Map<string, string>();
+
+export function vietnameseNameToFrtAccount(rawName?: string | null): string {
+  if (!rawName) return '';
+  const cleaned = stripHtmlTags(rawName)
+    .replace(/[^\p{L}\p{N}\s._-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+  const ascii = cleaned
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .trim();
+  const words = ascii.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0];
+  const given = words[words.length - 1];
+  const givenFormatted =
+    given.charAt(0).toUpperCase() + given.slice(1).toLowerCase();
+  const initials = words
+    .slice(0, -1)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
+  return `${givenFormatted}${initials}`;
+}
+
+function extractMentionedUsersFromJiraHtml(rawHtml?: string | null): Array<{
+  ldapOrUser: string;
+  displayText: string;
+  isAuthorLink: boolean;
+}> {
+  if (!rawHtml) return [];
+  const decoded = decodeHtmlEntities(rawHtml);
+  const results: Array<{
+    ldapOrUser: string;
+    displayText: string;
+    isAuthorLink: boolean;
+  }> = [];
+  const linkRegex =
+    /<a\b([^>]*ViewProfile\.jspa\?name=([^"&'\s>]+)[^>]*)>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = linkRegex.exec(decoded)) !== null) {
+    const attrs = m[1] || '';
+    const ldapOrUser = (m[2] || '').trim();
+    const displayText = stripHtmlTags(m[3] || '').trim();
+    const isAuthorLink = /\bactivity-item-author\b/i.test(attrs);
+    if (ldapOrUser || displayText) {
+      results.push({
+        ldapOrUser,
+        displayText,
+        isAuthorLink,
+      });
+    }
+  }
+  return results;
+}
 
 function formatRelativeTimeFromIso(isoStr?: string): string {
   if (!isoStr) return 'vừa xong';
@@ -512,8 +610,8 @@ export interface ParsedJiraActivityEntry {
 
 /**
  * Bộ đọc Atom XML thực tế cho `https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic&title=undefined`
- * Giữ nguyên 100% tên account thực tế từ `<author><email>` (`thundm`, `cuongph27`, `huyenttm4`...) hoặc `<usr:username>`,
- * tuyệt đối không ghi đè sang `ThanhDQ13 -> LuuTV6`!
+ * Giữ nguyên 100% tên account thực tế từ `<author><email>` (`ngannn10`, `sangpt19`, `haind27`, `ThuyPTT45`, `DuyenDTT3`...)
+ * hoặc `<usr:username>`, không bắt buộc phải nằm trong danh sách cố định!
  */
 export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEntry[] {
   if (!xmlText || !xmlText.trim()) return [];
@@ -545,7 +643,7 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
           objEl?.querySelector('summary')?.textContent || ''
         );
 
-        // Extract author email prefix (`thundm@fpt.com` -> `thundm`, `cuongph27@fpt.com` -> `cuongph27`), non-numeric `usr:username`, and `<name>`
+        // Extract author email prefix (`ngannn10@fpt.com` -> `ngannn10`, `sangpt19@fpt.com` -> `sangpt19`), non-numeric `usr:username`, and `<name>`
         const authorEl = entry.querySelector('author') || entry;
         const authorEmail =
           authorEl.querySelector('email')?.textContent?.trim() || '';
@@ -565,9 +663,37 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
         const realAuthorAccount =
           emailPrefix ||
           nonNumericUsrUsername ||
+          vietnameseNameToFrtAccount(authorDisplayName) ||
           authorDisplayName ||
           rawUsrUsername ||
           'jira-user';
+
+        if (realAuthorAccount && realAuthorAccount !== 'jira-user') {
+          if (rawUsrUsername) {
+            knownClientUserAccountLookup.set(
+              rawUsrUsername.toLowerCase(),
+              realAuthorAccount
+            );
+          }
+          if (authorDisplayName) {
+            knownClientUserAccountLookup.set(
+              authorDisplayName.toLowerCase(),
+              realAuthorAccount
+            );
+          }
+        }
+
+        const allEmailsInBlock = Array.from(entry.querySelectorAll('email'))
+          .map((el) => el.textContent?.trim() || '')
+          .map((e) => (e.includes('@') ? e.split('@')[0].trim() : ''))
+          .filter(Boolean);
+        const allUsrInBlock = Array.from(entry.getElementsByTagName('usr:username'))
+          .map((el) => el.textContent?.trim() || '')
+          .filter((u) => u && !/^\d+$/.test(u));
+        const profileMentions = [
+          ...extractMentionedUsersFromJiraHtml(rawTitleHtml),
+          ...extractMentionedUsersFromJiraHtml(rawSummaryHtml),
+        ];
 
         const linkHref =
           entry.querySelector('link')?.getAttribute('href') ||
@@ -620,6 +746,9 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
           displaySummary,
           realAuthorAccount,
           authorDisplayName,
+          allEmailsInBlock,
+          allUsrInBlock,
+          profileMentions,
           toStatus,
           updatedAt,
         };
@@ -635,41 +764,72 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
         );
         const fromAccount = item.realAuthorAccount;
         const fallbackEmpNum = (
-          hashAccountToEmployeeIndex(fromAccount, 30) + 1
+          (hashAccountToEmployeeIndex(fromAccount, 29) % 29) + 2
         )
           .toString()
           .padStart(2, '0');
         const fromEmpId = resolvedAuthor?.employeeId || `EMP-${fallbackEmpNum}`;
 
         const isReturnToPM = item.toStatus === 'DONE';
+
+        const resolvedMentionAccounts: string[] = [];
+        for (const m of item.profileMentions) {
+          const byLdap =
+            m.ldapOrUser &&
+            knownClientUserAccountLookup.get(m.ldapOrUser.toLowerCase());
+          const byName =
+            m.displayText &&
+            knownClientUserAccountLookup.get(m.displayText.toLowerCase());
+          const nonNumericLdap =
+            m.ldapOrUser && !/^\d+$/.test(m.ldapOrUser) ? m.ldapOrUser : '';
+          const acc =
+            byLdap ||
+            byName ||
+            nonNumericLdap ||
+            vietnameseNameToFrtAccount(m.displayText);
+          if (acc) {
+            resolvedMentionAccounts.push(acc);
+          }
+        }
+
+        const candidateTargetUsers = [
+          ...new Set([
+            ...item.allEmailsInBlock,
+            ...item.allUsrInBlock,
+            ...resolvedMentionAccounts,
+          ]),
+        ];
+
+        const explicitSecondUser = candidateTargetUsers.find(
+          (u) => normalizeFrtAccountKey(u) !== normalizeFrtAccountKey(fromAccount)
+        );
         const prevCollaborator = lastClientActorByTicketKey.get(item.ticketKey);
         const targetUserAccount =
-          prevCollaborator &&
+          explicitSecondUser ||
+          (prevCollaborator &&
           normalizeFrtAccountKey(prevCollaborator) !==
             normalizeFrtAccountKey(fromAccount)
             ? prevCollaborator
-            : '';
+            : '');
 
         lastClientActorByTicketKey.set(item.ticketKey, fromAccount);
 
+        const defaultCoordinatorAccount =
+          normalizeFrtAccountKey(fromAccount) === 'dongnq6'
+            ? 'ThanhDQ13'
+            : 'DongNQ6';
         const toAccount =
-          targetUserAccount || (isReturnToPM ? 'PM (DONE)' : item.ticketKey);
-        const resolvedTarget = targetUserAccount
-          ? resolveEmployeeByAccountCaseInsensitive(targetUserAccount)
-          : null;
+          targetUserAccount ||
+          (isReturnToPM ? 'DongNQ6' : defaultCoordinatorAccount);
+        const resolvedTarget = resolveEmployeeByAccountCaseInsensitive(toAccount);
 
         let toEmpId =
           resolvedTarget?.employeeId ||
           (isReturnToPM
             ? PROJECT_MANAGER.id
             : `EMP-${(
-                ((hashAccountToEmployeeIndex(
-                  targetUserAccount || `${fromAccount}:${item.ticketKey}`,
-                  29
-                ) +
-                  2) %
-                  30) +
-                1
+                (hashAccountToEmployeeIndex(toAccount, 29) % 29) +
+                2
               )
                 .toString()
                 .padStart(2, '0')}`);

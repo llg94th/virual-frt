@@ -261,7 +261,7 @@ let proxyConfig = loadEncryptedCredentials();
 // 4. SSRF VALIDATION & PRIVACY SANITIZATION
 // ============================================================================
 
-const DEFAULT_ALLOWED_HOSTS = ['reqs.frt.vn', 'jenkins-osp.frt.vn'];
+const DEFAULT_ALLOWED_HOSTS = ['reqs.frt.vn', 'jenkins-osp.frt.vn', 'jenkins-osp'];
 
 function getAllowedUpstreamHosts() {
   const extra = (process.env.ALLOWED_UPSTREAM_HOSTS || '')
@@ -542,10 +542,63 @@ function extractAllXmlTagValues(block, tagName) {
 
 // Global memory of the most recent real actor per Jira ticket key (e.g. AL-5090 -> huyenttm4 -> cuongph27 -> thundm)
 const lastActorByTicketKey = new Map();
+// Global memory mapping numeric LDAP IDs & normalized Vietnamese names -> real account (e.g. 106123 -> ngannn10)
+const knownUserAccountLookup = new Map();
+
+function vietnameseNameToFrtAccount(rawName) {
+  if (!rawName) return '';
+  const cleaned = stripHtmlTags(rawName)
+    .replace(/[^\p{L}\p{N}\s._-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+  const ascii = cleaned
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .trim();
+  const words = ascii.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0];
+  // Standard FPT/FRT account convention: GivenName + Initials (e.g. "Le Nguyen Tan Loc" -> "LocLNT")
+  const given = words[words.length - 1];
+  const givenFormatted =
+    given.charAt(0).toUpperCase() + given.slice(1).toLowerCase();
+  const initials = words
+    .slice(0, -1)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
+  return `${givenFormatted}${initials}`;
+}
+
+function extractMentionedUsersFromJiraHtml(rawHtml) {
+  if (!rawHtml) return [];
+  const decoded = decodeHtmlEntities(rawHtml);
+  const results = [];
+  const linkRegex =
+    /<a\b([^>]*ViewProfile\.jspa\?name=([^"&'\s>]+)[^>]*)>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = linkRegex.exec(decoded)) !== null) {
+    const attrs = m[1] || '';
+    const ldapOrUser = (m[2] || '').trim();
+    const displayText = stripHtmlTags(m[3] || '').trim();
+    const isAuthorLink = /\bactivity-item-author\b/i.test(attrs);
+    if (ldapOrUser || displayText) {
+      results.push({
+        ldapOrUser,
+        displayText,
+        isAuthorLink,
+      });
+    }
+  }
+  return results;
+}
 
 /**
  * Parse raw Jira Activity Atom XML into normalized entries (100% REAL DATA, NO FAKE FALLBACK ACCOUNTS!)
  * Supports FRT Jira format where:
+ * - `<author><email>ngannn10@fpt.com</email><name>Nguyễn Ngọc Ngân</name><usr:username>106123</usr:username></author>`
  * - `<author><email>thundm@fpt.com</email><name>Nguyễn Đình Minh Thư ⏰</name><usr:username>37699</usr:username></author>`
  * - `<author><email>cuongph27@fpt.com</email><name>cuongph27</name><usr:username>cuongph27</usr:username></author>`
  * - `<activity:object><title type="text">AL-5090</title><summary type="text">[Core Specimen] Định nghĩa IndexGroup</summary></activity:object>`
@@ -559,7 +612,7 @@ export function parseRawJiraActivityXml(xmlText) {
     entryBlocks.push(match[1]);
   }
 
-  // First pass: parse raw fields for each entry
+  // First pass: parse raw fields for each entry & register known author LDAP/name -> email account
   const rawItems = entryBlocks.map((block, idx) => {
     const rawId =
       stripHtmlTags(extractXmlTagText(block, ['id', 'guid'])) || `frt-entry-${idx}`;
@@ -582,29 +635,42 @@ export function parseRawJiraActivityXml(xmlText) {
     const rawUsrUsername = stripHtmlTags(
       extractXmlTagText(authorBlock, ['usr:username', 'username'])
     );
-    // In FRT Jira, some users have numeric LDAP IDs in <usr:username> (e.g. 37699 for thundm@fpt.com)
+    // In FRT Jira, some users have numeric LDAP IDs in <usr:username> (e.g. 106123 for ngannn10@fpt.com)
     const nonNumericUsrUsername =
       rawUsrUsername && !/^\d+$/.test(rawUsrUsername) ? rawUsrUsername : '';
     const authorDisplayName = stripHtmlTags(
       extractXmlTagText(authorBlock, ['name', 'dc:creator', 'creator'])
     ).trim();
 
-    // Priority: 1) email prefix (`thundm`, `cuongph27`, `huyenttm4`), 2) non-numeric usr:username, 3) author <name>
+    // Priority: 1) email prefix (`ngannn10`, `sangpt19`, `ThuyPTT45`, `DuyenDTT3`), 2) non-numeric usr:username, 3) converted Vietnamese name
     const realAuthorAccount =
       emailPrefix ||
       nonNumericUsrUsername ||
+      vietnameseNameToFrtAccount(authorDisplayName) ||
       authorDisplayName ||
       rawUsrUsername ||
       'jira-user';
 
-    // Collect all non-numeric usernames/emails in the entry block (in case of assignee/target person)
+    if (realAuthorAccount && realAuthorAccount !== 'jira-user') {
+      if (rawUsrUsername) {
+        knownUserAccountLookup.set(rawUsrUsername.toLowerCase(), realAuthorAccount);
+      }
+      if (authorDisplayName) {
+        knownUserAccountLookup.set(authorDisplayName.toLowerCase(), realAuthorAccount);
+      }
+    }
+
+    // Collect all non-numeric usernames/emails + ViewProfile links in the entry block (in case of assignee/target person)
     const allEmailsInBlock = extractAllXmlTagValues(block, 'email')
       .map((e) => (e.includes('@') ? e.split('@')[0].trim() : ''))
       .filter(Boolean);
     const allUsrInBlock = extractAllXmlTagValues(block, 'usr:username').filter(
       (u) => !/^\d+$/.test(u)
     );
-    const candidateTargetUsers = [...new Set([...allEmailsInBlock, ...allUsrInBlock])];
+    const profileMentions = [
+      ...extractMentionedUsersFromJiraHtml(rawTitleHtml),
+      ...extractMentionedUsersFromJiraHtml(rawSummaryHtml),
+    ];
 
     const linkHref = extractXmlLinkHref(block);
     const updatedAt =
@@ -649,7 +715,9 @@ export function parseRawJiraActivityXml(xmlText) {
       displaySummary,
       realAuthorAccount,
       authorDisplayName,
-      candidateTargetUsers,
+      allEmailsInBlock,
+      allUsrInBlock,
+      profileMentions,
       toStatus,
       updatedAt,
     };
@@ -661,20 +729,47 @@ export function parseRawJiraActivityXml(xmlText) {
 
   for (const item of chronological) {
     const resolvedAuthor = resolveEmployeeByAccount(item.realAuthorAccount);
-    // Keep exact real account from XML (e.g. `cuongph27`, `huyenttm4`, `thundm`)
+    // Keep exact real account from XML (e.g. `ngannn10`, `sangpt19`, `haind27`, `ThuyPTT45`, `DuyenDTT3`)
     const fromAccount = item.realAuthorAccount;
-    const fallbackEmpNum = (hashStringToIndex(fromAccount, 30) + 1)
+    const fallbackEmpNum = ((hashStringToIndex(fromAccount, 29) % 29) + 2)
       .toString()
       .padStart(2, '0');
     const fromEmployeeId = resolvedAuthor?.employeeId || `EMP-${fallbackEmpNum}`;
 
     const isReturnToPM = item.toStatus === 'DONE';
 
+    // Resolve any profile mentions in <title>/<content> (e.g. "changed the Assignee to 'Lê Nguyễn Tấn Lộc'" or "@Bùi Thị Huyền Trân")
+    const resolvedMentionAccounts = [];
+    for (const m of item.profileMentions) {
+      const byLdap =
+        m.ldapOrUser && knownUserAccountLookup.get(m.ldapOrUser.toLowerCase());
+      const byName =
+        m.displayText && knownUserAccountLookup.get(m.displayText.toLowerCase());
+      const nonNumericLdap =
+        m.ldapOrUser && !/^\d+$/.test(m.ldapOrUser) ? m.ldapOrUser : '';
+      const acc =
+        byLdap ||
+        byName ||
+        nonNumericLdap ||
+        vietnameseNameToFrtAccount(m.displayText);
+      if (acc) {
+        resolvedMentionAccounts.push(acc);
+      }
+    }
+
+    const candidateTargetUsers = [
+      ...new Set([
+        ...item.allEmailsInBlock,
+        ...item.allUsrInBlock,
+        ...resolvedMentionAccounts,
+      ]),
+    ];
+
     // Find target collaborator:
-    // 1) Explicit 2nd user in the same XML entry
-    // 2) Previous real user who created/updated the same ticket (`AL-5090`: huyenttm4 -> cuongph27 -> thundm)
-    // 3) The ticketKey itself if this is the first activity on the ticket
-    const explicitSecondUser = item.candidateTargetUsers.find(
+    // 1) Explicit 2nd user in the same XML entry (e.g. ThuyPTT45 -> LocLNT, DuyenDTT3 -> TranBTH)
+    // 2) Previous real user who created/updated the same ticket (`TADS-66493`: ngannn10 <-> sangpt19)
+    // 3) Default to PM (`DongNQ6`) or Tech Lead (`ThanhDQ13`) so `toAccount` is always a real person, never a ticketKey!
+    const explicitSecondUser = candidateTargetUsers.find(
       (u) => normalizeAccountKey(u) !== normalizeAccountKey(fromAccount)
     );
     const prevTicketCollaborator = lastActorByTicketKey.get(item.ticketKey);
@@ -688,17 +783,17 @@ export function parseRawJiraActivityXml(xmlText) {
     // Update last actor for this ticket key
     lastActorByTicketKey.set(item.ticketKey, fromAccount);
 
+    const defaultCoordinatorAccount =
+      normalizeAccountKey(fromAccount) === 'dongnq6' ? 'ThanhDQ13' : 'DongNQ6';
     const toAccount =
-      targetUserAccount || (isReturnToPM ? 'PM (DONE)' : item.ticketKey);
+      targetUserAccount || (isReturnToPM ? 'DongNQ6' : defaultCoordinatorAccount);
 
-    const resolvedTarget = targetUserAccount
-      ? resolveEmployeeByAccount(targetUserAccount)
-      : null;
+    const resolvedTarget = resolveEmployeeByAccount(toAccount);
     let toEmployeeId =
       resolvedTarget?.employeeId ||
       (isReturnToPM
         ? 'EMP-01'
-        : `EMP-${((hashStringToIndex(targetUserAccount || `${fromAccount}:${item.ticketKey}`, 29) + 2) % 30 + 1)
+        : `EMP-${((hashStringToIndex(toAccount, 29) % 29) + 2)
             .toString()
             .padStart(2, '0')}`);
     if (toEmployeeId === fromEmployeeId) {
@@ -2452,7 +2547,7 @@ export function createOfficeProxyServer() {
         const maxEvents =
           rawLimit !== null && rawLimit !== '' && !Number.isNaN(Number(rawLimit))
             ? Math.max(1, Math.min(50, Math.floor(Number(rawLimit))))
-            : 15;
+            : 25;
 
         // Run a coalesced poll cycle so the server's RAM Cache Deduplicator processes the latest feed
         const pollOutcome = await executeUpstreamPollCycle('public-stream-poll');
@@ -2463,9 +2558,9 @@ export function createOfficeProxyServer() {
           // Client already has a cursor: ONLY return events strictly newer than `afterSeq`!
           rawEvents = eventRingBuffer.filter((ev) => ev.seq > afterSeq).slice(-maxEvents);
         } else {
-          // First-time client connection (`afterSeq == 0`): return at most 3 newest events
-          // to initialize the office screen and hand out `latestSeq` for subsequent polls!
-          rawEvents = eventRingBuffer.slice(-Math.min(3, maxEvents));
+          // First-time client connection (`afterSeq == 0`): return all recent events in the batch (up to maxEvents)
+          // so every active user in the Jira/Jenkins feed (e.g. ngannn10, sangpt19, haind27, ThuyPTT45, DuyenDTT3) checks in!
+          rawEvents = eventRingBuffer.slice(-maxEvents);
         }
 
         // Chỉ trả về các trường thông tin thực sự cần thiết cho Game 2D

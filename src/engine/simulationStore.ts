@@ -46,6 +46,7 @@ import {
 } from '../data/employees';
 import {
   ALL_JOINED_DESK_ISLANDS,
+  ALL_OFFICE_SEAT_SLOTS,
   ATRIUM_SMOKING_SPOTS,
   BOSS_WING_PATROL_LOOPS,
   DEFAULT_SIMULATION_CONFIG,
@@ -962,6 +963,8 @@ export class OfficeSimulationEngine {
   private livePollTimer: ReturnType<typeof setInterval> | null = null;
   private seenLiveJiraEntryIds: Set<string> = new Set();
   private seenLiveJenkinsBuildIds: Set<string> = new Set();
+  /** Tập hợp ID nhân vật đã được gán cho tài khoản thực từ Jira/Jenkins để không bao giờ bị ghi đè do trùng mã băm (hash collision) */
+  private liveBoundEmployeeIds: Set<string> = new Set();
   /** Con trỏ Monotonic Sequence (`afterSeq`) nhận từ Backend Proxy `server/proxyServer.mjs` */
   private lastServerSeq = 0;
   /** Tầng 2 Client-Side Idempotency Guard: Đảm bảo 100% không có event nào kích hoạt nhân vật đi bộ lần thứ 2 */
@@ -2434,11 +2437,12 @@ export class OfficeSimulationEngine {
   }
 
   /**
-   * Liên kết động tài khoản thật từ Jira/Jenkins (VD: `cuongph27`, `huyenttm4`, `thundm`, `bo-ci-agentos-worker`)
-   * vào nhân vật 2D trên bản đồ:
+   * Liên kết động bất kỳ tài khoản thật nào từ Jira/Jenkins (VD: `ngannn10`, `sangpt19`, `haind27`, `ThuyPTT45`, `DuyenDTT3`, `LocLNT`, `TranBTH`...)
+   * vào nhân vật 2D & bàn làm việc trên bản đồ mà KHÔNG CẦN nằm trong danh sách cố định:
    * - Nếu đã có nhân vật bàn làm việc mang account này, trả về đúng nhân vật đó.
-   * - Nếu chưa có, cập nhật `emp.account` và `emp.displayName` của nhân vật tại `fallbackEmployeeId`
-   *   sang đúng account thật để bảng tên trên đầu nhân vật & Nhật ký Hoạt động hiển thị chuẩn 100%!
+   * - Nếu chưa có, chọn 1 slot nhân viên chưa được gán live user (tránh 100% ghi đè do hash collision!),
+   *   cập nhật `emp.account`, `emp.displayName`, `DESK_BY_ID` và `ALL_OFFICE_SEAT_SLOTS`
+   *   sang đúng account thật để bảng tên trên đầu nhân vật, bảng tên trên bàn & Nhật ký Hoạt động hiển thị chuẩn 100%!
    */
   private bindRealAccountToEmployeeSlot(
     fallbackEmployeeId: string,
@@ -2447,44 +2451,101 @@ export class OfficeSimulationEngine {
     const cleanAcc = (realAccount || '')
       .trim()
       .replace(/@.*$/, '')
-      .replace(/\s*\(KH\)\s*/i, '');
+      .replace(/\s*\(KH\)\s*/i, '')
+      .replace(/\s*\(PM\)\s*/i, '')
+      .replace(/\s*\(DONE\)\s*/i, '');
     if (
       !cleanAcc ||
-      /^(unknown|jenkins|hudson|system|jira-bot|jira-system)$/i.test(cleanAcc)
+      /^(unknown|jenkins|hudson|system|jira-bot|jira-system|jira-user|pm|server\s*ci|server\s*uat)$/i.test(
+        cleanAcc
+      ) ||
+      /^[A-Z][A-Z0-9_]{1,9}-\d+$/i.test(cleanAcc)
     ) {
       return this.state.employeeById[fallbackEmployeeId];
     }
 
     const lowerAcc = cleanAcc.toLowerCase();
 
-    // 1. Tìm nhân vật bàn làm việc (không phải Sếp đi tuần tra) đã gắn với account này
+    // 1. Tìm nhân vật bàn làm việc (không phải 4 Sếp đi tuần tra) đã gắn với account này
     const existingDeskEmp = this.state.employees.find(
       (e) =>
         !e.isManager &&
         !e.isFemaleManager &&
-        (e.account || '').toLowerCase().replace(/\s*\(kh\)\s*/i, '') === lowerAcc
+        (e.account || '')
+          .toLowerCase()
+          .replace(/\s*\(kh\)\s*/i, '')
+          .trim() === lowerAcc
     );
     if (existingDeskEmp) {
+      this.liveBoundEmployeeIds.add(existingDeskEmp.id);
       return existingDeskEmp;
     }
 
-    // 2. Lấy slot `fallbackEmployeeId` (nếu là Sếp đi tuần tra thì chuyển sang 1 bàn làm việc để đi giao tài liệu)
+    // 2. Chọn slot chưa từng bị gán cho một live user khác để TUYỆT ĐỐI KHÔNG GHI ĐÈ (zero hash collision)
     let targetEmp = this.state.employeeById[fallbackEmployeeId];
-    if (!targetEmp || targetEmp.isManager || targetEmp.isFemaleManager) {
+    const isTargetUsable =
+      targetEmp &&
+      !targetEmp.isManager &&
+      !targetEmp.isFemaleManager &&
+      targetEmp.id !== PROJECT_MANAGER.id &&
+      !this.liveBoundEmployeeIds.has(targetEmp.id);
+
+    if (!isTargetUsable) {
       let hash = 0;
       for (let i = 0; i < lowerAcc.length; i++) {
         hash = (hash * 31 + lowerAcc.charCodeAt(i)) >>> 0;
       }
-      const deskSlotId = `EMP-${((hash % 30) + 1).toString().padStart(2, '0')}`;
-      targetEmp = this.state.employeeById[deskSlotId] ?? this.state.employees[0];
+      // Dò tuyến tính qua 29 bàn nhân viên (`EMP-02` .. `EMP-30`, giữ nguyên `EMP-01` cho PM DongNQ6)
+      let foundUnbound: Employee | undefined;
+      for (let offset = 0; offset < 29; offset++) {
+        const slotNum = ((hash + offset) % 29) + 2; // 2..30
+        const candidateId = `EMP-${slotNum.toString().padStart(2, '0')}`;
+        const candidate = this.state.employeeById[candidateId];
+        if (
+          candidate &&
+          !candidate.isManager &&
+          !candidate.isFemaleManager &&
+          !this.liveBoundEmployeeIds.has(candidate.id)
+        ) {
+          foundUnbound = candidate;
+          break;
+        }
+      }
+
+      if (foundUnbound) {
+        targetEmp = foundUnbound;
+      } else {
+        // Nếu cả 29 slot đều đã có người thật từ luồng Live, ưu tiên tái sử dụng slot có lastEventAt cũ nhất
+        const nonBossPool = this.state.employees.filter(
+          (e) =>
+            !e.isManager &&
+            !e.isFemaleManager &&
+            e.id !== PROJECT_MANAGER.id
+        );
+        nonBossPool.sort((a, b) => (a.lastEventAt || 0) - (b.lastEventAt || 0));
+        targetEmp = nonBossPool[0] ?? this.state.employees[0];
+      }
     }
 
     if (targetEmp && !targetEmp.isManager && !targetEmp.isFemaleManager) {
+      this.liveBoundEmployeeIds.add(targetEmp.id);
       const seatSuffix = targetEmp.seatCode
         ? targetEmp.seatCode.replace('FT3.III2A.', '')
         : targetEmp.deskId;
       targetEmp.account = cleanAcc;
       targetEmp.displayName = `${cleanAcc} (${seatSuffix})`;
+
+      // Đồng bộ tên account lên cả dữ liệu Bàn & Ghế (`ALL_OFFICE_SEAT_SLOTS`) trên sơ đồ 2D
+      const activeDeskId =
+        targetEmp.assignedDeskId || targetEmp.checkedInDeskId || targetEmp.deskId;
+      for (const slot of ALL_OFFICE_SEAT_SLOTS) {
+        if (
+          slot.assignedEmployeeId === targetEmp.id ||
+          (activeDeskId && slot.deskId === activeDeskId)
+        ) {
+          slot.account = cleanAcc;
+        }
+      }
     }
 
     return targetEmp;
@@ -3369,6 +3430,9 @@ export class OfficeSimulationEngine {
     this.jenkinsAutoBuildAccumulatorMs = 0;
     this.seenLiveJiraEntryIds.clear();
     this.seenLiveJenkinsBuildIds.clear();
+    this.liveBoundEmployeeIds.clear();
+    this.processedEventFingerprints.clear();
+    this.lastServerSeq = 0;
 
     const cleanEmployees = cloneInitialEmployees([]).map((emp) => {
       if (emp.isFemaleManager || emp.isManager) {
@@ -4279,6 +4343,7 @@ export class OfficeSimulationEngine {
     this.processedEventFingerprints.clear();
     this.seenLiveJiraEntryIds.clear();
     this.seenLiveJenkinsBuildIds.clear();
+    this.liveBoundEmployeeIds.clear();
     this.lastServerSeq = 0;
     this.clientDedupStats = {
       totalPolls: 0,

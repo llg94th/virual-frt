@@ -188,18 +188,12 @@ export const DEFAULT_LIVE_FRT_CONFIG: LiveFrtConfig = {
   },
 };
 
-const STORAGE_KEY_DATA_SOURCE_MODE = 'frt_office_data_source_mode_v1';
+const STORAGE_KEY_DATA_SOURCE_MODE = 'frt_office_data_source_mode_v2';
 const STORAGE_KEY_LIVE_CONFIG = 'frt_office_live_config_v1';
 
 function loadPersistedDataSourceMode(): DataSourceMode {
-  if (typeof window === 'undefined') return 'MOCK_PILOT';
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY_DATA_SOURCE_MODE);
-    if (raw === 'LIVE_FRT' || raw === 'MOCK_PILOT') return raw;
-  } catch {
-    // ignore storage errors
-  }
-  return 'MOCK_PILOT';
+  // Mặc định khi mở trang lên luôn ở Chế độ Thật ('LIVE_FRT')
+  return 'LIVE_FRT';
 }
 
 function savePersistedDataSourceMode(mode: DataSourceMode): void {

@@ -6395,14 +6395,12 @@ export function drawWinaEventPillBadge(
   } = item;
   const toEmp = activeTask ? EMPLOYEE_BY_ID[activeTask.toEmployeeId] : undefined;
   const fromShort = formatFlezimercuriaName(emp);
-  const toShort = isDoneDoc
-    ? 'DongNQ6'
-    : formatFlezimercuriaName(toEmp, activeTask?.toEmployeeId);
+  const toShort = formatFlezimercuriaName(toEmp, activeTask?.toEmployeeId);
 
   const pillText = isHotfixSprint
     ? `⚡ HOTFIX SPRINT • ${fromShort} ➔ SERVER [#${hotfixBuildNumber ?? 2843}]`
     : isDoneDoc
-    ? `★ DongNQ6 [${ticketKey} DONE]`
+    ? `★ ${toShort || fromShort} [${ticketKey} DONE]`
     : `${fromShort} ➔ ${toShort} [${ticketKey}]`;
 
   const rawBadgeIso = worldToIso(pos.x, pos.y, 56);
@@ -6532,13 +6530,11 @@ export function drawNonOverlappingWinaEventPills(
   for (const item of ordered) {
     const toEmp = item.activeTask ? EMPLOYEE_BY_ID[item.activeTask.toEmployeeId] : undefined;
     const fromShort = formatFlezimercuriaName(item.emp);
-    const toShort = item.isDoneDoc
-      ? 'DongNQ6'
-      : formatFlezimercuriaName(toEmp, item.activeTask?.toEmployeeId);
+    const toShort = formatFlezimercuriaName(toEmp, item.activeTask?.toEmployeeId);
     const pillText = item.isHotfixSprint
       ? `⚡ HOTFIX SPRINT • ${fromShort} ➔ SERVER [#${item.hotfixBuildNumber ?? 2843}]`
       : item.isDoneDoc
-      ? `★ DongNQ6 [${item.ticketKey} DONE]`
+      ? `★ ${toShort || fromShort} [${item.ticketKey} DONE]`
       : `${fromShort} ➔ ${toShort} [${item.ticketKey}]`;
 
     ctx.font = '800 8.1px Inter, system-ui, sans-serif';

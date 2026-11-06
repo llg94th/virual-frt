@@ -828,7 +828,7 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
               <p className="text-[11px] text-slate-300 truncate mt-0.5">
                 {primaryTransfer
                   ? `🚶 [${primaryTransfer.ticketKey}] ${
-                      EMPLOYEE_BY_ID[primaryTransfer.fromEmployeeId]?.account ??
+                      EMPLOYEE_BY_ID[primaryTransfer.fromEmployeeId]?.account ||
                       primaryTransfer.fromEmployeeId
                     } (${
                       EMPLOYEE_BY_ID[primaryTransfer.fromEmployeeId]?.seatCode?.replace(
@@ -836,18 +836,14 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
                         ''
                       ) ?? ''
                     }) ➔ ${
-                      primaryTransfer.isReturnToPM
-                        ? '👑 PM DongNQ6 (1.289 • DONE!)'
-                        : `${
-                            EMPLOYEE_BY_ID[primaryTransfer.toEmployeeId]?.account ??
-                            primaryTransfer.toEmployeeId
-                          } (${
-                            EMPLOYEE_BY_ID[primaryTransfer.toEmployeeId]?.seatCode?.replace(
-                              'FT3.III2A.',
-                              ''
-                            ) ?? ''
-                          })`
-                    } (${Math.round(primaryTransfer.progress * 100)}%)`
+                      EMPLOYEE_BY_ID[primaryTransfer.toEmployeeId]?.account ||
+                      primaryTransfer.toEmployeeId
+                    } (${
+                      EMPLOYEE_BY_ID[primaryTransfer.toEmployeeId]?.seatCode?.replace(
+                        'FT3.III2A.',
+                        ''
+                      ) ?? ''
+                    }${primaryTransfer.isReturnToPM ? ' • DONE!' : ''}) (${Math.round(primaryTransfer.progress * 100)}%)`
                   : latestLog
                   ? `[${latestLog.ticketKey}] ${latestLog.message}`
                   : 'Sẵn sàng ghi nhận luồng bàn giao tài liệu A ➔ B...'}

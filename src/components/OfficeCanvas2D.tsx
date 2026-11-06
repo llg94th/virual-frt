@@ -1679,11 +1679,15 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         renderQueue.push({ kind: 'desk', depthY: iso.y, desk });
       }
 
-      // Chỉ vẽ đồng nghiệp phụ tĩnh khi đã có đông nhân viên check-in (>= 18 người), để đầu ngày 100% bàn làm việc trống trơn!
+      // Chỉ vẽ đồng nghiệp phụ tĩnh ở chế độ MOCK_PILOT (cfg.autoSimulate) khi đã có đông nhân viên check-in (>= 18 người)
       const currentCheckedInCount = emps.filter(
         (e) => !e.isManager && !e.isFemaleManager && e.isCheckedIn
       ).length;
-      if (cfg.maxOpenSeats === 'FULL' && currentCheckedInCount >= 18) {
+      if (
+        cfg.autoSimulate &&
+        cfg.maxOpenSeats === 'FULL' &&
+        currentCheckedInCount >= 18
+      ) {
         for (const slot of OCCUPIED_EXTRA_NHA_THUOC_SLOTS) {
           const island = ISLAND_BY_ID[slot.islandId];
           const islandDepthY = island
@@ -2162,7 +2166,7 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
   const focusedEventSummary = useMemo(() => {
     if (activeJenkinsBuild?.isHotfixRescue || isJenkinsBrokenAlert) {
       const bNum = brokenBuildNumber ?? activeJenkinsBuild?.buildNumber ?? 2843;
-      const rescuer = activeJenkinsBuild?.employeeAccount ?? 'TienHK';
+      const rescuer = activeJenkinsBuild?.employeeAccount || 'Kỹ sư CI';
       if (activeJenkinsBuild?.phase === 'BUILDING_AT_SERVER') {
         return `🚨 HOTFIX RESCUE #${bNum} (${Math.round(activeJenkinsBuild.buildProgress)}%) — ${rescuer} đang sửa lỗi build tại Trạm Server!`;
       }
@@ -2175,9 +2179,11 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       const toSeat = toEmp?.seatCode?.replace('FT3.III2A.', '') ?? '';
       const isDone =
         primaryActiveTransfer.isReturnToPM || primaryActiveTransfer.targetStatus === 'DONE';
+      const fromName = fromEmp?.account || primaryActiveTransfer.fromEmployeeId;
+      const toName = toEmp?.account || primaryActiveTransfer.toEmployeeId;
       return isDone
-        ? `${fromEmp?.account ?? primaryActiveTransfer.fromEmployeeId} (${fromSeat}) ➔ 👑 DongNQ6 (1.289) [${primaryActiveTransfer.ticketKey} DONE]`
-        : `${fromEmp?.account ?? primaryActiveTransfer.fromEmployeeId} (${fromSeat}) ➔ ${toEmp?.account ?? primaryActiveTransfer.toEmployeeId} (${toSeat}) [${primaryActiveTransfer.ticketKey}]`;
+        ? `${fromName} (${fromSeat}) ➔ ★ ${toName} (${toSeat}) [${primaryActiveTransfer.ticketKey} DONE]`
+        : `${fromName} (${fromSeat}) ➔ ${toName} (${toSeat}) [${primaryActiveTransfer.ticketKey}]`;
     }
     if (activeJenkinsBuild) {
       if (activeJenkinsBuild.phase === 'BUILDING_AT_SERVER') {
@@ -2630,11 +2636,9 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
                           }`}
                         />
                         <span>
-                          {fromEmp?.account ?? t.fromEmployeeId}
+                          {fromEmp?.account || t.fromEmployeeId}
                           {fromSeat ? ` (${fromSeat})` : ''} ➔{' '}
-                          {isDone
-                            ? 'DongNQ6 (1.289)'
-                            : `${toEmp?.account ?? t.toEmployeeId}${toSeat ? ` (${toSeat})` : ''}`}
+                          {`${toEmp?.account || t.toEmployeeId}${toSeat ? ` (${toSeat})` : ''}`}
                         </span>
                         <span className="font-mono text-[10px] text-amber-300">[{t.ticketKey}]</span>
                       </button>

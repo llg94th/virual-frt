@@ -28,10 +28,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
-// VAULT_DIR: thư mục lưu credential/master key (Docker mount volume riêng, không đè lên code server/)
+// VAULT_DIR: thư mục lưu credential/master key và danh sách nhân sự trong ngày (Docker mount volume riêng, không đè lên code server/)
 const VAULT_DIR = process.env.VAULT_DIR ? path.resolve(process.env.VAULT_DIR) : __dirname;
 const CREDENTIALS_FILE = path.join(VAULT_DIR, '.credentials.enc.json');
 const MASTER_KEY_FILE = path.join(VAULT_DIR, '.master.key');
+const ACTIVE_USERS_TODAY_FILE = path.join(VAULT_DIR, '.active-users-today.json');
 
 const PORT = Number(process.env.PORT || 8787);
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
@@ -57,60 +58,18 @@ function pushConnectionLog(entry) {
 }
 
 // ============================================================================
-// 2. CASE-INSENSITIVE FRT ACCOUNT -> 30 EMPLOYEE SEAT MAPPING
+// 2. TODAY'S WORKING USERS REGISTRY (100% REAL USERS FROM JIRA/JENKINS, NO MOCK USERNAMES!)
 // ============================================================================
 
-const FRT_EMPLOYEE_DIRECTORY = [
-  { id: 'EMP-01', account: 'DongNQ6', role: 'PM' },
-  { id: 'EMP-02', account: 'ThoaPTN1', role: 'BA' },
-  { id: 'EMP-03', account: 'HieuNT181', role: 'BA' },
-  { id: 'EMP-04', account: 'ThanhDQ13', role: 'TECH_LEAD' },
-  { id: 'EMP-05', account: 'LuuTV6', role: 'TECH_LEAD' },
-  { id: 'EMP-06', account: 'ManhPT13', role: 'TECH_LEAD' },
-  { id: 'EMP-07', account: 'ChienND22', role: 'BACKEND' },
-  { id: 'EMP-08', account: 'CuongTN2', role: 'BACKEND' },
-  { id: 'EMP-09', account: 'CuongDNQ2', role: 'BACKEND' },
-  { id: 'EMP-10', account: 'ToanNLV', role: 'BACKEND' },
-  { id: 'EMP-11', account: 'QuyenNVC', role: 'BACKEND' },
-  { id: 'EMP-12', account: 'TrungTM7', role: 'BACKEND' },
-  { id: 'EMP-13', account: 'KhiemHT', role: 'BACKEND' },
-  { id: 'EMP-14', account: 'LanTTP', role: 'BACKEND' },
-  { id: 'EMP-15', account: 'BaoNAT', role: 'FRONTEND' },
-  { id: 'EMP-16', account: 'ThuanHM12', role: 'FRONTEND' },
-  { id: 'EMP-17', account: 'LongBK2', role: 'FRONTEND' },
-  { id: 'EMP-18', account: 'TriPHC', role: 'FRONTEND' },
-  { id: 'EMP-19', account: 'KienNT178', role: 'FRONTEND' },
-  { id: 'EMP-20', account: 'ThieuNV5', role: 'FRONTEND' },
-  { id: 'EMP-21', account: 'KhoaLNT', role: 'MOBILE' },
-  { id: 'EMP-22', account: 'HuyNT83', role: 'MOBILE' },
-  { id: 'EMP-23', account: 'LyNH16', role: 'MOBILE' },
-  { id: 'EMP-24', account: 'ThienTM2', role: 'MOBILE' },
-  { id: 'EMP-25', account: 'TranTNN', role: 'QA' },
-  { id: 'EMP-26', account: 'TrucNN4', role: 'QA' },
-  { id: 'EMP-27', account: 'ThanhNX7', role: 'QA' },
-  { id: 'EMP-28', account: 'PhongNT84', role: 'QA' },
-  { id: 'EMP-29', account: 'TienHK', role: 'DEVOPS' },
-  { id: 'EMP-30', account: 'SonNA2', role: 'DEVOPS' },
-  // Additional occupied seat accounts in NHÀ THUỐC 54-slot Excel map
-  { id: 'EMP-12', account: 'KhangPM3', role: 'BACKEND' },
-  { id: 'EMP-12', account: 'VinhNT27', role: 'BACKEND' },
-  { id: 'EMP-12', account: 'HungNV92', role: 'BACKEND' },
-  { id: 'EMP-02', account: 'ThuyTTT36', role: 'BA' },
-  { id: 'EMP-02', account: 'DungTTT42', role: 'BA' },
-  { id: 'EMP-06', account: 'PhuongNAM4', role: 'MOBILE' },
-  { id: 'EMP-06', account: 'TuanNA118', role: 'MOBILE' },
-  { id: 'EMP-06', account: 'DatNT152', role: 'MOBILE' },
-  { id: 'EMP-06', account: 'MinhNH54', role: 'MOBILE' },
-  { id: 'EMP-15', account: 'PhatLT11', role: 'FRONTEND' },
-  { id: 'EMP-15', account: 'LocNV34', role: 'FRONTEND' },
-  { id: 'EMP-18', account: 'TaiNV28', role: 'FRONTEND' },
-  { id: 'EMP-18', account: 'NamNH68', role: 'FRONTEND' },
-  { id: 'EMP-21', account: 'HaoNV19', role: 'MOBILE' },
-  { id: 'EMP-21', account: 'BinhNT45', role: 'MOBILE' },
-  { id: 'EMP-29', account: 'AnNV51', role: 'DEVOPS' },
-  { id: 'EMP-29', account: 'ucNV12', role: 'DEVOPS' },
-  { id: 'EMP-29', account: 'KietTLA', role: 'DEVOPS' },
-];
+const INACTIVITY_CHECKOUT_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+function getTodayDateKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function normalizeAccountKey(raw) {
   if (!raw) return '';
@@ -124,48 +83,190 @@ function normalizeAccountKey(raw) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-const ACCOUNT_MAP = new Map();
-const EMPLOYEE_BY_ID = new Map();
-for (const item of FRT_EMPLOYEE_DIRECTORY) {
-  const key = normalizeAccountKey(item.account);
-  if (key && !ACCOUNT_MAP.has(key)) {
-    ACCOUNT_MAP.set(key, { employeeId: item.id, canonicalAccount: item.account });
-  }
-  if (!EMPLOYEE_BY_ID.has(item.id)) {
-    EMPLOYEE_BY_ID.set(item.id, item);
+let activeUsersDayKey = getTodayDateKey();
+/** Map<normalizedKey, ActiveOfficeUserRecord> */
+const activeUsersTodayMap = new Map();
+/** Next sequential seat index 1..30 */
+let nextSeatCursor = 1;
+
+function loadPersistedActiveUsersToday() {
+  try {
+    if (!fs.existsSync(ACTIVE_USERS_TODAY_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(ACTIVE_USERS_TODAY_FILE, 'utf8'));
+    const today = getTodayDateKey();
+    if (!raw || raw.dayKey !== today || !Array.isArray(raw.users)) return;
+    activeUsersTodayMap.clear();
+    let maxSlot = 0;
+    for (const u of raw.users) {
+      const key = normalizeAccountKey(u.account);
+      if (!key) continue;
+      activeUsersTodayMap.set(key, u);
+      const numMatch = String(u.employeeId || '').match(/EMP-(\d+)/);
+      if (numMatch) {
+        maxSlot = Math.max(maxSlot, parseInt(numMatch[1], 10));
+      }
+    }
+    nextSeatCursor = (maxSlot % 30) + 1;
+  } catch {
+    // ignore corrupt snapshot
   }
 }
 
+function savePersistedActiveUsersToday() {
+  try {
+    const payload = {
+      dayKey: activeUsersDayKey,
+      updatedAt: new Date().toISOString(),
+      users: Array.from(activeUsersTodayMap.values()),
+    };
+    fs.writeFileSync(ACTIVE_USERS_TODAY_FILE, JSON.stringify(payload, null, 2), 'utf8');
+  } catch {
+    // ignore fs write warnings
+  }
+}
+
+function ensureCurrentDayRegistry() {
+  const today = getTodayDateKey();
+  if (today !== activeUsersDayKey) {
+    activeUsersDayKey = today;
+    activeUsersTodayMap.clear();
+    nextSeatCursor = 1;
+    savePersistedActiveUsersToday();
+  }
+}
+
+function isSystemOrTicketString(raw) {
+  if (!raw) return true;
+  const clean = String(raw).trim();
+  if (!clean) return true;
+  if (/^(unknown|jenkins|hudson|system|jira-bot|jira-system|jira-user|anonymous)$/i.test(clean)) {
+    return true;
+  }
+  // Reject Jira ticket keys like TADS-66493, FADS-51688, FI-35314
+  if (/^[A-Z][A-Z0-9_]{1,9}-\d+$/i.test(clean)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Allocate or retrieve a dedicated seat (`EMP-01` .. `EMP-30`) for a real user today.
+ * Strictly 100% real accounts — zero mock usernames!
+ */
+function registerOrUpdateActiveUserToday({
+  account,
+  displayName,
+  email,
+  ticketKey,
+  status,
+  summary,
+  updatedAt,
+  source = 'JIRA',
+}) {
+  ensureCurrentDayRegistry();
+  const cleanAcc = String(account || '')
+    .trim()
+    .replace(/@.*$/, '');
+  if (isSystemOrTicketString(cleanAcc)) return null;
+
+  const key = normalizeAccountKey(cleanAcc);
+  if (!key) return null;
+
+  const parsedMs = updatedAt ? Date.parse(updatedAt) : Date.now();
+  const eventMs = Number.isNaN(parsedMs) ? Date.now() : parsedMs;
+  const eventIso = new Date(eventMs).toISOString();
+
+  let existing = activeUsersTodayMap.get(key);
+  if (!existing) {
+    // Find first unoccupied EMP-01 .. EMP-30 slot
+    const usedEmpIds = new Set(
+      Array.from(activeUsersTodayMap.values()).map((u) => u.employeeId)
+    );
+    let chosenEmpId = `EMP-${String(nextSeatCursor).padStart(2, '0')}`;
+    for (let i = 0; i < 30; i++) {
+      const slotNum = ((nextSeatCursor - 1 + i) % 30) + 1;
+      const cid = `EMP-${String(slotNum).padStart(2, '0')}`;
+      if (!usedEmpIds.has(cid)) {
+        chosenEmpId = cid;
+        nextSeatCursor = (slotNum % 30) + 1;
+        break;
+      }
+    }
+
+    existing = {
+      employeeId: chosenEmpId,
+      account: cleanAcc,
+      displayName: displayName && displayName.trim() ? displayName.trim() : cleanAcc,
+      email: email || '',
+      firstSeenAt: eventIso,
+      lastEventAt: eventIso,
+      lastEventAtMs: eventMs,
+      lastTicketKey: ticketKey || '',
+      lastStatus: status || 'IN_PROGRESS',
+      lastSummary: summary || '',
+      eventsCount: 1,
+      source,
+    };
+    activeUsersTodayMap.set(key, existing);
+  } else {
+    existing.eventsCount = (existing.eventsCount || 1) + 1;
+    if (displayName && displayName.trim() && existing.displayName === existing.account) {
+      existing.displayName = displayName.trim();
+    }
+    if (email && !existing.email) {
+      existing.email = email;
+    }
+    if (eventMs >= (existing.lastEventAtMs || 0)) {
+      existing.lastEventAt = eventIso;
+      existing.lastEventAtMs = eventMs;
+      if (ticketKey) existing.lastTicketKey = ticketKey;
+      if (status) existing.lastStatus = status;
+      if (summary) existing.lastSummary = summary;
+      existing.source = source;
+    }
+  }
+
+  return existing;
+}
+
 function resolveEmployeeByAccount(rawAccount) {
+  ensureCurrentDayRegistry();
   if (!rawAccount) return null;
   const key = normalizeAccountKey(rawAccount);
   if (!key) return null;
-  if (ACCOUNT_MAP.has(key)) return ACCOUNT_MAP.get(key);
-  const lower = String(rawAccount).toLowerCase();
-  for (const [accKey, val] of ACCOUNT_MAP.entries()) {
-    if (accKey.length >= 4 && lower.includes(accKey)) {
-      return val;
-    }
+  const existing = activeUsersTodayMap.get(key);
+  if (existing) {
+    return {
+      employeeId: existing.employeeId,
+      canonicalAccount: existing.account,
+    };
   }
   return null;
 }
 
-function extractMentionedAccounts(text) {
-  if (!text) return [];
-  const lower = String(text).toLowerCase();
-  const found = [];
-  const seenEmpIds = new Set();
-  for (const [accKey, val] of ACCOUNT_MAP.entries()) {
-    if (accKey.length < 4) continue;
-    const regex = new RegExp(`\\b${accKey}\\b`, 'i');
-    const match = regex.exec(lower);
-    if (match && !seenEmpIds.has(val.employeeId)) {
-      seenEmpIds.add(val.employeeId);
-      found.push({ ...val, index: match.index });
-    }
-  }
-  return found.sort((a, b) => a.index - b.index);
+function getActiveUsersTodaySnapshot() {
+  ensureCurrentDayRegistry();
+  const allUsers = Array.from(activeUsersTodayMap.values()).sort(
+    (a, b) => (b.lastEventAtMs || 0) - (a.lastEventAtMs || 0)
+  );
+  // Reference time: latest event in the feed or wall clock
+  const newestEventMs =
+    allUsers.length > 0
+      ? Math.max(...allUsers.map((u) => u.lastEventAtMs || 0), Date.now())
+      : Date.now();
+
+  return allUsers.map((u) => {
+    const idleMs = Math.max(0, newestEventMs - (u.lastEventAtMs || newestEventMs));
+    const isWorking = idleMs < INACTIVITY_CHECKOUT_WINDOW_MS;
+    return {
+      ...u,
+      isWorking,
+      idleMinutes: Math.round(idleMs / 60000),
+    };
+  });
 }
+
+loadPersistedActiveUsersToday();
 
 // ============================================================================
 // 3. AES-256-GCM ENCRYPTED CREDENTIALS VAULT (`server/.credentials.enc.json`)
@@ -621,14 +722,20 @@ export function parseRawJiraActivityXml(xmlText) {
     const rawId =
       stripHtmlTags(extractXmlTagText(block, ['id', 'guid'])) || `frt-entry-${idx}`;
     const rawTitleHtml = extractXmlTagText(block, ['title']);
-    const rawSummaryHtml = extractXmlTagText(block, ['summary', 'content', 'description']);
+    const rawContentHtml = extractXmlTagText(block, ['content']);
+    const rawSummaryHtml = extractXmlTagText(block, ['summary', 'description']);
     const cleanTitle = stripHtmlTags(rawTitleHtml);
-    const cleanSummary = stripHtmlTags(rawSummaryHtml);
+    const cleanSummary = stripHtmlTags(rawContentHtml || rawSummaryHtml);
 
-    // Extract <activity:object> block for exact ticket key & issue summary
+    // Extract <activity:object> & <activity:target> blocks for exact ticket key & issue summary
     const objectBlock = extractXmlTagText(block, ['activity:object', 'object']);
-    const objectTicketTitle = stripHtmlTags(extractXmlTagText(objectBlock, ['title']));
-    const objectIssueSummary = stripHtmlTags(extractXmlTagText(objectBlock, ['summary']));
+    const targetBlock = extractXmlTagText(block, ['activity:target', 'target']);
+    const objectTicketTitle =
+      stripHtmlTags(extractXmlTagText(objectBlock, ['title'])) ||
+      stripHtmlTags(extractXmlTagText(targetBlock, ['title']));
+    const objectIssueSummary =
+      stripHtmlTags(extractXmlTagText(objectBlock, ['summary'])) ||
+      stripHtmlTags(extractXmlTagText(targetBlock, ['summary']));
 
     // Extract <author> block
     const authorBlock = extractXmlTagText(block, ['author']) || block;
@@ -673,6 +780,7 @@ export function parseRawJiraActivityXml(xmlText) {
     );
     const profileMentions = [
       ...extractMentionedUsersFromJiraHtml(rawTitleHtml),
+      ...extractMentionedUsersFromJiraHtml(rawContentHtml),
       ...extractMentionedUsersFromJiraHtml(rawSummaryHtml),
     ];
 
@@ -687,10 +795,13 @@ export function parseRawJiraActivityXml(xmlText) {
       linkHref.match(/\b([A-Z][A-Z0-9_]{1,9}-\d+)\b/);
     const ticketKey = keyMatch ? keyMatch[1].toUpperCase() : `JIRA-${idx + 1}`;
 
+    const isCommentOrAttachment =
+      /<category[^>]*term=["']comment["']/i.test(block) ||
+      /\b(commented|attached)\b/i.test(cleanTitle);
     const isCreatedVerb =
-      /<category[^>]*term=["']created["']/i.test(block) ||
-      /schema\/1\.0\/post/i.test(block) ||
-      /\bcreated\b/i.test(cleanTitle);
+      !isCommentOrAttachment &&
+      (/<category[^>]*term=["']created["']/i.test(block) ||
+        /\bcreated\b/i.test(cleanTitle));
 
     // CHỈ entry chuyển trạng thái thật (verb `jira/transition`, hoặc tiêu đề "changed the status to") mới tạo sự kiện.
     // Comment / đính kèm file / sửa field / thêm fix version... bị bỏ qua, không có chuyến đi mang tài liệu.
@@ -735,6 +846,7 @@ export function parseRawJiraActivityXml(xmlText) {
       displaySummary,
       realAuthorAccount,
       authorDisplayName,
+      authorEmail,
       allEmailsInBlock,
       allUsrInBlock,
       profileMentions,
@@ -744,23 +856,32 @@ export function parseRawJiraActivityXml(xmlText) {
     };
   });
 
-  // Process chronologically (oldest -> newest) so `lastActorByTicketKey` links real collaborators on the same ticket
+  // Process chronologically (oldest -> newest) so `lastActorByTicketKey` and `activeUsersTodayMap` link real collaborators
   const chronological = [...rawItems].reverse();
   const parsedByRawId = new Map();
 
   for (const item of chronological) {
-    const resolvedAuthor = resolveEmployeeByAccount(item.realAuthorAccount);
-    // Keep exact real account from XML (e.g. `ngannn10`, `sangpt19`, `haind27`, `ThuyPTT45`, `DuyenDTT3`)
     const fromAccount = item.realAuthorAccount;
-    const fallbackEmpNum = ((hashStringToIndex(fromAccount, 29) % 29) + 2)
-      .toString()
-      .padStart(2, '0');
-    const fromEmployeeId = resolvedAuthor?.employeeId || `EMP-${fallbackEmpNum}`;
+    const authorRecord = registerOrUpdateActiveUserToday({
+      account: fromAccount,
+      displayName: item.authorDisplayName || fromAccount,
+      email: item.authorEmail,
+      ticketKey: item.ticketKey,
+      status: item.toStatus,
+      summary: item.displaySummary,
+      updatedAt: item.updatedAt,
+      source: 'JIRA',
+    });
+    const fromEmployeeId =
+      authorRecord?.employeeId ||
+      `EMP-${((hashStringToIndex(fromAccount, 30) % 30) + 1)
+        .toString()
+        .padStart(2, '0')}`;
 
     const isReturnToPM = item.toStatus === 'DONE';
 
-    // Resolve any profile mentions in <title>/<content> (e.g. "changed the Assignee to 'Lê Nguyễn Tấn Lộc'" or "@Bùi Thị Huyền Trân")
-    const resolvedMentionAccounts = [];
+    // Resolve any profile mentions in <title>/<content>/<summary> (e.g. "changed the Assignee to 'Lê Nguyễn Tấn Lộc'" or "@Bùi Thị Huyền Trân")
+    const resolvedMentionUsers = [];
     for (const m of item.profileMentions) {
       const byLdap =
         m.ldapOrUser && knownUserAccountLookup.get(m.ldapOrUser.toLowerCase());
@@ -774,55 +895,81 @@ export function parseRawJiraActivityXml(xmlText) {
         nonNumericLdap ||
         vietnameseNameToFrtAccount(m.displayText);
       if (acc) {
-        resolvedMentionAccounts.push(acc);
+        resolvedMentionUsers.push({
+          account: acc,
+          displayName: m.displayText || acc,
+        });
       }
     }
 
-    const candidateTargetUsers = [
-      ...new Set([
-        ...item.allEmailsInBlock,
-        ...item.allUsrInBlock,
-        ...resolvedMentionAccounts,
-      ]),
-    ];
+    const candidateTargetUsers = [];
+    for (const em of item.allEmailsInBlock) {
+      candidateTargetUsers.push({ account: em, displayName: em });
+    }
+    for (const u of item.allUsrInBlock) {
+      candidateTargetUsers.push({ account: u, displayName: u });
+    }
+    for (const mu of resolvedMentionUsers) {
+      candidateTargetUsers.push(mu);
+    }
 
-    // Find target collaborator:
+    // Find target collaborator (100% REAL USERS ONLY — ZERO MOCK USERNAMES!):
     // 1) Explicit 2nd user in the same XML entry (e.g. ThuyPTT45 -> LocLNT, DuyenDTT3 -> TranBTH)
     // 2) Previous real user who created/updated the same ticket (`TADS-66493`: ngannn10 <-> sangpt19)
-    // 3) Default to PM (`DongNQ6`) or Tech Lead (`ThanhDQ13`) so `toAccount` is always a real person, never a ticketKey!
-    const explicitSecondUser = candidateTargetUsers.find(
-      (u) => normalizeAccountKey(u) !== normalizeAccountKey(fromAccount)
+    // 3) Another real active user working today in `activeUsersTodayMap`, or `fromAccount` itself if no other user exists yet
+    const explicitSecondObj = candidateTargetUsers.find(
+      (u) =>
+        u.account &&
+        normalizeAccountKey(u.account) !== normalizeAccountKey(fromAccount)
     );
+    if (explicitSecondObj) {
+      registerOrUpdateActiveUserToday({
+        account: explicitSecondObj.account,
+        displayName: explicitSecondObj.displayName,
+        email: '',
+        ticketKey: item.ticketKey,
+        status: item.toStatus,
+        summary: item.displaySummary,
+        updatedAt: item.updatedAt,
+        source: 'JIRA',
+      });
+    }
+
     const prevTicketCollaborator = lastActorByTicketKey.get(item.ticketKey);
-    const targetUserAccount =
-      explicitSecondUser ||
+    let targetUserAccount =
+      explicitSecondObj?.account ||
       (prevTicketCollaborator &&
       normalizeAccountKey(prevTicketCollaborator) !== normalizeAccountKey(fromAccount)
         ? prevTicketCollaborator
         : '');
 
+    if (!targetUserAccount) {
+      // Pick another real user working today from activeUsersTodayMap (if any)
+      for (const [, activeUser] of activeUsersTodayMap.entries()) {
+        if (
+          normalizeAccountKey(activeUser.account) !==
+          normalizeAccountKey(fromAccount)
+        ) {
+          targetUserAccount = activeUser.account;
+          break;
+        }
+      }
+    }
+
     // Update last actor for this ticket key
     lastActorByTicketKey.set(item.ticketKey, fromAccount);
 
-    // Không phải transition -> chỉ ghi nhận người cộng tác trên ticket, không phát sự kiện
-    if (!item.isTransition) continue;
-
-    const defaultCoordinatorAccount =
-      normalizeAccountKey(fromAccount) === 'dongnq6' ? 'ThanhDQ13' : 'DongNQ6';
-    const toAccount =
-      targetUserAccount || (isReturnToPM ? 'DongNQ6' : defaultCoordinatorAccount);
-
-    const resolvedTarget = resolveEmployeeByAccount(toAccount);
-    let toEmployeeId =
-      resolvedTarget?.employeeId ||
-      (isReturnToPM
-        ? 'EMP-01'
-        : `EMP-${((hashStringToIndex(toAccount, 29) % 29) + 2)
-            .toString()
-            .padStart(2, '0')}`);
-    if (toEmployeeId === fromEmployeeId) {
-      toEmployeeId = fromEmployeeId === 'EMP-01' ? 'EMP-04' : 'EMP-01';
+    // Chỉ tạo sự kiện đi bộ giao tài liệu khi là chuyển trạng thái (transition), đổi Assignee hoặc có tag đồng nghiệp thứ 2.
+    // Các thao tác sửa field nhỏ lẻ của 1 người vẫn đã được ghi nhận vào `activeUsersTodayMap` (ngồi làm việc tại bàn)!
+    const isAssigneeChange = /\bchanged the assignee to\b/i.test(item.cleanTitle);
+    if (!item.isTransition && !isAssigneeChange && !explicitSecondObj) {
+      continue;
     }
+
+    // Never fallback to mock accounts like DongNQ6 or ThanhDQ13!
+    const toAccount = targetUserAccount || fromAccount;
+    const resolvedTarget = resolveEmployeeByAccount(toAccount);
+    const toEmployeeId = resolvedTarget?.employeeId || fromEmployeeId;
 
     const fingerprint = computeServerJiraFingerprint({
       entryId: item.rawId,
@@ -851,6 +998,7 @@ export function parseRawJiraActivityXml(xmlText) {
     });
   }
 
+  savePersistedActiveUsersToday();
   return rawItems.map((it) => parsedByRawId.get(it.rawId)).filter(Boolean);
 }
 
@@ -952,19 +1100,6 @@ export function parseRawJenkinsRssXml(xmlText) {
       (startedByMatch ? startedByMatch[1].replace(/@.*$/, '') : '') ||
       (authorText && !/jenkins|hudson|anonymous|system/i.test(authorText) ? authorText : '');
 
-    const triggeredBy =
-      rawUserFromJenkins ||
-      serviceName ||
-      jobName;
-
-    const resolvedAccount = rawUserFromJenkins
-      ? resolveEmployeeByAccount(rawUserFromJenkins)
-      : null;
-    const fallbackDevOpsIdx = (hashStringToIndex(triggeredBy, 30) + 1)
-      .toString()
-      .padStart(2, '0');
-    const employeeId = resolvedAccount?.employeeId || `EMP-${fallbackDevOpsIdx}`;
-
     // Real build target / ticket label: e.g. `ci-41475` or `bo-ci-agentos-worker`
     const jiraKeyMatch = combinedMeta.match(/\b([A-Z]{2,8}-\d+)\b/);
     const ticketKey =
@@ -972,6 +1107,36 @@ export function parseRawJenkinsRssXml(xmlText) {
       buildTag ||
       serviceName ||
       `#${buildNumber}`;
+
+    let userRecord = null;
+    if (rawUserFromJenkins) {
+      userRecord = registerOrUpdateActiveUserToday({
+        account: rawUserFromJenkins,
+        displayName: rawUserFromJenkins,
+        email: '',
+        ticketKey,
+        status: statusNormalized === 'FAILURE' ? 'IN_PROGRESS' : 'READY_FOR_DEPLOY',
+        summary: `${jobName} ${serviceName || ''} #${buildNumber} (${statusText})`,
+        updatedAt: publishedAt,
+        source: 'JENKINS',
+      });
+    } else if (activeUsersTodayMap.size > 0) {
+      // Pick an active real user working today to walk to the Jenkins Server
+      const activeList = Array.from(activeUsersTodayMap.values());
+      userRecord = activeList[hashStringToIndex(serviceName || jobName, activeList.length)];
+    }
+
+    const triggeredBy =
+      userRecord?.account ||
+      rawUserFromJenkins ||
+      serviceName ||
+      jobName;
+
+    const employeeId =
+      userRecord?.employeeId ||
+      `EMP-${((hashStringToIndex(triggeredBy, 30) % 30) + 1)
+        .toString()
+        .padStart(2, '0')}`;
     const timeAgo = formatRelativeTime(publishedAt);
 
     const fingerprint = computeServerJenkinsFingerprint(
@@ -1184,6 +1349,10 @@ function resetRamDedupCache() {
   eventRingBuffer.length = 0;
   currentSeq = 0;
   highestJenkinsBuildByJob.clear();
+  activeUsersTodayMap.clear();
+  lastActorByTicketKey.clear();
+  nextSeatCursor = 1;
+  savePersistedActiveUsersToday();
   customIngestedJiraXml = null;
   customIngestedJenkinsXml = null;
   dedupStats.totalPolls = 0;
@@ -1412,10 +1581,16 @@ async function executeUpstreamPollCycle(reason = 'auto-poll') {
       Boolean(proxyConfig.jiraUsername || proxyConfig.jiraSecret);
 
     // 1. Poll Jira Activity XML
+    // Khi bắt đầu ngày mới hoặc chưa gom đủ danh sách nhân sự làm việc trong ngày,
+    // tự động nâng maxResults lên 50 ở lần kéo đầu để lấy trọn danh sách user làm việc từ đầu ngày!
     if (hasJiraCredentials && proxyConfig.jiraUrl) {
+      let effectiveJiraUrl = proxyConfig.jiraUrl;
+      if (activeUsersTodayMap.size < 5 && /maxResults=\d+/i.test(effectiveJiraUrl)) {
+        effectiveJiraUrl = effectiveJiraUrl.replace(/maxResults=\d+/i, 'maxResults=50');
+      }
       const jiraDiag = await diagnoseAndFetchUpstream({
         target: 'JIRA',
-        url: proxyConfig.jiraUrl,
+        url: effectiveJiraUrl,
         kind: 'JIRA',
         authType: proxyConfig.jiraAuthType,
         username: proxyConfig.jiraUsername,
@@ -2550,6 +2725,50 @@ export function createOfficeProxyServer() {
       }
 
       // ----------------------------------------------------------------------
+      // B0. PUBLIC TODAY'S ACTIVE USERS API (`GET /api/public/active-users`)
+      //     Trả về danh sách toàn bộ nhân sự thực tế đang làm việc từ đầu ngày đến hiện tại
+      //     để Frontend đặt nhân sự ngồi sẵn vào bàn ngay khi mở trang, KHÔNG bị dồn event gây giật lag!
+      // ----------------------------------------------------------------------
+      if (pathname === '/api/public/active-users' && method === 'GET') {
+        if (!checkPublicRateLimit(req)) {
+          sendJson(res, 429, {
+            ok: false,
+            error: 'Rate limit exceeded. Please poll at the configured interval.',
+          });
+          return;
+        }
+
+        // Đồng bộ luồng upstream nếu cần để danh sách user trong ngày luôn mới nhất
+        await executeUpstreamPollCycle('public-active-users');
+
+        const activeUsers = getActiveUsersTodaySnapshot();
+        const workingUsersCount = activeUsers.filter((u) => u.isWorking).length;
+        const compactJenkinsSnapshot = jenkinsSnapshot.slice(0, 5).map((b) => ({
+          id: b.id,
+          fingerprint: b.fingerprint,
+          buildNumber: b.buildNumber,
+          jobName: b.jobName,
+          clusterId: b.clusterId || 'CI',
+          status: b.status,
+          statusText: b.statusText,
+          triggeredByAccount: b.triggeredByAccount,
+          ticketKey: b.ticketKey,
+          timeAgo: b.timeAgo,
+        }));
+
+        sendJson(res, 200, {
+          ok: true,
+          dayKey: activeUsersDayKey,
+          latestSeq: currentSeq,
+          totalActiveUsers: activeUsers.length,
+          workingUsersCount,
+          users: activeUsers,
+          jenkinsSnapshot: compactJenkinsSnapshot,
+        });
+        return;
+      }
+
+      // ----------------------------------------------------------------------
       // B. SINGLE PUBLIC STREAM API (`GET /api/public/office-stream?afterSeq=<number>`)
       //    Safe to expose via Cloudflare Tunnel! Zero credentials exposed!
       // ----------------------------------------------------------------------
@@ -2570,21 +2789,23 @@ export function createOfficeProxyServer() {
         const rawLimit = parsedUrl.searchParams.get('limit');
         const maxEvents =
           rawLimit !== null && rawLimit !== '' && !Number.isNaN(Number(rawLimit))
-            ? Math.max(1, Math.min(50, Math.floor(Number(rawLimit))))
-            : 25;
+            ? Math.max(1, Math.min(10, Math.floor(Number(rawLimit))))
+            : 2;
 
         // Run a coalesced poll cycle so the server's RAM Cache Deduplicator processes the latest feed
         const pollOutcome = await executeUpstreamPollCycle('public-stream-poll');
 
         // Filter events strictly by Monotonic Cursor `seq > afterSeq`
+        // QUAN TRỌNG: Danh sách nhân sự làm việc trong ngày đã được cấp qua `activeUsers` (ngồi sẵn tại bàn),
+        // nên luồng `events` chỉ trả tối đa 1-2 sự kiện mới nhất để diễn hoạt đi bộ mượt mà 60fps, KHÔNG dồn cục gây lag!
         let rawEvents = [];
         if (afterSeq > 0) {
-          // Client already has a cursor: ONLY return events strictly newer than `afterSeq`!
+          // Client already has a cursor: ONLY return events strictly newer than `afterSeq` (capped at maxEvents = 2)
           rawEvents = eventRingBuffer.filter((ev) => ev.seq > afterSeq).slice(-maxEvents);
         } else {
-          // First-time client connection (`afterSeq == 0`): return all recent events in the batch (up to maxEvents)
-          // so every active user in the Jira/Jenkins feed (e.g. ngannn10, sangpt19, haind27, ThuyPTT45, DuyenDTT3) checks in!
-          rawEvents = eventRingBuffer.slice(-maxEvents);
+          // First-time client connection (`afterSeq == 0`):
+          // Chỉ phát tối đa 1 sự kiện gần nhất làm hiệu ứng di chuyển, toàn bộ user khác được nạp tĩnh qua `activeUsers`!
+          rawEvents = eventRingBuffer.slice(-1);
         }
 
         // Chỉ trả về các trường thông tin thực sự cần thiết cho Game 2D
@@ -2634,6 +2855,7 @@ export function createOfficeProxyServer() {
           ticketKey: b.ticketKey,
           timeAgo: b.timeAgo,
         }));
+        const activeUsers = getActiveUsersTodaySnapshot();
         const statsSnapshot = getPublicDedupStatsSnapshot();
 
         sendJson(res, 200, {
@@ -2643,6 +2865,7 @@ export function createOfficeProxyServer() {
           eventsCount: eventsToReturn.length,
           events: eventsToReturn,
           newBuildEvents,
+          activeUsers,
           jenkinsSnapshot: compactJenkinsSnapshot,
           dedupStats: statsSnapshot,
           pollSummary: {
@@ -2652,8 +2875,8 @@ export function createOfficeProxyServer() {
             droppedInPoll: pollOutcome.droppedInThisBatch,
             message:
               eventsToReturn.length > 0
-                ? `🟢 Đồng bộ ${eventsToReturn.length} sự kiện mới (seq ${afterSeq} ➔ ${currentSeq})`
-                : `🛡️ 0 sự kiện mới (Đã lọc bỏ ${statsSnapshot.duplicatesDropped} sự kiện trùng lặp trong RAM Cache • seq=${currentSeq})`,
+                ? `🟢 Đồng bộ ${eventsToReturn.length} sự kiện mới • ${activeUsers.length} nhân sự trong ngày (seq ${afterSeq} ➔ ${currentSeq})`
+                : `🛡️ 0 sự kiện mới (${activeUsers.length} nhân sự trong ngày • seq=${currentSeq})`,
           },
         });
         return;

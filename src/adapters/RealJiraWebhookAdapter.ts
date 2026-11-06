@@ -29,6 +29,35 @@ import { NHA_THUOC_SEAT_SLOTS } from '../data/officeLayout';
 /** API Public duy nhất đi qua Cloudflare Tunnel & Backend RAM Cache Deduplicator */
 export const PUBLIC_OFFICE_STREAM_API_URL = '/api/public/office-stream';
 
+/** API Public tải danh sách nhân sự thực tế đang làm việc từ đầu ngày đến hiện tại */
+export const PUBLIC_ACTIVE_USERS_API_URL = '/api/public/active-users';
+
+export interface ActiveOfficeUserItem {
+  account: string;
+  displayName: string;
+  email?: string;
+  employeeId: string;
+  source?: string;
+  firstSeenAt: string;
+  lastEventAt: string;
+  lastEventAtMs: number;
+  lastTicketKey?: string;
+  lastStatus?: TicketStatus;
+  lastSummary?: string;
+  eventsCount: number;
+  isWorking: boolean;
+}
+
+export interface PublicActiveUsersResponse {
+  ok: boolean;
+  dayKey: string;
+  latestSeq: number;
+  totalActiveUsers: number;
+  workingUsersCount: number;
+  users: ActiveOfficeUserItem[];
+  jenkinsSnapshot?: JenkinsBuildJobItem[];
+}
+
 export const FRT_JIRA_ACTIVITY_TARGET_URL =
   'https://reqs.frt.vn/activity?maxResults=10&providers=issues&os_authType=basic&title=undefined';
 export const FRT_JIRA_ACTIVITY_PROXY_URL =
@@ -114,6 +143,7 @@ export interface PublicOfficeStreamResponse {
   eventsCount: number;
   events: PublicOfficeStreamEvent[];
   newBuildEvents: PublicOfficeStreamEvent[];
+  activeUsers?: ActiveOfficeUserItem[];
   jenkinsSnapshot: JenkinsBuildJobItem[];
   dedupStats: RamDedupStats;
   pollSummary?: {
@@ -628,19 +658,26 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
           entry.querySelector('id, guid')?.textContent?.trim() ||
           `FRT-ACT-${Date.now()}-${idx}`;
         const rawTitleHtml = entry.querySelector('title')?.textContent || '';
-        const rawSummaryHtml =
-          entry.querySelector('summary, content, description')?.textContent || '';
+        const rawContentHtml = entry.querySelector('content, description')?.textContent || '';
+        const rawSummaryHtml = entry.querySelector('summary')?.textContent || '';
         const cleanTitle = stripHtmlTags(rawTitleHtml);
-        const cleanSummary = stripHtmlTags(rawSummaryHtml);
+        const cleanSummary = stripHtmlTags(rawContentHtml || rawSummaryHtml);
 
         const objEl =
           entry.getElementsByTagName('activity:object')[0] ||
           entry.querySelector('object');
+        const targetEl =
+          entry.getElementsByTagName('activity:target')[0] ||
+          entry.querySelector('target');
         const objectTicketTitle = stripHtmlTags(
-          objEl?.querySelector('title')?.textContent || ''
+          targetEl?.querySelector('title')?.textContent ||
+            objEl?.querySelector('title')?.textContent ||
+            ''
         );
         const objectIssueSummary = stripHtmlTags(
-          objEl?.querySelector('summary')?.textContent || ''
+          targetEl?.querySelector('summary')?.textContent ||
+            objEl?.querySelector('summary')?.textContent ||
+            ''
         );
 
         // Extract author email prefix (`ngannn10@fpt.com` -> `ngannn10`, `sangpt19@fpt.com` -> `sangpt19`), non-numeric `usr:username`, and `<name>`
@@ -692,6 +729,7 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
           .filter((u) => u && !/^\d+$/.test(u));
         const profileMentions = [
           ...extractMentionedUsersFromJiraHtml(rawTitleHtml),
+          ...extractMentionedUsersFromJiraHtml(rawContentHtml),
           ...extractMentionedUsersFromJiraHtml(rawSummaryHtml),
         ];
 
@@ -814,27 +852,33 @@ export function parseJiraActivityAtomXml(xmlText: string): ParsedJiraActivityEnt
 
         lastClientActorByTicketKey.set(item.ticketKey, fromAccount);
 
-        const defaultCoordinatorAccount =
-          normalizeFrtAccountKey(fromAccount) === 'dongnq6'
-            ? 'ThanhDQ13'
-            : 'DongNQ6';
+        // Tuyệt đối KHÔNG fallback về tài khoản mẫu (DongNQ6 / ThanhDQ13)!
+        // Chọn đồng nghiệp thực tế khác trong feed hoặc giữ nguyên fromAccount (tự xử lý tại bàn)
+        const otherRealUserInFeed = chronological
+          .map((x) => x.realAuthorAccount)
+          .find(
+            (acc) =>
+              acc &&
+              acc !== 'jira-user' &&
+              normalizeFrtAccountKey(acc) !== normalizeFrtAccountKey(fromAccount)
+          );
         const toAccount =
-          targetUserAccount ||
-          (isReturnToPM ? 'DongNQ6' : defaultCoordinatorAccount);
+          targetUserAccount || otherRealUserInFeed || fromAccount;
         const resolvedTarget = resolveEmployeeByAccountCaseInsensitive(toAccount);
 
         let toEmpId =
           resolvedTarget?.employeeId ||
-          (isReturnToPM
-            ? PROJECT_MANAGER.id
-            : `EMP-${(
-                (hashAccountToEmployeeIndex(toAccount, 29) % 29) +
-                2
-              )
-                .toString()
-                .padStart(2, '0')}`);
-        if (toEmpId === fromEmpId) {
-          toEmpId = fromEmpId === 'EMP-01' ? 'EMP-04' : 'EMP-01';
+          `EMP-${(
+            (hashAccountToEmployeeIndex(toAccount, 29) % 29) +
+            2
+          )
+            .toString()
+            .padStart(2, '0')}`;
+        if (
+          toEmpId === fromEmpId &&
+          normalizeFrtAccountKey(toAccount) !== normalizeFrtAccountKey(fromAccount)
+        ) {
+          toEmpId = fromEmpId === 'EMP-01' ? 'EMP-02' : 'EMP-01';
         }
 
         const fingerprint = computeJiraActivityFingerprint({

@@ -6,6 +6,7 @@ dist/
 # Encrypted Backend Proxy Credentials & Keys (NEVER commit)
 server/.credentials.enc.json
 server/.master.key
+server/.active-users-today.json
 .env
 .env.*
 !.env.example

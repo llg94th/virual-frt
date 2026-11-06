@@ -80,11 +80,14 @@ import {
   mockJiraAdapter,
 } from './mockJiraAdapter';
 import {
+  ActiveOfficeUserItem,
   DEFAULT_JENKINS_RECENT_BUILDS,
   FRT_JENKINS_RSS_PROXY_URL,
   FRT_JENKINS_UAT_RSS_PROXY_URL,
   FRT_JIRA_ACTIVITY_PROXY_URL,
+  PUBLIC_ACTIVE_USERS_API_URL,
   PUBLIC_OFFICE_STREAM_API_URL,
+  PublicActiveUsersResponse,
   PublicOfficeStreamResponse,
   SAMPLE_FRT_JENKINS_RSS_XML,
   SAMPLE_FRT_JENKINS_UAT_RSS_XML,
@@ -536,6 +539,83 @@ function formatTimeHHMMSS(date = new Date()): string {
 
 function getCurrentDayKey(date = new Date()): string {
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Bản sao lưu thông tin nhân sự Mock ban đầu để khôi phục khi người dùng chuyển về chế độ `MOCK_PILOT`.
+ * Khi ở chế độ `LIVE_FRT` (Thật), toàn bộ mock username (`DongNQ6`, `ThanhDQ13`, `LuuTV6`, `TienHK`, `SonNA2`...)
+ * bị xóa trắng khỏi các bàn làm việc — chỉ hiện tên tài khoản thật từ Jira/Jenkins!
+ */
+const INITIAL_MOCK_EMPLOYEE_PROFILES: Record<
+  string,
+  { account: string; name: string; displayName: string }
+> = Object.fromEntries(
+  EMPLOYEES.map((e) => [
+    e.id,
+    {
+      account: e.account || '',
+      name: e.name || '',
+      displayName: e.displayName || '',
+    },
+  ])
+);
+
+const INITIAL_MOCK_SLOT_ACCOUNTS: Record<string, string> = Object.fromEntries(
+  ALL_OFFICE_SEAT_SLOTS.map((s) => [s.seatCode, s.account || ''])
+);
+
+function syncEmployeeGlobalNameRegistry(
+  employees: Employee[],
+  isLiveMode: boolean,
+  boundIds: Set<string>
+): void {
+  for (const emp of employees) {
+    if (emp.isManager || emp.isFemaleManager) continue;
+    const globalRef = EMPLOYEE_BY_ID[emp.id];
+    if (isLiveMode) {
+      if (!boundIds.has(emp.id)) {
+        emp.account = '';
+        emp.name = '';
+        emp.displayName = '';
+        if (globalRef) {
+          globalRef.account = '';
+          globalRef.name = '';
+          globalRef.displayName = '';
+        }
+      } else if (globalRef) {
+        globalRef.account = emp.account;
+        globalRef.name = emp.name;
+        globalRef.displayName = emp.displayName;
+      }
+    } else {
+      const mockProf = INITIAL_MOCK_EMPLOYEE_PROFILES[emp.id];
+      if (mockProf) {
+        emp.account = mockProf.account;
+        emp.name = mockProf.name;
+        emp.displayName = mockProf.displayName;
+        if (globalRef) {
+          globalRef.account = mockProf.account;
+          globalRef.name = mockProf.name;
+          globalRef.displayName = mockProf.displayName;
+        }
+      }
+    }
+  }
+
+  for (const slot of ALL_OFFICE_SEAT_SLOTS) {
+    if (isLiveMode) {
+      const assignedEmp = slot.assignedEmployeeId
+        ? employees.find((e) => e.id === slot.assignedEmployeeId)
+        : undefined;
+      if (assignedEmp && boundIds.has(assignedEmp.id) && assignedEmp.account) {
+        slot.account = assignedEmp.account;
+      } else {
+        slot.account = '';
+      }
+    } else {
+      slot.account = INITIAL_MOCK_SLOT_ACCOUNTS[slot.seatCode] || slot.account;
+    }
+  }
 }
 
 function cloneInitialEmployees(tickets: JiraTicket[]): Employee[] {
@@ -1007,6 +1087,9 @@ export class OfficeSimulationEngine {
         ? adapter.getTicketsSnapshot()
         : [];
     const initialEmployees = cloneInitialEmployees(initialTickets);
+    if (initialMode === 'LIVE_FRT') {
+      syncEmployeeGlobalNameRegistry(initialEmployees, true, this.liveBoundEmployeeIds);
+    }
     const employeeById = Object.fromEntries(
       initialEmployees.map((e) => [e.id, e])
     );
@@ -2400,9 +2483,61 @@ export class OfficeSimulationEngine {
 
     // 2. Enqueue physical DocumentTransferTask from `fromEmployeeId` -> `toEmployeeId`
     const fromId = event.fromEmployeeId || PROJECT_MANAGER.id;
-    const toId = event.isReturnToPM
-      ? PROJECT_MANAGER.id
-      : event.toEmployeeId || PROJECT_MANAGER.id;
+    let toId =
+      event.isReturnToPM && this.state.dataSourceMode === 'MOCK_PILOT'
+        ? PROJECT_MANAGER.id
+        : event.toEmployeeId || fromId;
+
+    // Nếu người gửi và người nhận trùng nhau (1 user tự cập nhật ticket của mình),
+    // ưu tiên chọn 1 đồng nghiệp thật đang ngồi làm việc trong văn phòng để phối hợp,
+    // hoặc chỉ check-in ngồi làm việc tại bàn (TUYỆT ĐỐI KHÔNG trỏ về mock PM DongNQ6!)
+    if (toId === fromId) {
+      const otherRealColleague = this.state.employees.find(
+        (e) =>
+          e.id !== fromId &&
+          !e.isManager &&
+          !e.isFemaleManager &&
+          e.isCheckedIn &&
+          Boolean(e.account && e.account.trim())
+      );
+      if (otherRealColleague) {
+        toId = otherRealColleague.id;
+      } else {
+        const soloEmp = this.state.employeeById[fromId];
+        if (soloEmp) {
+          soloEmp.lastEventAt = Date.now();
+          this.ensureEmployeeCheckedInOrSmoking(soloEmp, event.ticket.key);
+          soloEmp.deskDocumentCount = Math.min(4, soloEmp.deskDocumentCount + 1);
+          if (!soloEmp.assignedTicketIds.includes(event.ticket.id)) {
+            soloEmp.assignedTicketIds = [
+              ...soloEmp.assignedTicketIds,
+              event.ticket.id,
+            ];
+          }
+          const cleanName = soloEmp.account || soloEmp.displayName || soloEmp.id;
+          this.addSpeechBubble(
+            soloEmp.id,
+            `📋 Đang xử lý ${event.ticket.key} (${event.toStatus})`,
+            'info'
+          );
+          this.prependActivityLog({
+            id: `LOG-SOLO-${event.ticket.key}-${Date.now()}`,
+            timestamp: formatTimeHHMMSS(),
+            ticketKey: event.ticket.key,
+            ticketStatus: event.toStatus,
+            fromEmployeeId: soloEmp.id,
+            fromEmployeeName: cleanName,
+            toEmployeeId: soloEmp.id,
+            toEmployeeName: cleanName,
+            isReturnToPM: false,
+            message: event.summaryMessage,
+            type: 'CREATED',
+          });
+          this.emitChange(true);
+        }
+        return;
+      }
+    }
 
     this.enqueueDocumentTransfer({
       ticketId: event.ticket.id,
@@ -2412,13 +2547,16 @@ export class OfficeSimulationEngine {
       targetStatus: event.toStatus,
       fromEmployeeId: fromId,
       toEmployeeId: toId,
-      isReturnToPM: event.isReturnToPM,
+      isReturnToPM:
+        this.state.dataSourceMode === 'MOCK_PILOT' ? event.isReturnToPM : false,
       documentStackSize: event.ticket.documentStackSize,
       description: event.summaryMessage,
     });
 
-    // 3. Nếu Ticket chuyển sang CODE_REVIEW, QA_TESTING hoặc READY_FOR_DEPLOY và Trạm Server đang rảnh -> cử kỹ sư đi chạy Build Jenkins!
+    // 3. Chỉ tự động giả lập chạy Build Jenkins theo Jira status khi ở chế độ MOCK_PILOT.
+    // Ở chế độ LIVE_FRT, sự kiện Build Jenkins lấy trực tiếp 100% từ RSS thật của Jenkins!
     if (
+      this.state.dataSourceMode === 'MOCK_PILOT' &&
       (event.toStatus === 'CODE_REVIEW' ||
         event.toStatus === 'QA_TESTING' ||
         event.toStatus === 'READY_FOR_DEPLOY') &&
@@ -2435,12 +2573,13 @@ export class OfficeSimulationEngine {
    * vào nhân vật 2D & bàn làm việc trên bản đồ mà KHÔNG CẦN nằm trong danh sách cố định:
    * - Nếu đã có nhân vật bàn làm việc mang account này, trả về đúng nhân vật đó.
    * - Nếu chưa có, chọn 1 slot nhân viên chưa được gán live user (tránh 100% ghi đè do hash collision!),
-   *   cập nhật `emp.account`, `emp.displayName`, `DESK_BY_ID` và `ALL_OFFICE_SEAT_SLOTS`
+   *   cập nhật `emp.account`, `emp.name`, `emp.displayName`, `EMPLOYEE_BY_ID`, `DESK_BY_ID` và `ALL_OFFICE_SEAT_SLOTS`
    *   sang đúng account thật để bảng tên trên đầu nhân vật, bảng tên trên bàn & Nhật ký Hoạt động hiển thị chuẩn 100%!
    */
   private bindRealAccountToEmployeeSlot(
     fallbackEmployeeId: string,
-    realAccount?: string
+    realAccount?: string,
+    realDisplayName?: string
   ): Employee | undefined {
     const cleanAcc = (realAccount || '')
       .trim()
@@ -2465,23 +2604,28 @@ export class OfficeSimulationEngine {
       (e) =>
         !e.isManager &&
         !e.isFemaleManager &&
+        this.liveBoundEmployeeIds.has(e.id) &&
         (e.account || '')
           .toLowerCase()
           .replace(/\s*\(kh\)\s*/i, '')
           .trim() === lowerAcc
     );
     if (existingDeskEmp) {
-      this.liveBoundEmployeeIds.add(existingDeskEmp.id);
+      if (realDisplayName && realDisplayName.trim()) {
+        existingDeskEmp.name = realDisplayName.trim();
+        const globalRef = EMPLOYEE_BY_ID[existingDeskEmp.id];
+        if (globalRef) globalRef.name = realDisplayName.trim();
+      }
       return existingDeskEmp;
     }
 
     // 2. Chọn slot chưa từng bị gán cho một live user khác để TUYỆT ĐỐI KHÔNG GHI ĐÈ (zero hash collision)
+    // Cho phép toàn bộ 30 ghế (`EMP-01` .. `EMP-30`) được gán cho user thật trong chế độ LIVE_FRT!
     let targetEmp = this.state.employeeById[fallbackEmployeeId];
     const isTargetUsable =
       targetEmp &&
       !targetEmp.isManager &&
       !targetEmp.isFemaleManager &&
-      targetEmp.id !== PROJECT_MANAGER.id &&
       !this.liveBoundEmployeeIds.has(targetEmp.id);
 
     if (!isTargetUsable) {
@@ -2489,10 +2633,9 @@ export class OfficeSimulationEngine {
       for (let i = 0; i < lowerAcc.length; i++) {
         hash = (hash * 31 + lowerAcc.charCodeAt(i)) >>> 0;
       }
-      // Dò tuyến tính qua 29 bàn nhân viên (`EMP-02` .. `EMP-30`, giữ nguyên `EMP-01` cho PM DongNQ6)
       let foundUnbound: Employee | undefined;
-      for (let offset = 0; offset < 29; offset++) {
-        const slotNum = ((hash + offset) % 29) + 2; // 2..30
+      for (let offset = 0; offset < 30; offset++) {
+        const slotNum = ((hash + offset) % 30) + 1; // 1..30
         const candidateId = `EMP-${slotNum.toString().padStart(2, '0')}`;
         const candidate = this.state.employeeById[candidateId];
         if (
@@ -2509,12 +2652,8 @@ export class OfficeSimulationEngine {
       if (foundUnbound) {
         targetEmp = foundUnbound;
       } else {
-        // Nếu cả 29 slot đều đã có người thật từ luồng Live, ưu tiên tái sử dụng slot có lastEventAt cũ nhất
         const nonBossPool = this.state.employees.filter(
-          (e) =>
-            !e.isManager &&
-            !e.isFemaleManager &&
-            e.id !== PROJECT_MANAGER.id
+          (e) => !e.isManager && !e.isFemaleManager
         );
         nonBossPool.sort((a, b) => (a.lastEventAt || 0) - (b.lastEventAt || 0));
         targetEmp = nonBossPool[0] ?? this.state.employees[0];
@@ -2526,8 +2665,23 @@ export class OfficeSimulationEngine {
       const seatSuffix = targetEmp.seatCode
         ? targetEmp.seatCode.replace('FT3.III2A.', '')
         : targetEmp.deskId;
+      const formattedDisplay = `${cleanAcc} (${seatSuffix})`;
+      const fullHumanName =
+        realDisplayName && realDisplayName.trim()
+          ? realDisplayName.trim()
+          : cleanAcc;
+
       targetEmp.account = cleanAcc;
-      targetEmp.displayName = `${cleanAcc} (${seatSuffix})`;
+      targetEmp.name = fullHumanName;
+      targetEmp.displayName = formattedDisplay;
+
+      // Đồng bộ trực tiếp vào EMPLOYEE_BY_ID để mọi Component UI tra cứu tĩnh đều lấy đúng tên thật 100%!
+      const globalEmp = EMPLOYEE_BY_ID[targetEmp.id];
+      if (globalEmp) {
+        globalEmp.account = cleanAcc;
+        globalEmp.name = fullHumanName;
+        globalEmp.displayName = formattedDisplay;
+      }
 
       // Đồng bộ tên account lên cả dữ liệu Bàn & Ghế (`ALL_OFFICE_SEAT_SLOTS`) trên sơ đồ 2D
       const activeDeskId =
@@ -2544,6 +2698,177 @@ export class OfficeSimulationEngine {
 
     return targetEmp;
   }
+
+  /**
+   * Đặt danh sách toàn bộ nhân sự đang làm việc từ đầu ngày đến hiện tại (`GET /api/public/active-users`)
+   * ngồi sẵn vào bàn làm việc (`isCheckedIn = true`, `status = 'WORKING'`, `isWalkingFromEntrance = false`).
+   * Giúp khi mở trang hoặc đồng bộ không bao giờ bị dồn hàng chục event đi bộ cùng lúc gây giật lag!
+   */
+  public hydrateActiveUsersToday = (users: ActiveOfficeUserItem[]): number => {
+    if (!Array.isArray(users) || users.length === 0) return 0;
+
+    const busyIds = new Set<string>();
+    for (const t of this.state.activeTransfers) {
+      busyIds.add(t.fromEmployeeId);
+      busyIds.add(t.toEmployeeId);
+    }
+    if (this.state.activeJenkinsBuild) {
+      busyIds.add(this.state.activeJenkinsBuild.employeeId);
+    }
+
+    const maxSeatsCfg = this.state.config.maxOpenSeats;
+    const maxSeats = maxSeatsCfg === 12 ? 12 : 30;
+    let seatedCount = this.state.employees.filter(
+      (e) =>
+        !e.isManager &&
+        !e.isFemaleManager &&
+        e.isCheckedIn &&
+        !e.isCheckingOut
+    ).length;
+
+    let newlyHydrated = 0;
+
+    for (const u of users) {
+      if (!u || !u.account) continue;
+      const emp = this.bindRealAccountToEmployeeSlot(
+        u.employeeId || 'EMP-02',
+        u.account,
+        u.displayName
+      );
+      if (!emp || emp.isManager || emp.isFemaleManager) continue;
+
+      const eventMs =
+        u.lastEventAtMs && u.lastEventAtMs > 0
+          ? u.lastEventAtMs
+          : Date.parse(u.lastEventAt || '') || Date.now();
+      if (eventMs > (emp.lastEventAt || 0)) {
+        emp.lastEventAt = eventMs;
+      }
+
+      // Cập nhật ticket gần nhất của nhân sự này vào danh sách tickets nếu chưa có
+      if (u.lastTicketKey) {
+        const ticketId = `ACT-${u.lastTicketKey}`;
+        const exists = this.state.tickets.some(
+          (t) => t.id === ticketId || t.key === u.lastTicketKey
+        );
+        if (!exists) {
+          const nowIso = u.lastEventAt || new Date(eventMs).toISOString();
+          this.state.tickets.push({
+            id: ticketId,
+            key: u.lastTicketKey,
+            summary: u.lastSummary || `Cập nhật Jira ${u.lastTicketKey}`,
+            description: u.lastSummary || '',
+            type: 'STORY',
+            priority: 'HIGH',
+            status: u.lastStatus || 'IN_PROGRESS',
+            reporterId: emp.id,
+            assigneeId: emp.id,
+            previousAssigneeId: null,
+            storyPoints: 5,
+            documentStackSize: 3,
+            workflowChain: [],
+            currentStepIndex: 0,
+            deliveredToPM: false,
+            createdAt: u.firstSeenAt || nowIso,
+            updatedAt: nowIso,
+            history: [],
+          });
+        }
+        if (!emp.assignedTicketIds.includes(ticketId)) {
+          emp.assignedTicketIds = [...emp.assignedTicketIds, ticketId];
+        }
+      }
+
+      emp.deskDocumentCount = Math.max(
+        emp.deskDocumentCount,
+        Math.min(4, Math.max(1, u.eventsCount || 1))
+      );
+      emp.completedTransfersCount = Math.max(
+        emp.completedTransfersCount,
+        Math.max(1, u.eventsCount || 1)
+      );
+
+      // Nếu nhân sự còn trong khung 2h làm việc và chưa ngồi vào bàn -> đặt ngồi sẵn tại bàn ngay lập tức (KHÔNG chạy animation đi bộ từ cửa để tránh giật lag!)
+      if (
+        u.isWorking !== false &&
+        !emp.isCheckedIn &&
+        !emp.isSmokingAtAtrium &&
+        !emp.isCheckingOut &&
+        !busyIds.has(emp.id)
+      ) {
+        if (seatedCount < maxSeats) {
+          const targetDesk = this.findUnoccupiedDeskForEmployee(emp);
+          emp.isCheckedIn = true;
+          emp.checkedInToday = true;
+          emp.isCheckingOut = false;
+          emp.checkedInDeskId = targetDesk.id;
+          emp.assignedDeskId = targetDesk.id;
+          emp.isSmokingAtAtrium = false;
+          emp.isSmokingOverflow = false;
+          emp.isWalkingFromEntrance = false;
+          emp.checkoutSpeechText = null;
+          emp.currentPosition = { ...targetDesk.seatPosition };
+          emp.currentPath = [];
+          emp.targetPosition = null;
+          emp.facing = targetDesk.orientation;
+          emp.isoDirection = directionToIsoDirection(targetDesk.orientation);
+          emp.facingAngle = isoDirectionToAngle(emp.isoDirection);
+          emp.status =
+            u.lastStatus === 'CODE_REVIEW' || u.lastStatus === 'QA_TESTING'
+              ? 'REVIEWING'
+              : 'WORKING';
+          emp.state = emp.status;
+          seatedCount += 1;
+          newlyHydrated += 1;
+        } else {
+          // Nếu đã vượt quá số ghế mở, đặt đứng sẵn ở Giếng trời hút thuốc
+          const spot =
+            ATRIUM_SMOKING_SPOTS[
+              this.smokingSpotCursor % ATRIUM_SMOKING_SPOTS.length
+            ];
+          this.smokingSpotCursor += 1;
+          emp.isCheckedIn = false;
+          emp.checkedInToday = true;
+          emp.isCheckingOut = false;
+          emp.isSmokingAtAtrium = true;
+          emp.isSmokingOverflow = true;
+          emp.isWalkingFromEntrance = false;
+          emp.smokingSpot = { ...spot.position };
+          emp.currentPosition = { ...spot.position };
+          emp.currentPath = [];
+          emp.targetPosition = null;
+          emp.status = 'IDLE';
+          emp.state = 'IDLE';
+          newlyHydrated += 1;
+        }
+      }
+    }
+
+    return newlyHydrated;
+  };
+
+  /**
+   * Gọi API `GET /api/public/active-users` để nạp nhanh toàn bộ nhân sự đang làm việc từ đầu ngày đến hiện tại
+   * ngồi vào bàn ngay khi mở trang, không cần phát lại hàng loạt event cũ.
+   */
+  public fetchActiveUsersToday = async (): Promise<number> => {
+    try {
+      const res = await fetch(PUBLIC_ACTIVE_USERS_API_URL, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return 0;
+      const data = (await res.json()) as PublicActiveUsersResponse;
+      if (!data || !data.ok || !Array.isArray(data.users)) return 0;
+
+      const count = this.hydrateActiveUsersToday(data.users);
+      if (count > 0) {
+        this.emitChange(true);
+      }
+      return count;
+    } catch {
+      return 0;
+    }
+  };
 
   /**
    * Trả về bàn làm việc hiện tại của nhân viên (ưu tiên `assignedDeskId` / `checkedInDeskId` khi nhận bàn trống,
@@ -3453,6 +3778,12 @@ export class OfficeSimulationEngine {
       };
     });
 
+    syncEmployeeGlobalNameRegistry(
+      cleanEmployees,
+      this.state.dataSourceMode === 'LIVE_FRT',
+      this.liveBoundEmployeeIds
+    );
+
     this.state.employees = cleanEmployees;
     this.state.employeeById = Object.fromEntries(
       cleanEmployees.map((e) => [e.id, e])
@@ -3498,6 +3829,12 @@ export class OfficeSimulationEngine {
 
       if (this.state.liveConfig.clearMockOnLive) {
         this.clearMockDataInternal(false);
+      } else {
+        syncEmployeeGlobalNameRegistry(
+          this.state.employees,
+          true,
+          this.liveBoundEmployeeIds
+        );
       }
 
       this.syncLivePollingLoop(true);
@@ -3521,12 +3858,23 @@ export class OfficeSimulationEngine {
             ? { ...currentManager }
             : emp
         );
+        syncEmployeeGlobalNameRegistry(
+          mockEmployees,
+          false,
+          this.liveBoundEmployeeIds
+        );
         this.state.tickets = mockTickets;
         this.state.employees = mockEmployees;
         this.state.employeeById = Object.fromEntries(
           mockEmployees.map((e) => [e.id, e])
         );
         this.state.jenkinsBuilds = [...DEFAULT_JENKINS_RECENT_BUILDS];
+      } else {
+        syncEmployeeGlobalNameRegistry(
+          this.state.employees,
+          false,
+          this.liveBoundEmployeeIds
+        );
       }
     }
 
@@ -3579,6 +3927,7 @@ export class OfficeSimulationEngine {
     }
 
     if (triggerImmediateFetch) {
+      void this.fetchActiveUsersToday();
       void this.fetchLiveFrtFeeds();
     }
 
@@ -3807,23 +4156,56 @@ export class OfficeSimulationEngine {
     ];
 
     let chosenEmp: Employee | undefined;
+    const isLiveMode = this.state.dataSourceMode === 'LIVE_FRT';
+    const rawAccount = (params?.account || '').trim();
+    const isLikelyServiceOrJobName =
+      !rawAccount ||
+      /^(oneclick|jenkins|hudson|system|unknown)/i.test(rawAccount) ||
+      (rawAccount.includes('-') && rawAccount.split('-').length >= 3);
 
-    if (params?.account) {
-      const resolved = resolveEmployeeByAccountCaseInsensitive(params.account);
+    if (rawAccount && !isLikelyServiceOrJobName) {
+      const resolved = resolveEmployeeByAccountCaseInsensitive(rawAccount);
       if (resolved) {
         chosenEmp = this.state.employeeById[resolved.employeeId];
       }
-      if (!chosenEmp || chosenEmp.isManager || chosenEmp.isFemaleManager) {
+      if (
+        !chosenEmp ||
+        chosenEmp.isManager ||
+        chosenEmp.isFemaleManager ||
+        (isLiveMode && !this.liveBoundEmployeeIds.has(chosenEmp.id))
+      ) {
         chosenEmp = this.bindRealAccountToEmployeeSlot(
           params?.employeeId || candidateIds[this.jenkinsCandidateIndex % candidateIds.length],
-          params.account
+          rawAccount
         );
       }
     }
     if (!chosenEmp && params?.employeeId) {
-      chosenEmp = this.state.employeeById[params.employeeId];
+      const byId = this.state.employeeById[params.employeeId];
+      if (byId && (!isLiveMode || this.liveBoundEmployeeIds.has(byId.id))) {
+        chosenEmp = byId;
+      }
     }
-    if (!chosenEmp) {
+    if (!chosenEmp && isLiveMode) {
+      // Ở chế độ Thật (LIVE_FRT): Chỉ cử nhân sự thật đang làm việc trong ngày ra trạm Server Jenkins,
+      // TUYỆT ĐỐI KHÔNG dùng nhân vật mock (như TienHK / SonNA2)!
+      const activeRealEmps = this.state.employees.filter(
+        (e) =>
+          !e.isManager &&
+          !e.isFemaleManager &&
+          this.liveBoundEmployeeIds.has(e.id) &&
+          Boolean(e.account && e.account.trim()) &&
+          !busyTransferIds.has(e.id)
+      );
+      if (activeRealEmps.length > 0) {
+        chosenEmp =
+          activeRealEmps[this.jenkinsCandidateIndex % activeRealEmps.length];
+        this.jenkinsCandidateIndex += 1;
+      } else {
+        return null;
+      }
+    }
+    if (!chosenEmp && !isLiveMode) {
       for (let i = 0; i < candidateIds.length; i++) {
         const idx = (this.jenkinsCandidateIndex + i) % candidateIds.length;
         const cid = candidateIds[idx];
@@ -3833,9 +4215,9 @@ export class OfficeSimulationEngine {
           break;
         }
       }
-    }
-    if (!chosenEmp) {
-      chosenEmp = this.state.employeeById['EMP-29'] ?? this.state.employees[0];
+      if (!chosenEmp) {
+        chosenEmp = this.state.employeeById['EMP-29'] ?? this.state.employees[0];
+      }
     }
     if (!chosenEmp) return null;
 
@@ -4121,8 +4503,51 @@ export class OfficeSimulationEngine {
 
     // Duyệt từ cũ tới mới để giữ đúng thứ tự thời gian
     const chronological = [...entries].reverse();
+    const isLiveMode = this.state.dataSourceMode === 'LIVE_FRT';
 
+    // 1. Nạp trước toàn bộ user xuất hiện trong feed ngồi sẵn vào bàn (Zero Event Pile-up Lag!)
+    const activeItemsFromXml: ActiveOfficeUserItem[] = [];
     for (const entry of chronological) {
+      const fromAcc = entry.fromAccount || entry.authorAccount;
+      if (fromAcc) {
+        activeItemsFromXml.push({
+          account: fromAcc,
+          displayName: entry.authorDisplayName || fromAcc,
+          employeeId: entry.fromEmployeeId,
+          firstSeenAt: entry.updatedAt,
+          lastEventAt: entry.updatedAt,
+          lastEventAtMs: Date.parse(entry.updatedAt) || Date.now(),
+          lastTicketKey: entry.ticketKey,
+          lastStatus: entry.toStatus,
+          lastSummary: entry.summary,
+          eventsCount: 1,
+          isWorking: true,
+        });
+      }
+      if (entry.toAccount && entry.toAccount !== fromAcc) {
+        activeItemsFromXml.push({
+          account: entry.toAccount,
+          displayName: entry.toAccount,
+          employeeId: entry.toEmployeeId,
+          firstSeenAt: entry.updatedAt,
+          lastEventAt: entry.updatedAt,
+          lastEventAtMs: Date.parse(entry.updatedAt) || Date.now(),
+          lastTicketKey: entry.ticketKey,
+          lastStatus: entry.toStatus,
+          lastSummary: entry.summary,
+          eventsCount: 1,
+          isWorking: true,
+        });
+      }
+    }
+    if (activeItemsFromXml.length > 0) {
+      this.hydrateActiveUsersToday(activeItemsFromXml);
+    }
+
+    const walkAnimationStartIndex = Math.max(0, chronological.length - 2);
+
+    for (let i = 0; i < chronological.length; i++) {
+      const entry = chronological[i];
       this.clientDedupStats.totalRawEntriesRead += 1;
       const fp =
         entry.fingerprint ||
@@ -4142,21 +4567,29 @@ export class OfficeSimulationEngine {
       triggeredCount += 1;
       this.clientDedupStats.uniqueEventsEmitted += 1;
 
+      // Chỉ phát hiệu ứng đi bộ cho tối đa 2 sự kiện mới nhất trong lô để không bị dồn cục gây giật lag!
+      if (i < walkAnimationStartIndex) {
+        continue;
+      }
+
       const nowIso = entry.updatedAt || new Date().toISOString();
       const boundSender = this.bindRealAccountToEmployeeSlot(
         entry.fromEmployeeId,
-        entry.fromAccount || entry.authorAccount
+        entry.fromAccount || entry.authorAccount,
+        entry.authorDisplayName
       );
-      const boundReceiver = entry.isReturnToPM
-        ? this.state.employeeById[PROJECT_MANAGER.id]
-        : this.bindRealAccountToEmployeeSlot(
-            entry.toEmployeeId,
-            entry.toAccount
-          );
+      const boundReceiver =
+        entry.isReturnToPM && !isLiveMode
+          ? this.state.employeeById[PROJECT_MANAGER.id]
+          : this.bindRealAccountToEmployeeSlot(
+              entry.toEmployeeId,
+              entry.toAccount || entry.fromAccount || entry.authorAccount
+            );
       const resolvedFromId = boundSender?.id || entry.fromEmployeeId;
-      const resolvedToId = entry.isReturnToPM
-        ? PROJECT_MANAGER.id
-        : boundReceiver?.id || entry.toEmployeeId;
+      const resolvedToId =
+        entry.isReturnToPM && !isLiveMode
+          ? PROJECT_MANAGER.id
+          : boundReceiver?.id || resolvedFromId;
 
       const webhookEvent: JiraWebhookEvent = {
         eventId: `JIRA-ACT-${entry.id}-${Date.now()}`,
@@ -4418,6 +4851,14 @@ export class OfficeSimulationEngine {
           const prevSeq = this.lastServerSeq;
           this.lastServerSeq = Math.max(this.lastServerSeq, streamData.latestSeq ?? 0);
 
+          // 0. Nạp ngay toàn bộ nhân sự đang làm việc từ đầu ngày đến hiện tại ngồi sẵn vào bàn (Zero Event Pile-up Lag!)
+          if (
+            Array.isArray(streamData.activeUsers) &&
+            streamData.activeUsers.length > 0
+          ) {
+            this.hydrateActiveUsersToday(streamData.activeUsers);
+          }
+
           // Cập nhật bảng lịch sử 5 bản build Jenkins tĩnh mà không làm nhân vật chạy lại
           if (
             Array.isArray(streamData.jenkinsSnapshot) &&
@@ -4464,19 +4905,22 @@ export class OfficeSimulationEngine {
               const isReturnToPM = Boolean(ev.isReturnToPM || toStatus === 'DONE');
               const boundSender = this.bindRealAccountToEmployeeSlot(
                 ev.fromEmployeeId || 'EMP-04',
-                ev.fromAccount || ev.authorAccount
+                ev.fromAccount || ev.authorAccount,
+                (ev as { authorDisplayName?: string }).authorDisplayName
               );
-              const boundReceiver = isReturnToPM
-                ? this.state.employeeById[PROJECT_MANAGER.id]
-                : this.bindRealAccountToEmployeeSlot(
-                    ev.toEmployeeId || PROJECT_MANAGER.id,
-                    ev.toAccount
-                  );
+              const boundReceiver =
+                isReturnToPM && !isLiveMode
+                  ? this.state.employeeById[PROJECT_MANAGER.id]
+                  : this.bindRealAccountToEmployeeSlot(
+                      ev.toEmployeeId || 'EMP-02',
+                      ev.toAccount || ev.fromAccount || ev.authorAccount
+                    );
               const fromEmpId =
                 boundSender?.id || ev.fromEmployeeId || 'EMP-04';
-              const toEmpId = isReturnToPM
-                ? PROJECT_MANAGER.id
-                : boundReceiver?.id || ev.toEmployeeId || PROJECT_MANAGER.id;
+              const toEmpId =
+                isReturnToPM && !isLiveMode
+                  ? PROJECT_MANAGER.id
+                  : boundReceiver?.id || fromEmpId;
 
               const webhookEvent: JiraWebhookEvent = {
                 eventId: `STREAM-JIRA-${ev.seq}-${Date.now()}`,

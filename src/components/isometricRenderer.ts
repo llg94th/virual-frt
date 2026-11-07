@@ -4887,18 +4887,26 @@ export function drawDetailedIsoCharacter(
   const groundIso = worldToIso(pos.x, pos.y, 9.4);
   const rootIso = worldToIso(pos.x, pos.y, baseZ + walkBob);
 
-  // Forward torso lean into the movement direction (Chế độ The Flash Speed Force nghiêng người lao vút về phía trước!)
-  const leanX = isWalking ? fwdX * 3.8 : isSitting ? fwdX * 1.1 : 0;
-  const leanY = isWalking ? fwdY * 1.9 : isSitting ? fwdY * 0.55 : 0;
+  // Forward torso lean into the movement direction (Sếp ToanLBK đi 1.5x nghiêng người mạnh mẽ hơn)
+  const isFlashSpeedEnabled = false;
+  const leanX = isWalking
+    ? fwdX * (isFlashSpeedEnabled ? 3.8 : emp.id === 'EMP-MANAGER-TOANLBK' ? 2.6 : 1.8)
+    : isSitting
+      ? fwdX * 1.1
+      : 0;
+  const leanY = isWalking
+    ? fwdY * (isFlashSpeedEnabled ? 1.9 : emp.id === 'EMP-MANAGER-TOANLBK' ? 1.3 : 0.9)
+    : isSitting
+      ? fwdY * 0.55
+      : 0;
 
   ctx.save();
   if (isFilteredOut) ctx.globalAlpha = 0.25;
 
   // --------------------------------------------------------------------------
-  // LAYER 0A: THE FLASH SPEED FORCE AFTERIMAGES & SONIC BOOM TRAIL (WHEN MOVING)
-  //           ("Thoắt cái tới, thoắt cái đi" — Tàn ảnh Đỏ-Vàng & Tia chớp Speed Force!)
+  // LAYER 0A: THE FLASH SPEED FORCE AFTERIMAGES & SONIC BOOM TRAIL (DEFAULT OFF)
   // --------------------------------------------------------------------------
-  if (isWalking) {
+  if (isWalking && isFlashSpeedEnabled) {
     ctx.save();
     const baseAlpha = isFilteredOut ? 0.22 : 1.0;
 
@@ -7124,7 +7132,7 @@ export function drawDetailedIsoCharacter(
   // --------------------------------------------------------------------------
   // LAYER 7: FLOATING MOOD PARTICLES (4 BOSSES), THE FLASH SPEED FORCE LIGHTNING (`⚡`), ATRIUM SMOKE PUFFS (`🚬 💨`), WORK SYMBOLS & CLEAN NAME PILL
   // --------------------------------------------------------------------------
-  if (isWalking) {
+  if (isWalking && isFlashSpeedEnabled) {
     // Tia Sét Vàng-Đỏ Speed Force (`⚡`) phóng xẹt điện quanh cơ thể nhân vật khi di chuyển kiểu The Flash!
     ctx.save();
     ctx.globalAlpha = isFilteredOut ? 0.25 : 0.96;

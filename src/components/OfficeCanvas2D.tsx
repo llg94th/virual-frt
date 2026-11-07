@@ -1410,10 +1410,10 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         }
       }
 
-      // Smooth spring-like interpolation (Snappy for The Flash Speed Force transfers)
-      cam.x += (cam.targetX - cam.x) * 0.14;
-      cam.y += (cam.targetY - cam.y) * 0.14;
-      cam.zoom += (cam.targetZoom - cam.zoom) * 0.11;
+      // Smooth spring-like interpolation
+      cam.x += (cam.targetX - cam.x) * 0.085;
+      cam.y += (cam.targetY - cam.y) * 0.085;
+      cam.zoom += (cam.targetZoom - cam.zoom) * 0.075;
 
       if (time - lastZoomHudSync > 240) {
         lastZoomHudSync = time;
@@ -1549,10 +1549,12 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
 
         if (!activePath || activePath.length < 2) continue;
 
-        // Vệt Tia Chớp Đỏ-Vàng The Flash (Speed Force Lightning Trail) phóng dọc hành lang khi nhân vật lướt qua!
+        // Vệt Tia Chớp Đỏ-Vàng The Flash (Mặc định tắt: `const isFlashModeEnabled = false`)
+        const isFlashModeEnabled = false;
         if (
-          task.phase === 'WALKING_TO_TARGET' ||
-          task.phase === 'RETURNING_TO_DESK'
+          isFlashModeEnabled &&
+          (task.phase === 'WALKING_TO_TARGET' ||
+            task.phase === 'RETURNING_TO_DESK')
         ) {
           const senderEmp = emps.find((e) => e.id === task.fromEmployeeId);
           const segIdx = Math.min(

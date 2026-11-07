@@ -416,14 +416,11 @@ export type OfficeSimulationStoreValue = OfficeSimulationState &
 // 2. PHASE DURATION CONSTANTS (AT 1X SPEED)
 // ============================================================================
 
-const PICKUP_DURATION_MS = 95;
-const HANDOVER_DURATION_MS = 220;
-/**
- * Hệ số tốc độ "THE FLASH SPEED FORCE" (`⚡ thoắt cái tới, thoắt cái đi`):
- * Tăng tốc độ di chuyển nhân vật lên gấp ~9.5x (~900–1,050 px/s) để nhân vật
- * phóng vèo như tia chớp từ bàn A sang bàn B chỉ trong ~0.35s, trao hồ sơ rồi vụt biến về chỗ ngay tức khắc!
- */
-const FLASH_SPEED_MULTIPLIER = 9.5;
+/** Mặc định TẮT chế độ di chuyển siêu tốc The Flash (`DEFAULT_FLASH_MODE_ENABLED = false`) */
+const DEFAULT_FLASH_MODE_ENABLED = false;
+const PICKUP_DURATION_MS = DEFAULT_FLASH_MODE_ENABLED ? 95 : 380;
+const HANDOVER_DURATION_MS = DEFAULT_FLASH_MODE_ENABLED ? 220 : 620;
+const FLASH_SPEED_MULTIPLIER = DEFAULT_FLASH_MODE_ENABLED ? 9.5 : 1.0;
 const SPEECH_BUBBLE_DURATION_MS = 3200;
 const PM_CELEBRATION_DURATION_MS = 2800;
 const MAX_ACTIVITY_LOGS = 80;
@@ -1651,7 +1648,7 @@ export class OfficeSimulationEngine {
             (sender.baseSpeed *
               (sender.speedMultiplier ?? 1.0) *
               FLASH_SPEED_MULTIPLIER *
-              1.18 *
+              1.08 *
               scaledDeltaMs) /
             1000;
           const stepRes = stepAlongPath(
@@ -1893,7 +1890,7 @@ export class OfficeSimulationEngine {
         const stepPx =
           (manager.baseSpeed *
             (manager.speedMultiplier ?? 1.0) *
-            (FLASH_SPEED_MULTIPLIER * 0.42) *
+            (DEFAULT_FLASH_MODE_ENABLED ? FLASH_SPEED_MULTIPLIER * 0.42 : 1.0) *
             scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
@@ -2021,11 +2018,11 @@ export class OfficeSimulationEngine {
           boss.targetPosition = targetPos;
         }
 
-        // Nhân tốc độ bước đi với `boss.speedMultiplier ?? 1.0` (ToanLBK = 1.5x!) + The Flash Boost
+        // Nhân tốc độ bước đi với `boss.speedMultiplier ?? 1.0` (ToanLBK = 1.5x!)
         const stepPx =
           (boss.baseSpeed *
             (boss.speedMultiplier ?? 1.0) *
-            (FLASH_SPEED_MULTIPLIER * 0.45) *
+            (DEFAULT_FLASH_MODE_ENABLED ? FLASH_SPEED_MULTIPLIER * 0.45 : 1.0) *
             scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
@@ -2252,9 +2249,9 @@ export class OfficeSimulationEngine {
       builder.carryingTicketId = null;
       builder.isHotfixSprinter = Boolean(task.isHotfixRescue);
 
-      // Khi ở chế độ The Flash Speed Force, kỹ sư phóng vèo ra Server Jenkins trong chớp mắt!
+      // Khi ở chế độ Hotfix Rescue (`⚡ HOTFIX SPRINT`), kỹ sư chạy nước rút nhanh gấp 1.68 lần!
       const sprintBoost =
-        (task.isHotfixRescue ? 1.35 : 1.05) * FLASH_SPEED_MULTIPLIER;
+        (task.isHotfixRescue ? 1.68 : 1.08) * FLASH_SPEED_MULTIPLIER;
       const stepPx =
         (builder.baseSpeed *
           (builder.speedMultiplier ?? 1.0) *
@@ -2303,7 +2300,13 @@ export class OfficeSimulationEngine {
       const elapsed = (this.phaseElapsedMs.get(task.id) ?? 0) + scaledDeltaMs;
       this.phaseElapsedMs.set(task.id, elapsed);
 
-      const buildDurationMs = task.isHotfixRescue ? 1100 : 1400;
+      const buildDurationMs = DEFAULT_FLASH_MODE_ENABLED
+        ? task.isHotfixRescue
+          ? 1100
+          : 1400
+        : task.isHotfixRescue
+          ? 4200
+          : 4800;
       task.buildProgress = Math.min(
         100,
         Math.max(4, Math.round((elapsed / buildDurationMs) * 100))

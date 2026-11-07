@@ -1,0 +1,5057 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FPT LONG CHÂU MASCOT 3D STUDIO • Cinematic Soft-Joint &amp; Animation Rig</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --lc-blue: #0052cc;
+      --lc-blue-deep: #0a1e5e;
+      --lc-blue-bright: #3b82f6;
+      --lc-mint: #14b8a6;
+      --lc-mint-bright: #2dd4bf;
+      --lc-orange: #f59e0b;
+      --lc-red: #dc2626;
+      --panel-bg: rgba(10, 22, 48, 0.86);
+      --panel-border: rgba(56, 189, 248, 0.28);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 15% 15%, rgba(0, 82, 204, 0.35), transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(20, 184, 166, 0.25), transparent 45%),
+        radial-gradient(circle at 50% 90%, rgba(245, 158, 11, 0.16), transparent 50%),
+        linear-gradient(180deg, #040d21 0%, #081a3a 52%, #051026 100%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 64px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 18px 22px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Top Navigation Bar */
+    .theme-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .theme-links {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: rgba(8, 18, 38, 0.85);
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+    }
+
+    .theme-link {
+      text-decoration: none;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 7px 16px;
+      border-radius: 999px;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .theme-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .theme-link.active {
+      background: linear-gradient(135deg, #0052cc 0%, #14b8a6 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(20, 184, 166, 0.4);
+    }
+
+    .nav-badges {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: #7dd3fc;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .nav-badge {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 20px 26px;
+      background: linear-gradient(135deg, rgba(10, 30, 70, 0.92) 0%, rgba(8, 45, 68, 0.92) 100%);
+      border: 1.5px solid rgba(56, 189, 248, 0.35);
+      border-radius: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      margin-bottom: 20px;
+    }
+
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cross-emblem {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #0052cc 0%, #1d4ed8 55%, #14b8a6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 10px 26px rgba(0, 82, 204, 0.5);
+      border: 2.5px solid #ffffff;
+      flex-shrink: 0;
+    }
+
+    .cross-emblem::before,
+    .cross-emblem::after {
+      content: "";
+      position: absolute;
+      background: #ffffff;
+      border-radius: 4px;
+    }
+
+    .cross-emblem::before {
+      width: 26px;
+      height: 9px;
+    }
+
+    .cross-emblem::after {
+      width: 9px;
+      height: 26px;
+    }
+
+    .brand-title h1 {
+      font-family: 'Fredoka', sans-serif;
+      font-size: clamp(1.3rem, 2.2vw, 1.9rem);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: linear-gradient(90deg, #ffffff 0%, #7dd3fc 50%, #5eead4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-title p {
+      color: #cbd5e1;
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .action-btn {
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(15, 23, 42, 0.78);
+      color: #f8fafc;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 10px 15px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+    }
+
+    .action-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      transform: translateY(-1px);
+    }
+
+    .action-btn.record-btn {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+      border-color: #fda4af;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(225, 29, 72, 0.38);
+    }
+
+    .action-btn.record-btn.recording {
+      animation: pulseRec 1s infinite alternate;
+    }
+
+    @keyframes pulseRec {
+      from { box-shadow: 0 0 8px rgba(225, 29, 72, 0.6); }
+      to { box-shadow: 0 0 24px rgba(251, 113, 133, 0.95); }
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      border-color: #fde68a;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4);
+    }
+
+    /* Main 3D Studio Layout */
+    .studio-grid {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 1140px) {
+      .studio-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 3D Viewport Card */
+    .viewport-card {
+      background: radial-gradient(circle at 50% 35%, #102a5c 0%, #07142e 70%, #040b1b 100%);
+      border: 2px solid rgba(56, 189, 248, 0.38);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      min-height: 580px;
+    }
+
+    .viewport-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: rgba(4, 12, 28, 0.84);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.22);
+      flex-wrap: wrap;
+      gap: 10px;
+      z-index: 2;
+    }
+
+    .viewport-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.84rem;
+      color: #e2e8f0;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 12px #10b981;
+    }
+
+    .camera-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .cam-pill {
+      cursor: pointer;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 999px;
+      transition: all 0.15s ease;
+    }
+
+    .cam-pill:hover,
+    .cam-pill.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #7dd3fc;
+    }
+
+    #canvas3dContainer {
+      flex: 1;
+      width: 100%;
+      height: 500px;
+      min-height: 500px;
+      position: relative;
+      cursor: grab;
+    }
+
+    #canvas3dContainer:active {
+      cursor: grabbing;
+    }
+
+    .viewport-overlay-hint {
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      background: rgba(4, 12, 28, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      backdrop-filter: blur(8px);
+      padding: 7px 13px;
+      border-radius: 12px;
+      font-size: 0.74rem;
+      color: #cbd5e1;
+      pointer-events: none;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .viewport-stats-badge {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      background: rgba(4, 12, 28, 0.8);
+      border: 1px solid rgba(20, 184, 166, 0.35);
+      backdrop-filter: blur(8px);
+      padding: 7px 13px;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: #5eead4;
+      pointer-events: none;
+    }
+
+    /* Right Control Dock */
+    .control-dock {
+      background: var(--panel-bg);
+      border: 1.5px solid var(--panel-border);
+      border-radius: 24px;
+      padding: 18px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label {
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #7dd3fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .btn-grid-1 {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .ctrl-btn {
+      cursor: pointer;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1.5px solid rgba(148, 163, 184, 0.24);
+      color: #e2e8f0;
+      padding: 9px 11px;
+      border-radius: 11px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.16s ease;
+    }
+
+    .ctrl-btn:hover {
+      border-color: rgba(56, 189, 248, 0.6);
+      background: rgba(30, 41, 59, 0.92);
+    }
+
+    .ctrl-btn.active {
+      background: linear-gradient(135deg, rgba(0, 82, 204, 0.88) 0%, rgba(20, 184, 166, 0.78) 100%);
+      border-color: #7dd3fc;
+      color: #ffffff;
+      box-shadow: 0 6px 18px rgba(0, 82, 204, 0.35);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      accent-color: #14b8a6;
+      cursor: pointer;
+    }
+
+    /* Cinematic Script Director Bar & Voice-Over Subtitles */
+    .director-bar {
+      background: linear-gradient(135deg, rgba(8, 22, 52, 0.96) 0%, rgba(7, 38, 64, 0.94) 100%);
+      border-top: 1.5px solid rgba(56, 189, 248, 0.32);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .director-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .director-play-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .director-play-btn {
+      cursor: pointer;
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      color: #ffffff;
+      border: 1.5px solid #fde68a;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      transition: all 0.18s ease;
+    }
+
+    .director-play-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .director-play-btn.playing {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-color: #a7f3d0;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+
+    .scene-chip {
+      cursor: pointer;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(125, 211, 252, 0.28);
+      color: #cbd5e1;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      transition: all 0.15s ease;
+    }
+
+    .scene-chip:hover {
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+
+    .scene-chip.active {
+      background: linear-gradient(135deg, #0284c7, #14b8a6);
+      color: #ffffff;
+      border-color: #a5f3fc;
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+    }
+
+    .director-scrubber {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .director-scrubber input[type="range"] {
+      flex: 1;
+      accent-color: #f59e0b;
+      cursor: pointer;
+      height: 6px;
+    }
+
+    .timecode-badge {
+      font-family: 'Plus Jakarta Sans', monospace;
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #fde68a;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      min-width: 98px;
+      text-align: center;
+    }
+
+    /* Cinema Voice-Over Subtitle Overlay inside 3D Viewport */
+    .cinema-subtitle-box {
+      position: absolute;
+      bottom: 52px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(88%, 780px);
+      background: rgba(4, 12, 28, 0.88);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 16px;
+      padding: 11px 18px;
+      backdrop-filter: blur(12px);
+      z-index: 15;
+      pointer-events: none;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+      transition: opacity 0.25s ease;
+    }
+
+    .subtitle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .speaker-pill {
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      color: #ffffff;
+      background: linear-gradient(135deg, #0052cc, #0284c7);
+    }
+
+    .speaker-pill.chau {
+      background: linear-gradient(135deg, #0d9488, #14b8a6);
+    }
+
+    .speaker-pill.both {
+      background: linear-gradient(135deg, #f59e0b, #e11d48);
+    }
+
+    .subtitle-scene-tag {
+      color: #93c5fd;
+    }
+
+    .subtitle-text {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #f8fafc;
+      line-height: 1.42;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Reference Gallery Section */
+    .section-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.3rem;
+      color: #f8fafc;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ref-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+
+    .ref-card {
+      background: rgba(10, 22, 48, 0.85);
+      border: 1.5px solid rgba(56, 189, 248, 0.25);
+      border-radius: 18px;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .ref-card:hover {
+      transform: translateY(-4px);
+      border-color: #38bdf8;
+    }
+
+    .ref-img-wrap {
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      background: #040b1b;
+      position: relative;
+    }
+
+    .ref-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .ref-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(4, 12, 28, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #7dd3fc;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .ref-caption {
+      padding: 12px 14px;
+    }
+
+    .ref-caption h4 {
+      font-size: 0.9rem;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .ref-caption p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    /* Fullscreen 16:9 Widescreen Cinema Mode (?cinema=1) for Movie Export */
+    body.cinema-mode {
+      overflow: hidden;
+      background: #040b1b;
+    }
+    body.cinema-mode .theme-nav,
+    body.cinema-mode .hero-banner,
+    body.cinema-mode .control-dock,
+    body.cinema-mode .viewport-topbar,
+    body.cinema-mode .director-bar,
+    body.cinema-mode .viewport-overlay-hint,
+    body.cinema-mode .viewport-stats-badge,
+    body.cinema-mode section:not(.studio-grid) {
+      display: none !important;
+    }
+    body.cinema-mode .container {
+      max-width: 100vw;
+      padding: 0;
+      margin: 0;
+    }
+    body.cinema-mode .studio-grid {
+      display: block;
+      margin: 0;
+    }
+    body.cinema-mode .viewport-card {
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    body.cinema-mode #canvas3dContainer {
+      width: 100vw;
+      height: 100vh;
+    }
+    .cinema-top-watermark {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 24px;
+      right: 24px;
+      z-index: 25;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    body.cinema-mode .cinema-top-watermark {
+      display: flex;
+    }
+    .cinema-brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(5, 15, 36, 0.82);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      backdrop-filter: blur(10px);
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: 0.03em;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    .cinema-brand-pill .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+    body.cinema-mode .cinema-subtitle-box {
+      bottom: 24px;
+      width: min(88%, 960px);
+      padding: 14px 24px;
+      border-radius: 18px;
+      background: rgba(4, 12, 28, 0.9);
+      border: 1.5px solid rgba(56, 189, 248, 0.55);
+    }
+    body.cinema-mode .subtitle-text {
+      font-size: 1.08rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Top Navigation -->
+    <nav class="theme-nav">
+      <div class="theme-links">
+        <a href="/" class="theme-link">🏢 Virtual FRT Office 2.5D</a>
+        <a href="/longchau-mascot-3d.html" class="theme-link active">🏥 Mascot Long Châu 3D Studio</a>
+        <a href="/doraemon-characters.html" class="theme-link">🔔 Doraemon 22nd-Century Crew</a>
+        <a href="/onepiece-characters.html" class="theme-link">🏴‍☠️ One Piece Grand Line Crew</a>
+      </div>
+      <div class="nav-badges">
+        <span class="nav-badge">🦴 CONTINUOUS SOFT-SKINNED LIMBS</span>
+        <span class="nav-badge">🖐️ 5-FINGER ARTICULATED GLOVES</span>
+        <span class="nav-badge">🎬 DAMPED CINEMATIC RIG</span>
+      </div>
+    </nav>
+
+    <!-- Header Banner -->
+    <header class="hero-banner">
+      <div class="brand-left">
+        <div class="cross-emblem" aria-hidden="true"></div>
+        <div class="brand-title">
+          <h1>FPT LONG CHÂU • CINEMATIC 3D MASCOT STUDIO</h1>
+          <p>Khớp nối mềm liên tục (Continuous Spline-Skinned Limbs) • Khuỷu tay, Đầu gối, Cổ tay &amp; Bàn tay 5 ngón chuẩn dựng phim</p>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <button class="action-btn record-btn" id="btnRecordVideo">🎬 Quay Video 60FPS</button>
+        <button class="action-btn" id="btnScreenshot">📸 Chụp Ảnh PNG 4K</button>
+        <button class="action-btn primary" id="btnExportGLTF">📦 Tải File 3D (.GLTF)</button>
+      </div>
+    </header>
+
+    <!-- Main Studio Grid: 3D Viewport + Control Dock -->
+    <section class="studio-grid">
+      <div class="viewport-card">
+        <div class="viewport-topbar">
+          <div class="viewport-status">
+            <span class="status-dot"></span>
+            <span id="viewportTitleText">CINEMATIC SOFT-JOINT RIG • REAL-TIME SPLINE SKINNING</span>
+          </div>
+          <div class="camera-pills">
+            <button class="cam-pill active" data-cam="front">Chính diện</button>
+            <button class="cam-pill" data-cam="three-quarter">Góc nghiêng 3/4</button>
+            <button class="cam-pill" data-cam="side">Góc ngang 90°</button>
+            <button class="cam-pill" data-cam="back">Phía sau (Áo choàng)</button>
+            <button class="cam-pill" data-cam="closeup">Cận cảnh Mũ &amp; Mặt</button>
+            <button class="cam-pill" data-cam="lowhero">Góc Điện Ảnh (Hero Low)</button>
+            <button class="cam-pill" id="btnAutoRotate">🔄 Tự xoay 360°</button>
+          </div>
+        </div>
+
+        <!-- Interactive 2:00 Script Timeline Director Bar -->
+        <div class="director-bar">
+          <div class="director-top">
+            <div class="director-play-group">
+              <button class="director-play-btn" id="btnPlayScript">▶️ Phát Phim Kịch Bản (2:00)</button>
+              <button class="scene-chip" data-scene-time="1">🍂 Cảnh 1: Gió Mùa &amp; Cúm (0:00)</button>
+              <button class="scene-chip" data-scene-time="31">💊 Cảnh 2: Ma Trận Thuốc (0:30)</button>
+              <button class="scene-chip" data-scene-time="56">🛡️ Cảnh 3: Lá Chắn Long Châu (0:55)</button>
+              <button class="scene-chip" data-scene-time="101">🛵 Cảnh 4: Giao Thuốc &amp; Chào Kết (1:40)</button>
+            </div>
+            <div class="director-play-group">
+              <button class="scene-chip active" id="btnToggleSfx">🔊 Âm thanh</button>
+              <button class="scene-chip active" id="btnToggleAutoCam">🎥 Góc máy</button>
+            </div>
+          </div>
+          <div class="director-scrubber">
+            <span style="font-size: 0.74rem; font-weight: 800; color: #93c5fd;">TIMELINE KỊCH BẢN:</span>
+            <input type="range" id="scriptTimelineSlider" min="0" max="120" step="0.1" value="0" />
+            <span class="timecode-badge" id="scriptTimecode">00:00 / 02:00</span>
+          </div>
+        </div>
+
+        <div id="canvas3dContainer">
+          <!-- Widescreen Cinema Watermark (Shown in ?cinema=1 Movie Mode) -->
+          <div class="cinema-top-watermark">
+            <div class="cinema-brand-pill">
+              <span class="dot"></span>
+              <span>🏥 FPT LONG CHÂU 3D ANIMATION • ĐẠI CHIẾN CÚM MÙA</span>
+            </div>
+            <div class="cinema-brand-pill" id="cinemaTimecodeBadge">
+              🎬 CẢNH 1/4 • 00:00 / 02:00
+            </div>
+          </div>
+
+          <!-- Live Voice-Over Subtitle Overlay for the 4-Scene Movie -->
+          <div class="cinema-subtitle-box" id="cinemaSubtitleBox">
+            <div class="subtitle-header">
+              <span class="speaker-pill" id="subtitleSpeaker">🎬 KỊCH BẢN: ĐẠI CHIẾN CÚM MÙA</span>
+              <span class="subtitle-scene-tag" id="subtitleSceneTag">Sẵn sàng bấm Phát Phim (0:00 - 2:00)</span>
+            </div>
+            <div class="subtitle-text" id="subtitleText">
+              Bấm nút "▶️ Phát Phim Kịch Bản (2:00)" phía trên hoặc chọn từng Cảnh 1 → 4 để xem Mascot Long &amp; Châu diễn toàn bộ kịch bản "Đại Chiến Cúm Mùa"!
+            </div>
+          </div>
+
+          <div class="viewport-overlay-hint">
+            <span>🖱️ <b>Kéo chuột trái:</b> Xoay 360°</span>
+            <span>🔍 <b>Cuộn chuột:</b> Zoom</span>
+            <span>✋ <b>Chuột phải:</b> Pan Camera</span>
+          </div>
+          <div class="viewport-stats-badge" id="meshStatsBadge">
+            Organic 2-Joint Hands • 4-Scene Script Director • 60 FPS
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Control Panel -->
+      <aside class="control-dock">
+        <!-- 1. Character Variant Selector -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>1. Nhân vật Kịch bản</span>
+            <span>LONG &amp; CHÂU</span>
+          </div>
+          <div class="btn-grid-1" id="characterModeGroup">
+            <button class="ctrl-btn active" data-mode="duo">👥 Bộ đôi Mascot Long (Hiệp sĩ) &amp; Châu (Ân cần)</button>
+            <button class="ctrl-btn" data-mode="blue">💙 Mascot Long (Hiệp sĩ Khiên / Gậy Tích Xanh / Tablet)</button>
+            <button class="ctrl-btn" data-mode="mint">💚 Mascot Châu (Ống nghe Y tế / Sổ tay / Cổ vũ)</button>
+          </div>
+        </div>
+
+        <!-- 2. Script Scene Actions & Film Poses -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>2. Diễn xuất theo Kịch bản &amp; Động tác</span>
+            <span>14 ANIMATIONS</span>
+          </div>
+          <div class="btn-grid-2" id="poseGroup">
+            <button class="ctrl-btn active" data-pose="idle">🦸 Đứng Thở Tự Nhiên</button>
+            <button class="ctrl-btn" data-pose="scene1_sneeze">🤧 C1: Châu Hắt Hơi "Ắt Xì"</button>
+            <button class="ctrl-btn" data-pose="scene1_shield">🛡️ C1: Long Đáp Chắn Gió</button>
+            <button class="ctrl-btn" data-pose="scene2_confused">🤔 C2: Châu Gãi Đầu Bối Rối</button>
+            <button class="ctrl-btn" data-pose="scene2_checkmark">✅ C2: Long Gõ Gậy Tích Xanh</button>
+            <button class="ctrl-btn" data-pose="scene3_cart">🛒 C3: Đẩy Xe Thuốc Chính Hãng</button>
+            <button class="ctrl-btn" data-pose="scene3_notebook">📒 C3: Châu Ghi Sổ Đúng Liều</button>
+            <button class="ctrl-btn" data-pose="scene3_highfive">🙌 C3: Đập Tay Bình Ổn Giá</button>
+            <button class="ctrl-btn" data-pose="scene4_scooter">🛵 C4: Bản Đồ VN &amp; Xe Giao Thuốc</button>
+            <button class="ctrl-btn" data-pose="scene4_finale">☝️ C4: Kết Phim Thả Tim &amp; #1</button>
+            <button class="ctrl-btn" data-pose="wave">👋 Vẫy Tay Chào Khách</button>
+            <button class="ctrl-btn" data-pose="walk">🚶 Đi Bộ Tuần Tra</button>
+            <button class="ctrl-btn" data-pose="run">🏃 Chạy Nước Rút</button>
+            <button class="ctrl-btn" data-pose="bow">🙇 Cúi Chào Tận Tâm</button>
+          </div>
+        </div>
+
+        <!-- 3. Facial Expression Selector -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>3. Biểu cảm khuôn mặt (Face Plate)</span>
+            <span>6 EXPRESSIONS</span>
+          </div>
+          <div class="btn-grid-2" id="expressionGroup">
+            <button class="ctrl-btn active" data-expr="classic">😄 Hiệp Sĩ Tự Tin</button>
+            <button class="ctrl-btn" data-expr="gentle">😊 Bác Sĩ Ân Cần</button>
+            <button class="ctrl-btn" data-expr="sneeze">🤧 Sụt Sịt / Hắt Hơi</button>
+            <button class="ctrl-btn" data-expr="confused">😵‍💫 Bối Rối / Hoang Mang</button>
+            <button class="ctrl-btn" data-expr="heart">😍 Mắt Trái Tim</button>
+            <button class="ctrl-btn" data-expr="cheer">😆 Cười Tít (&gt; &lt;)</button>
+          </div>
+        </div>
+
+        <!-- 4. Props & Accessories Toggle -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>4. Đạo cụ Kịch bản &amp; Hiển thị</span>
+            <span>PROPS</span>
+          </div>
+          <div class="btn-grid-2">
+            <button class="ctrl-btn active" id="toggleShield">🛡️ Khiên Long Châu</button>
+            <button class="ctrl-btn active" id="toggleFlag">🚩 Cờ / Đạo cụ Cảnh</button>
+            <button class="ctrl-btn active" id="toggleCape">🧣 Áo Choàng Đỏ</button>
+            <button class="ctrl-btn" id="toggleWireframe">🕸️ Lưới Wireframe</button>
+          </div>
+        </div>
+
+        <!-- 5. Studio Lighting & Speed -->
+        <div class="control-group">
+          <div class="control-label">
+            <span>5. Tham số Chuyển động &amp; Vật lý</span>
+            <span>PHYSICS</span>
+          </div>
+          <div class="slider-row">
+            <span>Tốc độ diễn hoạt</span>
+            <input type="range" id="animSpeedSlider" min="0" max="2.2" step="0.05" value="1.0" />
+          </div>
+          <div class="slider-row">
+            <span>Độ mềm khớp (Damp)</span>
+            <input type="range" id="blendSpeedSlider" min="3" max="18" step="1" value="8" />
+          </div>
+          <div class="slider-row">
+            <span>Gió thổi áo choàng</span>
+            <input type="range" id="windSlider" min="0" max="2.5" step="0.1" value="1.2" />
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Reference Gallery Section -->
+    <section>
+      <h2 class="section-title">📸 Tư Liệu Hình Ảnh Thực Tế &amp; Bản Vẽ 3D Gốc (Reference Sheet)</h2>
+      <div class="ref-grid">
+        <article class="ref-card">
+          <div class="ref-img-wrap">
+            <img src="/mascot-refs/standee-3d.jpg" alt="Bản vẽ 3D Mascot Long Châu" />
+            <span class="ref-tag">3D KEY ART CHÍNH THỨC</span>
+          </div>
+          <div class="ref-caption">
+            <h4>Bộ đôi Standee 3D Nhà Thuốc &amp; Tiêm Chủng</h4>
+            <p>Thiết kế 3D gốc: Bản Xanh Dương mắt trái tim chạy năng động &amp; Bản Xanh Ngọc mắt cười (&gt; &lt;) cầm cờ "CỐ LÊN".</p>
+          </div>
+        </article>
+
+        <article class="ref-card">
+          <div class="ref-img-wrap">
+            <img src="/mascot-refs/front.jpg" alt="Mascot Long Châu góc chính diện" />
+            <span class="ref-tag">FRONT VIEW (CHÍNH DIỆN)</span>
+          </div>
+          <div class="ref-caption">
+            <h4>Góc chính diện &amp; Khiên Bảo Vệ</h4>
+            <p>Mũ bảo hộ xanh dương có gờ nổi chữ thập trắng (+), 2 tai nghe trắng, áo blouse 3 cúc xanh, nơ cổ đỏ và khiên vàng cam.</p>
+          </div>
+        </article>
+
+        <article class="ref-card">
+          <div class="ref-img-wrap">
+            <img src="/mascot-refs/three-quarter.jpg" alt="Mascot Long Châu góc nghiêng 3/4" />
+            <span class="ref-tag">3/4 VIEW (GÓC NGHIÊNG)</span>
+          </div>
+          <div class="ref-caption">
+            <h4>Góc nghiêng 3/4 &amp; Độ dày khối mũ</h4>
+            <p>Thể hiện rõ độ cong bầu dục của mũ, viền khoét mặt (visor), ốp tai lồi có khía múi và độ phồng của găng tay.</p>
+          </div>
+        </article>
+
+        <article class="ref-card">
+          <div class="ref-img-wrap">
+            <img src="/mascot-refs/back.jpg" alt="Mascot Long Châu góc nhìn phía sau" />
+            <span class="ref-tag">BACK VIEW (PHÍA SAU)</span>
+          </div>
+          <div class="ref-caption">
+            <h4>Góc phía sau &amp; Áo choàng siêu nhân</h4>
+            <p>Dải gờ nổi trên đỉnh đầu kéo dài ra sau gáy, áo choàng đỏ phủ rộng từ vai xuống ngang đùi sau.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    // =========================================================================
+    // 1. SCENE, CAMERA, RENDERER & CINEMATIC STUDIO LIGHTING
+    // =========================================================================
+    if (new URLSearchParams(window.location.search).get('cinema') === '1') {
+      document.body.classList.add('cinema-mode');
+    }
+    const container = document.getElementById('canvas3dContainer');
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      100
+    );
+    camera.position.set(0, 1.75, 10.6);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance',
+    });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.45, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.maxPolarAngle = Math.PI * 0.52;
+    controls.minDistance = 2.4;
+    controls.maxDistance = 18;
+
+    // Smooth camera preset target state
+    let camPresetActive = false;
+    const camGoalPos = new THREE.Vector3(0, 1.75, 10.6);
+    const camGoalTarget = new THREE.Vector3(0, 1.45, 0);
+    controls.addEventListener('start', () => {
+      camPresetActive = false;
+    });
+
+    // Studio 3-Point Lighting + Rim & Soft Fill
+    const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 1.3);
+    hemiLight.position.set(0, 10, 0);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.15);
+    keyLight.position.set(5.5, 9.0, 6.8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 25;
+    const d = 5.8;
+    keyLight.shadow.camera.left = -d;
+    keyLight.shadow.camera.right = d;
+    keyLight.shadow.camera.top = d;
+    keyLight.shadow.camera.bottom = -d;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 1.15);
+    fillLight.position.set(-6.5, 4.8, 4.5);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0x5eead4, 1.4);
+    rimLight.position.set(0, 5.8, -6.8);
+    scene.add(rimLight);
+
+    // =========================================================================
+    // 2. DISPLAY STAGE / PODIUM
+    // =========================================================================
+    const stageGroup = new THREE.Group();
+    scene.add(stageGroup);
+
+    const podiumGeo = new THREE.CylinderGeometry(3.65, 3.9, 0.28, 64);
+    const podiumMat = new THREE.MeshStandardMaterial({
+      color: 0x0b1d3f,
+      roughness: 0.25,
+      metalness: 0.35,
+    });
+    const podiumMesh = new THREE.Mesh(podiumGeo, podiumMat);
+    podiumMesh.position.y = -0.14;
+    podiumMesh.receiveShadow = true;
+    stageGroup.add(podiumMesh);
+
+    const ringGeo = new THREE.RingGeometry(3.42, 3.58, 64);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.y = 0.005;
+    stageGroup.add(ringMesh);
+
+    const innerRingGeo = new THREE.RingGeometry(2.55, 2.63, 64);
+    innerRingGeo.rotateX(-Math.PI / 2);
+    const innerRingMat = new THREE.MeshBasicMaterial({
+      color: 0x14b8a6,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.65,
+    });
+    const innerRingMesh = new THREE.Mesh(innerRingGeo, innerRingMat);
+    innerRingMesh.position.y = 0.006;
+    stageGroup.add(innerRingMesh);
+
+    // Floating Medical Plus Particles
+    const floatingCrosses = [];
+    const miniCrossGroupProto = new THREE.Group();
+    const mcBarMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const mcH = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.055, 0.04), mcBarMat);
+    const mcV = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.18, 0.04), mcBarMat);
+    miniCrossGroupProto.add(mcH, mcV);
+
+    for (let i = 0; i < 12; i++) {
+      const c = miniCrossGroupProto.clone();
+      const angle = (i / 12) * Math.PI * 2;
+      const radius = 3.0 + (i % 3) * 0.45;
+      c.position.set(Math.cos(angle) * radius, 0.6 + (i % 4) * 0.85, Math.sin(angle) * radius);
+      c.userData = {
+        baseAngle: angle,
+        radius,
+        baseY: c.position.y,
+        speed: 0.35 + (i % 3) * 0.18,
+      };
+      stageGroup.add(c);
+      floatingCrosses.push(c);
+    }
+
+    // =========================================================================
+    // 3. CONTINUOUS SOFT-SPLINE SKINNED LIMB BUILDER (ZERO JOINT SEAMS!)
+    // =========================================================================
+    /**
+     * Builds a real-time deformable continuous cylindrical/oval tube mesh
+     * with a rounded hemispherical start cap (shoulder/hip ball) that bends
+     * smoothly along a 3-point curve (Start -> Mid Joint -> End Joint) with
+     * parallel-transport frames so there are NEVER flat cylinder caps or gaps!
+     */
+    function createSoftSkinnedLimb({
+      radiusTop,
+      radiusMid,
+      radiusBottom,
+      radialSegments = 24,
+      tubularSegments = 18,
+      capSegments = 6,
+      material,
+    }) {
+      const totalRings = capSegments + tubularSegments + 1;
+      const vertsPerRing = radialSegments + 1;
+      const vertexCount = totalRings * vertsPerRing;
+
+      const positions = new Float32Array(vertexCount * 3);
+      const normals = new Float32Array(vertexCount * 3);
+      const uvs = new Float32Array(vertexCount * 2);
+      const indices = [];
+
+      for (let r = 0; r < totalRings - 1; r++) {
+        for (let s = 0; s < radialSegments; s++) {
+          const a = r * vertsPerRing + s;
+          const b = (r + 1) * vertsPerRing + s;
+          const c = (r + 1) * vertsPerRing + (s + 1);
+          const d = r * vertsPerRing + (s + 1);
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setIndex(indices);
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+
+      // Pre-allocate math vectors for zero-GC 60FPS deformation
+      const p0 = new THREE.Vector3();
+      const p1 = new THREE.Vector3();
+      const p2 = new THREE.Vector3();
+      const tangent = new THREE.Vector3();
+      const normal = new THREE.Vector3();
+      const binormal = new THREE.Vector3();
+      const prevTangent = new THREE.Vector3();
+      const rotAxis = new THREE.Vector3();
+      const rotQuat = new THREE.Quaternion();
+      const pt = new THREE.Vector3();
+      const vPos = new THREE.Vector3();
+      const vNorm = new THREE.Vector3();
+
+      function updateLimb(startPoint, midPoint, endPoint) {
+        p0.copy(startPoint);
+        p1.copy(midPoint);
+        p2.copy(endPoint);
+
+        const posAttr = geo.attributes.position;
+        const normAttr = geo.attributes.normal;
+        const uvAttr = geo.attributes.uv;
+
+        // Evaluate initial tangent at t = 0 along quadratic Bezier
+        // Control point C near midPoint p1 so that t=0 is tangent to upper limb and t=1 is tangent to lower limb (no S-hook overshoot!)
+        const cx = p1.x + (p1.x - 0.5 * (p0.x + p2.x)) * 0.25;
+        const cy = p1.y + (p1.y - 0.5 * (p0.y + p2.y)) * 0.25;
+        const cz = p1.z + (p1.z - 0.5 * (p0.z + p2.z)) * 0.25;
+
+        // Initial frame at t = 0
+        tangent.set(cx - p0.x, cy - p0.y, cz - p0.z).normalize();
+        if (tangent.lengthSq() < 1e-6) tangent.set(0, -1, 0);
+
+        // Choose stable initial normal perpendicular to tangent (preferring +Z)
+        normal.set(0, 0, 1);
+        if (Math.abs(tangent.dot(normal)) > 0.92) normal.set(1, 0, 0);
+        binormal.crossVectors(tangent, normal).normalize();
+        normal.crossVectors(binormal, tangent).normalize();
+        prevTangent.copy(tangent);
+
+        let ringIdx = 0;
+
+        // 1. Hemispherical Shoulder/Hip Cap Rings (closes the top smoothly so NEVER a flat cap!)
+        for (let c = 0; c < capSegments; c++) {
+          const frac = c / capSegments; // 0 (pole) -> 1 (equator at p0)
+          const phi = frac * (Math.PI * 0.5);
+          const sinPhi = Math.sin(phi);
+          const cosPhi = Math.cos(phi);
+          const ringR = radiusTop * sinPhi;
+          const axialOffset = -radiusTop * 0.85 * cosPhi;
+
+          for (let s = 0; s <= radialSegments; s++) {
+            const u = s / radialSegments;
+            const theta = u * Math.PI * 2;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            vNorm
+              .set(0, 0, 0)
+              .addScaledVector(normal, cosT * sinPhi)
+              .addScaledVector(binormal, sinT * sinPhi)
+              .addScaledVector(tangent, -cosPhi)
+              .normalize();
+
+            vPos
+              .copy(p0)
+              .addScaledVector(tangent, axialOffset)
+              .addScaledVector(normal, cosT * ringR)
+              .addScaledVector(binormal, sinT * ringR);
+
+            const idx = ringIdx * vertsPerRing + s;
+            posAttr.setXYZ(idx, vPos.x, vPos.y, vPos.z);
+            normAttr.setXYZ(idx, vNorm.x, vNorm.y, vNorm.z);
+            uvAttr.setXY(idx, u, (frac * 0.15));
+          }
+          ringIdx++;
+        }
+
+        // 2. Smoothly Bent Tubular Rings from Start (t=0) -> Mid (t=0.5) -> End (t=1)
+        for (let i = 0; i <= tubularSegments; i++) {
+          const t = i / tubularSegments;
+          const invT = 1 - t;
+
+          // Quadratic Bezier passing exactly through p0 (t=0), p1 (t=0.5), p2 (t=1)
+          pt.set(
+            invT * invT * p0.x + 2 * invT * t * cx + t * t * p2.x,
+            invT * invT * p0.y + 2 * invT * t * cy + t * t * p2.y,
+            invT * invT * p0.z + 2 * invT * t * cz + t * t * p2.z
+          );
+
+          // Derivative B'(t) = 2*(1-t)*(C - p0) + 2*t*(p2 - C)
+          tangent
+            .set(
+              2 * invT * (cx - p0.x) + 2 * t * (p2.x - cx),
+              2 * invT * (cy - p0.y) + 2 * t * (p2.y - cy),
+              2 * invT * (cz - p0.z) + 2 * t * (p2.z - cz)
+            )
+            .normalize();
+
+          // Parallel transport normal & binormal without twisting
+          rotAxis.crossVectors(prevTangent, tangent);
+          if (rotAxis.lengthSq() > 1e-7) {
+            const angle = Math.acos(THREE.MathUtils.clamp(prevTangent.dot(tangent), -1, 1));
+            rotAxis.normalize();
+            rotQuat.setFromAxisAngle(rotAxis, angle);
+            normal.applyQuaternion(rotQuat).normalize();
+            binormal.crossVectors(tangent, normal).normalize();
+          }
+          prevTangent.copy(tangent);
+
+          // Smooth radius profile along limb
+          let rProfile;
+          if (t < 0.5) {
+            const lt = t * 2;
+            rProfile = THREE.MathUtils.lerp(radiusTop, radiusMid, lt);
+          } else {
+            const lt = (t - 0.5) * 2;
+            rProfile = THREE.MathUtils.lerp(radiusMid, radiusBottom, lt);
+          }
+
+          for (let s = 0; s <= radialSegments; s++) {
+            const u = s / radialSegments;
+            const theta = u * Math.PI * 2;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            vNorm
+              .set(0, 0, 0)
+              .addScaledVector(normal, cosT)
+              .addScaledVector(binormal, sinT)
+              .normalize();
+
+            vPos
+              .copy(pt)
+              .addScaledVector(normal, cosT * rProfile)
+              .addScaledVector(binormal, sinT * rProfile);
+
+            const idx = ringIdx * vertsPerRing + s;
+            posAttr.setXYZ(idx, vPos.x, vPos.y, vPos.z);
+            normAttr.setXYZ(idx, vNorm.x, vNorm.y, vNorm.z);
+            uvAttr.setXY(idx, u, 0.15 + t * 0.85);
+          }
+          ringIdx++;
+        }
+
+        posAttr.needsUpdate = true;
+        normAttr.needsUpdate = true;
+
+        // Return end position & end tangent so the cuff/wrist can align seamlessly
+        return { endPos: pt.clone(), endTangent: tangent.clone() };
+      }
+
+      return { mesh, updateLimb };
+    }
+
+    // =========================================================================
+    // 4. PROCEDURAL HIGH-DPI TEXTURE GENERATORS
+    // =========================================================================
+
+    function drawHeart(ctx, cx, cy, size, color) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, size * 0.35);
+      ctx.bezierCurveTo(-size * 0.9, -size * 0.25, -size * 0.55, -size * 0.95, 0, -size * 0.35);
+      ctx.bezierCurveTo(size * 0.55, -size * 0.95, size * 0.9, -size * 0.25, 0, size * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function createFaceTexture(variant, expression = 'classic', isBlinking = false) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+
+      const isMint = variant === 'mint';
+      const primaryColor = isMint ? '#0f9f90' : '#0d3b8c';
+      const faceBg = isMint ? '#fff6ee' : '#ffffff';
+
+      ctx.fillStyle = primaryColor;
+      ctx.fillRect(0, 0, 1024, 1024);
+
+      const padX = 148;
+      const padY = 228;
+      const w = 1024 - padX * 2;
+      const h = 1024 - padY * 2;
+      const r = 185;
+
+      // Soft inner shadow around visor opening
+      ctx.fillStyle = isMint ? '#0b7a6f' : '#08255c';
+      ctx.beginPath();
+      ctx.roundRect(padX - 16, padY - 16, w + 32, h + 32, r + 12);
+      ctx.fill();
+
+      const grad = ctx.createRadialGradient(512, 500, 60, 512, 520, 420);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.82, faceBg);
+      grad.addColorStop(1, isMint ? '#fde8d7' : '#eef4ff');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(padX, padY, w, h, r);
+      ctx.fill();
+
+      const leftEyeX = 365;
+      const rightEyeX = 659;
+      const eyeY = 485;
+
+      // Pink rosy cheeks
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.58)';
+      ctx.beginPath();
+      ctx.ellipse(295, 580, 54, 28, -0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(729, 580, 54, 28, 0.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isBlinking || expression === 'cheer') {
+        ctx.strokeStyle = '#0f296b';
+        ctx.lineWidth = 22;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(leftEyeX - 42, eyeY - 32);
+        ctx.lineTo(leftEyeX + 26, eyeY + 2);
+        ctx.lineTo(leftEyeX - 42, eyeY + 34);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rightEyeX + 42, eyeY - 32);
+        ctx.lineTo(rightEyeX - 26, eyeY + 2);
+        ctx.lineTo(rightEyeX + 42, eyeY + 34);
+        ctx.stroke();
+      } else if (expression === 'heart') {
+        drawHeart(ctx, leftEyeX, eyeY + 6, 86, '#e11d48');
+        drawHeart(ctx, rightEyeX, eyeY + 6, 86, '#e11d48');
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.beginPath();
+        ctx.ellipse(leftEyeX - 22, eyeY - 18, 12, 7, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(rightEyeX - 22, eyeY - 18, 12, 7, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (expression === 'sneeze') {
+        // Sneeze / Shivering Cold face ("Ắt xì!")
+        ctx.strokeStyle = '#0f296b';
+        ctx.lineWidth = 22;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(leftEyeX - 44, eyeY - 26);
+        ctx.lineTo(leftEyeX + 28, eyeY + 4);
+        ctx.lineTo(leftEyeX - 44, eyeY + 32);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rightEyeX + 44, eyeY - 26);
+        ctx.lineTo(rightEyeX - 28, eyeY + 4);
+        ctx.lineTo(rightEyeX + 44, eyeY + 32);
+        ctx.stroke();
+
+        // Cute cold tear / sneeze droplet on corner of eye
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(rightEyeX + 54, eyeY + 18, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rosy cold nose blush in center
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(512, 535, 36, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (expression === 'confused') {
+        // Confused / Puzzled in Medicine Matrix (Cảnh 2)
+        [leftEyeX, rightEyeX].forEach((ex, idx) => {
+          ctx.fillStyle = '#0f367a';
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY + (idx === 0 ? -4 : 6), 36, 38, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex + 10, eyeY - 10, 13, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Asymmetric puzzled eyebrows (one raised high, one tilted)
+        ctx.strokeStyle = '#0f296b';
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(leftEyeX, eyeY - 46, 38, Math.PI * 1.1, Math.PI * 1.9);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(rightEyeX - 36, eyeY - 52);
+        ctx.lineTo(rightEyeX + 38, eyeY - 36);
+        ctx.stroke();
+      } else if (expression === 'gentle') {
+        [leftEyeX, rightEyeX].forEach((ex) => {
+          ctx.fillStyle = '#0f367a';
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY, 34, 48, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY + 12, 24, 26, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex - 10, eyeY - 14, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(ex + 10, eyeY + 14, 6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.strokeStyle = isMint ? '#0d9488' : '#1e40af';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(leftEyeX, eyeY - 38, 36, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(rightEyeX, eyeY - 38, 36, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+      } else {
+        [leftEyeX, rightEyeX].forEach((ex, idx) => {
+          const isLeft = idx === 0;
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY + 4, 44, 42, 0, 0, Math.PI * 2);
+          ctx.clip();
+
+          ctx.fillStyle = '#123e85';
+          ctx.fillRect(ex - 50, eyeY - 50, 100, 100);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex + (isLeft ? 8 : -8), eyeY - 4, 15, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(ex - 16, eyeY + 20, 5.5, 0, Math.PI * 2);
+          ctx.arc(ex, eyeY + 25, 5.5, 0, Math.PI * 2);
+          ctx.arc(ex + 16, eyeY + 20, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = faceBg;
+          ctx.beginPath();
+          if (isLeft) {
+            ctx.moveTo(ex - 60, eyeY - 55);
+            ctx.lineTo(ex + 60, eyeY - 55);
+            ctx.lineTo(ex + 60, eyeY - 10);
+            ctx.lineTo(ex - 60, eyeY - 34);
+          } else {
+            ctx.moveTo(ex - 60, eyeY - 55);
+            ctx.lineTo(ex + 60, eyeY - 55);
+            ctx.lineTo(ex + 60, eyeY - 34);
+            ctx.lineTo(ex - 60, eyeY - 10);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          ctx.strokeStyle = '#0d316e';
+          ctx.lineWidth = 10;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          if (isLeft) {
+            ctx.moveTo(ex - 42, eyeY - 26);
+            ctx.lineTo(ex + 40, eyeY - 8);
+          } else {
+            ctx.moveTo(ex - 40, eyeY - 8);
+            ctx.lineTo(ex + 42, eyeY - 26);
+          }
+          ctx.stroke();
+        });
+      }
+
+      if (expression === 'gentle') {
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 12;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(512, 575, 56, 0.22 * Math.PI, 0.78 * Math.PI);
+        ctx.stroke();
+      } else if (expression === 'sneeze' || expression === 'confused') {
+        // Wavy shivering/puzzled chibi mouth
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 15;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(438, 608);
+        ctx.quadraticCurveTo(475, 580, 512, 608);
+        ctx.quadraticCurveTo(549, 636, 586, 608);
+        ctx.stroke();
+      } else {
+        const mouthY = 580;
+        const mouthW = 112;
+        const mouthH = 98;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(512 - mouthW, mouthY);
+        ctx.quadraticCurveTo(512, mouthY + 14, 512 + mouthW, mouthY);
+        ctx.bezierCurveTo(
+          512 + mouthW * 0.92,
+          mouthY + mouthH * 1.25,
+          512 - mouthW * 0.92,
+          mouthY + mouthH * 1.25,
+          512 - mouthW,
+          mouthY
+        );
+        ctx.closePath();
+        ctx.fillStyle = '#991b1b';
+        ctx.fill();
+        ctx.clip();
+
+        ctx.fillStyle = '#fb7185';
+        ctx.beginPath();
+        ctx.ellipse(512, mouthY + mouthH * 0.92, 78, 46, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function createChestBadgeTexture(variant) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 512, 256);
+
+      const colors = ['#0052cc', '#f97316', '#16a34a'];
+      colors.forEach((c, i) => {
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.roundRect(110 + i * 38, 36, 30, 38, 6);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = '#1e3a8a';
+      ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('FPT Retail', 240, 65);
+
+      ctx.fillStyle = '#0f296b';
+      ctx.font = '800 32px "Plus Jakarta Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        variant === 'mint' ? 'TRUNG TÂM TIÊM CHỦNG' : 'NHÀ THUỐC FPT',
+        256,
+        128
+      );
+
+      ctx.fillStyle = variant === 'mint' ? '#0d9488' : '#0052cc';
+      ctx.font = '900 58px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('LONG CHÂU', 256, 195);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createShieldTexture(variant) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createRadialGradient(512, 420, 50, 512, 512, 520);
+      grad.addColorStop(0, '#173885');
+      grad.addColorStop(1, '#091945');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 1024);
+
+      const fptColors = ['#0052cc', '#f97316', '#22c55e'];
+      fptColors.forEach((col, idx) => {
+        ctx.save();
+        ctx.translate(330 + idx * 54, 310);
+        ctx.transform(1, 0, -0.22, 1, 0, 0);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 42, 62, 10);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 40px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('FPT Retail', 515, 358);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.font = '800 46px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(
+        variant === 'mint' ? 'TRUNG TÂM TIÊM CHỦNG' : 'HỆ THỐNG NHÀ THUỐC',
+        512,
+        465
+      );
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 92px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('LONG CHÂU', 512, 575);
+
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.55)';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(280, 635);
+      ctx.lineTo(744, 635);
+      ctx.stroke();
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createCheerFlagTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 320;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 512, 320);
+      grad.addColorStop(0, '#0284c7');
+      grad.addColorStop(1, '#1d4ed8');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 320);
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(18, 18, 476, 284);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 92px "Plus Jakarta Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CỐ LÊN', 256, 164);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createARBannerTexture(title, subtitle = '', bgStart = '#0052cc', bgEnd = '#0d9488', borderHex = '#fde047') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 768;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 768, 256);
+      grad.addColorStop(0, bgStart);
+      grad.addColorStop(1, bgEnd);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 744, 232, 42);
+      ctx.fill();
+
+      ctx.strokeStyle = borderHex;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 744, 232, 42);
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = subtitle ? '900 54px "Plus Jakarta Sans", sans-serif' : '900 68px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(title, 384, subtitle ? 100 : 128, 700);
+
+      if (subtitle) {
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '800 32px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(subtitle, 384, 174, 700);
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createAppScreenTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0, '#0052cc');
+      grad.addColorStop(1, '#0ea5e9');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 256, 512);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(24, 52, 208, 120, 22);
+      ctx.fill();
+
+      ctx.fillStyle = '#0052cc';
+      ctx.font = '900 32px "Plus Jakarta Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('LONG CHÂU', 128, 108);
+      ctx.fillStyle = '#f97316';
+      ctx.font = '800 22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('GIAO THUỐC 30P', 128, 146);
+
+      // Medicine cards on screen
+      [205, 315].forEach((y) => {
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        ctx.roundRect(24, y, 208, 90, 18);
+        ctx.fill();
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(68, y + 45, 24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 28px sans-serif';
+        ctx.fillText('✓', 68, y + 54);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '800 20px sans-serif';
+        ctx.fillText('CHÍNH HÃNG', 148, y + 52);
+      });
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // =========================================================================
+    // 5. CINEMATIC 3D MASCOT BUILDER (CONTINUOUS SPLINE LIMBS + 5-FINGER HANDS)
+    // =========================================================================
+
+    function buildLongChauMascot(variant = 'blue') {
+      const isMint = variant === 'mint';
+      const primaryHex = isMint ? 0x14b8a6 : 0x0e4194;
+      const primaryLightHex = isMint ? 0x2dd4bf : 0x1d4ed8;
+      const visorRimHex = isMint ? 0x0d9488 : 0x0a2e6e;
+
+      const root = new THREE.Group();
+      root.name = `LongChauMascot_${variant}`;
+
+      // Shared PBR Materials
+      const helmetMat = new THREE.MeshPhysicalMaterial({
+        color: primaryHex,
+        roughness: 0.3,
+        metalness: 0.05,
+        clearcoat: 0.38,
+        clearcoatRoughness: 0.22,
+      });
+
+      const crestMat = new THREE.MeshPhysicalMaterial({
+        color: primaryLightHex,
+        roughness: 0.34,
+        metalness: 0.05,
+        clearcoat: 0.28,
+      });
+
+      const visorBezelMat = new THREE.MeshPhysicalMaterial({
+        color: visorRimHex,
+        roughness: 0.28,
+        metalness: 0.08,
+        clearcoat: 0.35,
+      });
+
+      const whiteClothMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.52,
+        metalness: 0.02,
+      });
+
+      const innerCoatShadowMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        roughness: 0.85,
+        side: THREE.DoubleSide,
+      });
+
+      const whiteGlossMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        roughness: 0.2,
+        metalness: 0.04,
+        clearcoat: 0.45,
+      });
+
+      const redCapeMat = new THREE.MeshStandardMaterial({
+        color: 0xdc2626,
+        roughness: 0.46,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+      });
+
+      const soleMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        roughness: 0.65,
+      });
+
+      // -----------------------------------------------------------------------
+      // A. TORSO & DOCTOR LAB COAT (Áo Blouse + Sơ Mi Cổ V Trong + 3 Cúc + 2 Túi)
+      // -----------------------------------------------------------------------
+      const bodyPivot = new THREE.Group();
+      bodyPivot.position.set(0, 1.42, 0);
+      root.add(bodyPivot);
+
+      // Hollowed skirt profile at bottom so legs emerge from a deep interior cavity
+      const coatPoints = [
+        new THREE.Vector2(0.42, -0.46), // Recessed inner skirt ceiling
+        new THREE.Vector2(0.65, -0.58), // Inner hem edge
+        new THREE.Vector2(0.69, -0.58), // Outer hem edge
+        new THREE.Vector2(0.71, -0.35),
+        new THREE.Vector2(0.66, 0.05),
+        new THREE.Vector2(0.59, 0.44),
+        new THREE.Vector2(0.47, 0.62),
+        new THREE.Vector2(0.0, 0.62),
+      ];
+      const coatGeo = new THREE.LatheGeometry(coatPoints, 56);
+      coatGeo.scale(1.06, 1.0, 0.85);
+      const coatMesh = new THREE.Mesh(coatGeo, whiteClothMat);
+      coatMesh.castShadow = true;
+      coatMesh.receiveShadow = true;
+      bodyPivot.add(coatMesh);
+
+      // Dark interior pelvis cap inside the coat hem so low-angle shots look realistic
+      const innerPelvisCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.46, 0.46, 0.04, 32),
+        innerCoatShadowMat
+      );
+      innerPelvisCap.scale.set(1.06, 1, 0.85);
+      innerPelvisCap.position.set(0, -0.46, 0);
+      bodyPivot.add(innerPelvisCap);
+
+      // Colored Inner V-Neck Undershirt (matching standee-3d.jpg!)
+      const vNeckGeo = new RoundedBoxGeometry(0.28, 0.32, 0.05, 4, 0.02);
+      const vNeckMesh = new THREE.Mesh(vNeckGeo, helmetMat);
+      vNeckMesh.position.set(0, 0.42, 0.49);
+      vNeckMesh.rotation.x = -0.18;
+      bodyPivot.add(vNeckMesh);
+
+      // Front center seam & bottom V-notch split
+      const seamGeo = new THREE.BoxGeometry(0.022, 0.94, 0.03);
+      const seamMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.65 });
+      const seamMesh = new THREE.Mesh(seamGeo, seamMat);
+      seamMesh.position.set(0, -0.04, 0.565);
+      bodyPivot.add(seamMesh);
+
+      // Bottom V-Notch dark split cutout on front hem
+      const splitGeo = new THREE.ConeGeometry(0.065, 0.16, 3);
+      const splitMesh = new THREE.Mesh(splitGeo, innerCoatShadowMat);
+      splitMesh.position.set(0, -0.50, 0.578);
+      splitMesh.scale.set(1.0, 1.0, 0.25);
+      bodyPivot.add(splitMesh);
+
+      // 3 Iconic Blue/Mint Buttons down the front of the lab coat
+      const buttonGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.032, 24);
+      buttonGeo.rotateX(Math.PI / 2);
+      [-0.02, -0.19, -0.36].forEach((by) => {
+        const btn = new THREE.Mesh(buttonGeo, helmetMat);
+        btn.position.set(0, by, 0.585);
+        btn.castShadow = true;
+        bodyPivot.add(btn);
+      });
+
+      // Left & Right Lab Coat Patch Pockets with top welt trim
+      const pocketGeo = new RoundedBoxGeometry(0.28, 0.27, 0.045, 4, 0.025);
+      const pocketTrimGeo = new RoundedBoxGeometry(0.29, 0.045, 0.052, 3, 0.015);
+      [-0.32, 0.32].forEach((px) => {
+        const pocketGroup = new THREE.Group();
+        pocketGroup.position.set(px, -0.26, 0.525);
+        pocketGroup.rotation.y = px < 0 ? -0.22 : 0.22;
+
+        const pocket = new THREE.Mesh(pocketGeo, whiteClothMat);
+        pocket.castShadow = true;
+        pocketGroup.add(pocket);
+
+        const trim = new THREE.Mesh(pocketTrimGeo, whiteGlossMat);
+        trim.position.set(0, 0.11, 0.005);
+        pocketGroup.add(trim);
+
+        bodyPivot.add(pocketGroup);
+      });
+
+      // Lab Coat Notched Lapels (Cổ áo blouse bẻ chữ V)
+      const lapelGeo = new RoundedBoxGeometry(0.22, 0.44, 0.048, 4, 0.02);
+      [-1, 1].forEach((dir) => {
+        const lapel = new THREE.Mesh(lapelGeo, whiteGlossMat);
+        lapel.position.set(dir * 0.165, 0.34, 0.535);
+        lapel.rotation.z = dir * 0.38;
+        lapel.rotation.y = dir * 0.14;
+        lapel.castShadow = true;
+        bodyPivot.add(lapel);
+      });
+
+      // FPT Retail Long Châu Chest Emblem Plate (on Left Chest)
+      const badgeTex = createChestBadgeTexture(variant);
+      const badgeMat = new THREE.MeshStandardMaterial({
+        map: badgeTex,
+        roughness: 0.38,
+      });
+      const badgeGeo = new THREE.PlaneGeometry(0.34, 0.17);
+      const badgeMesh = new THREE.Mesh(badgeGeo, badgeMat);
+      badgeMesh.position.set(0.31, 0.21, 0.558);
+      badgeMesh.rotation.y = 0.2;
+      bodyPivot.add(badgeMesh);
+
+      // -----------------------------------------------------------------------
+      // B. RED SUPERHERO CAPE & NECK BOW (ZERO BACK-COAT CLIPPING!)
+      // -----------------------------------------------------------------------
+      const capeGroup = new THREE.Group();
+      bodyPivot.add(capeGroup);
+
+      // Red neck collar ring
+      const collarTorusGeo = new THREE.TorusGeometry(0.495, 0.05, 16, 48);
+      collarTorusGeo.rotateX(Math.PI / 2);
+      collarTorusGeo.scale(1.06, 1.0, 0.87);
+      const collarRing = new THREE.Mesh(collarTorusGeo, redCapeMat);
+      collarRing.position.set(0, 0.56, 0.01);
+      capeGroup.add(collarRing);
+
+      // Front Red Bow-Tie & Articulated Ribbon Tails
+      const bowGroup = new THREE.Group();
+      bowGroup.position.set(0, 0.49, 0.55);
+      capeGroup.add(bowGroup);
+
+      const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.076, 20, 20), redCapeMat);
+      bowGroup.add(bowKnot);
+
+      const ribbonTails = [];
+      [-1, 1].forEach((side) => {
+        const loopGeo = new RoundedBoxGeometry(0.19, 0.115, 0.062, 4, 0.035);
+        const loop = new THREE.Mesh(loopGeo, redCapeMat);
+        loop.position.set(side * 0.115, 0.02, -0.01);
+        loop.rotation.z = side * -0.22;
+        bowGroup.add(loop);
+
+        const tailPivot = new THREE.Group();
+        tailPivot.position.set(side * 0.045, -0.02, 0.02);
+        const tailGeo = new RoundedBoxGeometry(0.066, 0.42, 0.025, 4, 0.015);
+        tailGeo.translate(0, -0.21, 0);
+        const tail = new THREE.Mesh(tailGeo, redCapeMat);
+        tail.castShadow = true;
+        tailPivot.add(tail);
+        tailPivot.rotation.z = side * 0.16;
+        bowGroup.add(tailPivot);
+        ribbonTails.push({ pivot: tailPivot, baseZ: side * 0.16, side });
+      });
+
+      // Flowing Back Superhero Cape — Wrapped OUTSIDE (-Z) the coat contour so it NEVER clips!
+      const capeW = 1.54;
+      const capeH = 1.48;
+      const capePlaneGeo = new THREE.PlaneGeometry(capeW, capeH, 26, 26);
+      capePlaneGeo.translate(0, -capeH / 2, 0);
+
+      const posAttr = capePlaneGeo.attributes.position;
+      const baseCapeCoords = new Float32Array(posAttr.count * 3);
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i);
+        const y = posAttr.getY(i);
+        const t = -y / capeH; // 0 at shoulder, 1 at bottom hem
+        const flare = 1.0 + t * 0.32;
+        const nx = x * flare;
+        const normX = x / (capeW * 0.5);
+        // Center bows outward toward -Z (-0.16) while side edges wrap slightly forward (+0.12) around shoulders
+        const shoulderWrap = (normX * normX) * 0.14 * (1 - t * 0.5);
+        const backClearance = -0.15 * Math.sin(Math.min(1, t * 1.6) * Math.PI * 0.75);
+        const nz = shoulderWrap + backClearance;
+        posAttr.setXYZ(i, nx, y, nz);
+        baseCapeCoords[i * 3] = nx;
+        baseCapeCoords[i * 3 + 1] = y;
+        baseCapeCoords[i * 3 + 2] = nz;
+      }
+      capePlaneGeo.computeVertexNormals();
+
+      const capeMesh = new THREE.Mesh(capePlaneGeo, redCapeMat);
+      capeMesh.position.set(0, 0.56, -0.48);
+      capeMesh.rotation.x = 0.12;
+      capeMesh.castShadow = true;
+      capeGroup.add(capeMesh);
+
+      // -----------------------------------------------------------------------
+      // C. CHIBI HELMET, 3D VISOR BEZEL, FOREHEAD CREST (+), RIBBED EARPIECES
+      // -----------------------------------------------------------------------
+      const headPivot = new THREE.Group();
+      headPivot.position.set(0, 0.66, 0);
+      bodyPivot.add(headPivot);
+
+      // Subtle neck cylinder connecting collar to helmet
+      const neckMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.36, 0.22, 24),
+        whiteClothMat
+      );
+      neckMesh.position.set(0, 0.04, 0);
+      headPivot.add(neckMesh);
+
+      const headCenterY = 0.88;
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, headCenterY, 0);
+      headPivot.add(headGroup);
+
+      // Main Chibi Helmet Sphere
+      const helmetGeo = new THREE.SphereGeometry(1.12, 64, 48);
+      helmetGeo.scale(1.14, 0.96, 1.02);
+      const helmetMesh = new THREE.Mesh(helmetGeo, helmetMat);
+      helmetMesh.castShadow = true;
+      helmetMesh.receiveShadow = true;
+      headGroup.add(helmetMesh);
+
+      // Curved Faceplate Patch
+      const faceTexture = createFaceTexture(variant, 'classic', false);
+      const facePatchGeo = new THREE.SphereGeometry(
+        1.128,
+        64,
+        48,
+        Math.PI * 0.5 - 0.58,
+        1.16,
+        Math.PI * 0.5 - 0.44,
+        0.92
+      );
+      facePatchGeo.scale(1.14, 0.96, 1.02);
+      const uvAttr = facePatchGeo.attributes.uv;
+      for (let i = 0; i < uvAttr.count; i++) {
+        const u = uvAttr.getX(i);
+        const v = uvAttr.getY(i);
+        uvAttr.setXY(i, 0.14 + u * 0.72, 0.21 + v * 0.58);
+      }
+
+      const facePatchMat = new THREE.MeshPhysicalMaterial({
+        map: faceTexture,
+        roughness: 0.24,
+        metalness: 0.02,
+        clearcoat: 0.32,
+      });
+      const facePatchMesh = new THREE.Mesh(facePatchGeo, facePatchMat);
+      headGroup.add(facePatchMesh);
+
+      // 3D Sculpted Visor Bezel Rim framing the faceplate (gives real 3D depth at 3/4 & side angles!)
+      const bezelCurvePoints = [];
+      const bezelSteps = 56;
+      for (let i = 0; i < bezelSteps; i++) {
+        const a = (i / bezelSteps) * Math.PI * 2;
+        const cosA = Math.cos(a);
+        const sinA = Math.sin(a);
+        const exp = 0.62;
+        const rx = Math.sign(cosA) * Math.pow(Math.abs(cosA), exp) * 0.68;
+        const ry = Math.sign(sinA) * Math.pow(Math.abs(sinA), exp) * 0.45 - 0.01;
+        const nx = rx / 1.28;
+        const ny = ry / 1.08;
+        const nz = Math.sqrt(Math.max(0.05, 1 - nx * nx - ny * ny));
+        bezelCurvePoints.push(
+          new THREE.Vector3(nx * 1.29, ny * 1.086, nz * 1.154)
+        );
+      }
+      const bezelCurve = new THREE.CatmullRomCurve3(bezelCurvePoints, true);
+      const bezelTubeGeo = new THREE.TubeGeometry(bezelCurve, 80, 0.036, 14, true);
+      const bezelMesh = new THREE.Mesh(bezelTubeGeo, visorBezelMat);
+      bezelMesh.castShadow = true;
+      headGroup.add(bezelMesh);
+
+      // Sculpted Raised Crest Pad running from Forehead over Crown to Back
+      const crestGeo = new THREE.BoxGeometry(0.54, 0.14, 0.14, 16, 4, 36);
+      const cPos = crestGeo.attributes.position;
+      for (let i = 0; i < cPos.count; i++) {
+        const vx = cPos.getX(i);
+        const vy = cPos.getY(i);
+        const vz = cPos.getZ(i);
+
+        const t = (vz + 0.07) / 0.14; // 0 (back) -> 1 (front forehead)
+        const theta = -1.32 + t * 2.22;
+        const endTaper = Math.sin(t * Math.PI);
+        const thickness = (vy + 0.07) * (0.42 + 0.32 * endTaper);
+        const baseRadius = 1.045 + thickness;
+        const arcY = Math.cos(theta) * baseRadius * 0.97;
+        const arcZ = Math.sin(theta) * baseRadius * 1.03;
+
+        const edgeDrop = (vx / 0.27) ** 2 * 0.022;
+        cPos.setXYZ(i, vx, arcY - edgeDrop, arcZ);
+      }
+      crestGeo.computeVertexNormals();
+      const crestMesh = new THREE.Mesh(crestGeo, crestMat);
+      crestMesh.castShadow = true;
+      headGroup.add(crestMesh);
+
+      // White 3D Medical Cross (+) on the Front Forehead Crest
+      const crossGroup = new THREE.Group();
+      const crossH = new THREE.Mesh(
+        new RoundedBoxGeometry(0.32, 0.095, 0.055, 4, 0.018),
+        whiteGlossMat
+      );
+      const crossV = new THREE.Mesh(
+        new RoundedBoxGeometry(0.095, 0.32, 0.055, 4, 0.018),
+        whiteGlossMat
+      );
+      crossGroup.add(crossH, crossV);
+      crossGroup.position.set(0, 0.73, 0.905);
+      crossGroup.rotation.x = -0.63;
+      headGroup.add(crossGroup);
+
+      // Left & Right White Ribbed Earpieces with Beveled Mounting Ring
+      [-1, 1].forEach((side) => {
+        const earGroup = new THREE.Group();
+        earGroup.position.set(side * 1.19, 0.02, 0.02);
+        earGroup.rotation.z = side * -0.06;
+
+        // Mounting bezel ring against the helmet
+        const mountRing = new THREE.Mesh(
+          new THREE.TorusGeometry(0.37, 0.036, 14, 32),
+          visorBezelMat
+        );
+        mountRing.scale.set(1.12, 0.94, 1.0);
+        mountRing.rotation.y = Math.PI / 2;
+        mountRing.position.x = side * -0.04;
+        earGroup.add(mountRing);
+
+        // Main white ear dome
+        const earDomeGeo = new THREE.SphereGeometry(0.38, 32, 24);
+        earDomeGeo.scale(0.56, 1.16, 0.92);
+        const earDome = new THREE.Mesh(earDomeGeo, whiteGlossMat);
+        earDome.castShadow = true;
+        earGroup.add(earDome);
+
+        // Subtle plush cushion ribs wrapping the outer dome surface
+        for (let rIdx = -2; rIdx <= 2; rIdx++) {
+          const yOff = rIdx * 0.115;
+          const domeProfile = Math.sqrt(Math.max(0.1, 1 - (yOff / 0.44) ** 2));
+          const rib = new THREE.Mesh(
+            new THREE.TorusGeometry(0.376 * domeProfile, 0.011, 10, 28),
+            whiteGlossMat
+          );
+          rib.scale.set(0.57, 1.0, 0.925);
+          rib.rotation.x = Math.PI / 2;
+          rib.position.y = yOff;
+          earGroup.add(rib);
+        }
+
+        headGroup.add(earGroup);
+      });
+
+      // -----------------------------------------------------------------------
+      // D. CONTINUOUS SOFT-SKINNED ARMS + TANGENT-ALIGNED CUFFS + 5-FINGER GLOVES
+      // -----------------------------------------------------------------------
+      function createArticulatedArm(side) {
+        // Kinematic hierarchy for joint control points: Shoulder -> Elbow -> Wrist
+        const shoulderPivot = new THREE.Group();
+        shoulderPivot.position.set(side * 0.56, 0.43, 0.02);
+        bodyPivot.add(shoulderPivot);
+
+        const elbowPivot = new THREE.Group();
+        elbowPivot.position.set(side * 0.05, -0.31, 0.02);
+        shoulderPivot.add(elbowPivot);
+
+        const wristControlPoint = new THREE.Group();
+        wristControlPoint.position.set(side * 0.03, -0.31, 0.05);
+        elbowPivot.add(wristControlPoint);
+
+        // Continuous Soft-Skinned Sleeve Mesh attached to bodyPivot
+        const softSleeve = createSoftSkinnedLimb({
+          radiusTop: 0.185,
+          radiusMid: 0.195,
+          radiusBottom: 0.205,
+          radialSegments: 28,
+          tubularSegments: 20,
+          capSegments: 6,
+          material: whiteClothMat,
+        });
+        bodyPivot.add(softSleeve.mesh);
+
+        // Tangent-aligned Sleeve End Frame (placed in bodyPivot so it always aligns with softSleeve's endTangent!)
+        const sleeveEndFrame = new THREE.Group();
+        bodyPivot.add(sleeveEndFrame);
+
+        const cuffTorus = new THREE.Mesh(
+          new THREE.TorusGeometry(0.192, 0.026, 14, 28),
+          whiteGlossMat
+        );
+        cuffTorus.rotation.x = Math.PI / 2;
+        cuffTorus.position.y = 0.01;
+        sleeveEndFrame.add(cuffTorus);
+
+        const cuffInnerDisk = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.182, 0.182, 0.02, 24),
+          innerCoatShadowMat
+        );
+        sleeveEndFrame.add(cuffInnerDisk);
+
+        // Wrist Pivot inside sleeveEndFrame so wrist flexion is relative to the sleeve end tangent!
+        const wristPivot = new THREE.Group();
+        sleeveEndFrame.add(wristPivot);
+
+        // Spherical Wrist Ball-Joint so flexing the wrist never leaves a gap between cuff and glove!
+        const wristJointBall = new THREE.Mesh(
+          new THREE.SphereGeometry(0.162, 20, 16),
+          crestMat
+        );
+        wristPivot.add(wristJointBall);
+
+        // 5-Finger Organic 2-Joint Sculpted Chibi Glove Group
+        const handGroup = new THREE.Group();
+        handGroup.position.set(0, -0.10, 0);
+        wristPivot.add(handGroup);
+
+        // Glove wrist cuff band
+        const wristBand = new THREE.Mesh(
+          new THREE.TorusGeometry(0.148, 0.032, 14, 28),
+          crestMat
+        );
+        wristBand.rotation.x = Math.PI / 2;
+        wristBand.position.y = 0.095;
+        handGroup.add(wristBand);
+
+        // Anatomical Palm Group: at rest (wristY=0), palm (+Z of palmGroup) faces inward toward the body
+        // and thumb (-side*X of palmGroup) points forward! Supinating wristY turns the palm forward (+Z).
+        const palmGroup = new THREE.Group();
+        palmGroup.rotation.y = side * 1.15;
+        handGroup.add(palmGroup);
+
+        // Organic Sculpted Oval Palm Cushion (no boxy corners!)
+        const palmGeo = new THREE.SphereGeometry(0.142, 28, 22);
+        palmGeo.scale(1.04, 0.95, 0.64);
+        const palmMesh = new THREE.Mesh(palmGeo, helmetMat);
+        palmMesh.position.set(0, -0.015, 0);
+        palmMesh.castShadow = true;
+        palmGroup.add(palmMesh);
+
+        // Soft Thenar (Thumb-Base) Muscle Pad on inner palm
+        const thenarGeo = new THREE.SphereGeometry(0.072, 18, 14);
+        thenarGeo.scale(0.88, 1.12, 0.86);
+        const thenarMesh = new THREE.Mesh(thenarGeo, helmetMat);
+        thenarMesh.position.set(-side * 0.082, -0.012, 0.034);
+        palmGroup.add(thenarMesh);
+
+        // 4 Sculpted 2-Segment Chibi Fingers along an arched knuckle line (0=Index, 1=Middle, 2=Ring, 3=Pinky)
+        const fingers = [];
+        const fingerSpecs = [
+          { offset: -0.084, archY: -0.102, rProx: 0.037, lenProx: 0.062, rDist: 0.033, lenDist: 0.052, splay: 0.09 },
+          { offset: -0.028, archY: -0.114, rProx: 0.039, lenProx: 0.070, rDist: 0.035, lenDist: 0.058, splay: 0.03 },
+          { offset: 0.028, archY: -0.110, rProx: 0.037, lenProx: 0.064, rDist: 0.033, lenDist: 0.054, splay: -0.03 },
+          { offset: 0.082, archY: -0.096, rProx: 0.033, lenProx: 0.052, rDist: 0.029, lenDist: 0.044, splay: -0.09 },
+        ];
+
+        fingerSpecs.forEach((spec) => {
+          const fx = -side * spec.offset; // Index (offset < 0) sits on the radial thumb side (-side * X)
+          // Soft knuckle metaball sphere blending palm into finger root
+          const knuckleBall = new THREE.Mesh(
+            new THREE.SphereGeometry(spec.rProx * 1.18, 14, 12),
+            helmetMat
+          );
+          knuckleBall.position.set(fx, spec.archY + 0.015, 0.005);
+          palmGroup.add(knuckleBall);
+
+          const proximalPivot = new THREE.Group();
+          proximalPivot.position.set(fx, spec.archY, 0.008);
+          const baseSplayZ = -side * spec.splay;
+          proximalPivot.rotation.z = baseSplayZ;
+
+          const proxGeo = new THREE.CapsuleGeometry(spec.rProx, spec.lenProx, 8, 14);
+          proxGeo.translate(0, -spec.lenProx * 0.5, 0);
+          const proxMesh = new THREE.Mesh(proxGeo, helmetMat);
+          proxMesh.castShadow = true;
+          proximalPivot.add(proxMesh);
+
+          const distalPivot = new THREE.Group();
+          distalPivot.position.set(0, -spec.lenProx, 0);
+          const distGeo = new THREE.CapsuleGeometry(spec.rDist, spec.lenDist, 8, 14);
+          distGeo.translate(0, -spec.lenDist * 0.5, 0);
+          const distMesh = new THREE.Mesh(distGeo, helmetMat);
+          distMesh.castShadow = true;
+          distalPivot.add(distMesh);
+
+          proximalPivot.add(distalPivot);
+          palmGroup.add(proximalPivot);
+          fingers.push({ proximalPivot, distalPivot, baseSplayZ });
+        });
+
+        // 2-Segment Articulated Opposable Thumb on the radial side (-side * X)
+        const thumbPivot = new THREE.Group();
+        thumbPivot.position.set(-side * 0.112, -0.012, 0.038);
+        thumbPivot.rotation.set(0.36, side * 0.42, -side * 0.58);
+
+        const thumbProxGeo = new THREE.CapsuleGeometry(0.044, 0.058, 8, 14);
+        thumbProxGeo.translate(0, -0.029, 0);
+        const thumbProxMesh = new THREE.Mesh(thumbProxGeo, helmetMat);
+        thumbProxMesh.castShadow = true;
+        thumbPivot.add(thumbProxMesh);
+
+        const thumbTipPivot = new THREE.Group();
+        thumbTipPivot.position.set(0, -0.058, 0);
+        const thumbDistGeo = new THREE.CapsuleGeometry(0.039, 0.050, 8, 14);
+        thumbDistGeo.translate(0, -0.025, 0);
+        const thumbDistMesh = new THREE.Mesh(thumbDistGeo, helmetMat);
+        thumbDistMesh.castShadow = true;
+        thumbTipPivot.add(thumbDistMesh);
+        thumbPivot.add(thumbTipPivot);
+
+        palmGroup.add(thumbPivot);
+
+        return {
+          side,
+          shoulderPivot,
+          elbowPivot,
+          wristControlPoint,
+          sleeveEndFrame,
+          wristPivot,
+          handGroup,
+          palmGroup,
+          fingers,
+          thumbPivot,
+          thumbTipPivot,
+          softSleeve,
+        };
+      }
+
+      const leftArm = createArticulatedArm(-1);
+      const rightArm = createArticulatedArm(1);
+
+      // -----------------------------------------------------------------------
+      // E. CONTINUOUS SOFT-SKINNED LEGS (PARENTED TO BODY!) + SCULPTED SNEAKERS
+      // -----------------------------------------------------------------------
+      function createArticulatedLeg(side) {
+        const hipPivot = new THREE.Group();
+        hipPivot.position.set(side * 0.30, -0.44, 0.0);
+        bodyPivot.add(hipPivot);
+
+        const kneePivot = new THREE.Group();
+        kneePivot.position.set(0, -0.32, 0.02);
+        hipPivot.add(kneePivot);
+
+        const ankleControlPoint = new THREE.Group();
+        ankleControlPoint.position.set(0, -0.32, 0.0);
+        kneePivot.add(ankleControlPoint);
+
+        // Continuous Soft-Skinned Trouser Mesh
+        const softTrouser = createSoftSkinnedLimb({
+          radiusTop: 0.255,
+          radiusMid: 0.245,
+          radiusBottom: 0.235,
+          radialSegments: 28,
+          tubularSegments: 18,
+          capSegments: 5,
+          material: whiteClothMat,
+        });
+        bodyPivot.add(softTrouser.mesh);
+
+        // Tangent-aligned Trouser Cuff at Ankle
+        const trouserEndFrame = new THREE.Group();
+        bodyPivot.add(trouserEndFrame);
+
+        const pantCuff = new THREE.Mesh(
+          new THREE.TorusGeometry(0.225, 0.026, 12, 28),
+          whiteGlossMat
+        );
+        pantCuff.rotation.x = Math.PI / 2;
+        pantCuff.position.y = 0.02;
+        trouserEndFrame.add(pantCuff);
+
+        const anklePivot = new THREE.Group();
+        trouserEndFrame.add(anklePivot);
+
+        // Sculpted Chibi Sneaker / Boot Group
+        const shoeGroup = new THREE.Group();
+        shoeGroup.position.set(0, -0.10, 0.08);
+        anklePivot.add(shoeGroup);
+
+        const shoeGeo = new RoundedBoxGeometry(0.46, 0.26, 0.62, 6, 0.11);
+        const shoeMesh = new THREE.Mesh(shoeGeo, helmetMat);
+        shoeMesh.position.y = 0.02;
+        shoeMesh.castShadow = true;
+        shoeMesh.receiveShadow = true;
+        shoeGroup.add(shoeMesh);
+
+        const collarRing = new THREE.Mesh(
+          new THREE.TorusGeometry(0.19, 0.035, 12, 24),
+          crestMat
+        );
+        collarRing.rotation.x = Math.PI / 2;
+        collarRing.position.set(0, 0.14, -0.05);
+        shoeGroup.add(collarRing);
+
+        const midsoleGeo = new RoundedBoxGeometry(0.475, 0.055, 0.635, 4, 0.025);
+        const midsoleMesh = new THREE.Mesh(midsoleGeo, whiteGlossMat);
+        midsoleMesh.position.y = -0.075;
+        shoeGroup.add(midsoleMesh);
+
+        const soleGeo = new RoundedBoxGeometry(0.485, 0.055, 0.645, 4, 0.02);
+        const soleMesh = new THREE.Mesh(soleGeo, soleMat);
+        soleMesh.position.y = -0.115;
+        shoeGroup.add(soleMesh);
+
+        return {
+          hipPivot,
+          kneePivot,
+          ankleControlPoint,
+          trouserEndFrame,
+          anklePivot,
+          shoeGroup,
+          softTrouser,
+        };
+      }
+
+      const leftLeg = createArticulatedLeg(-1);
+      const rightLeg = createArticulatedLeg(1);
+
+      // -----------------------------------------------------------------------
+      // F. SIGNATURE PROPS: KHIÊN BẢO VỆ LONG CHÂU & CỜ CỔ VŨ "CỐ LÊN"
+      // -----------------------------------------------------------------------
+      // 1. Heater Protection Shield (Attached to outer Left Arm `leftArm` matching mascot-long-chau-1.jpg!)
+      const shieldGroup = new THREE.Group();
+      const shieldShape = new THREE.Shape();
+      shieldShape.moveTo(0, 0.62);
+      shieldShape.quadraticCurveTo(0.42, 0.56, 0.56, 0.42);
+      shieldShape.quadraticCurveTo(0.58, -0.18, 0, -0.64);
+      shieldShape.quadraticCurveTo(-0.58, -0.18, -0.56, 0.42);
+      shieldShape.quadraticCurveTo(-0.42, 0.56, 0, 0.62);
+
+      const outerShieldGeo = new THREE.ExtrudeGeometry(shieldShape, {
+        depth: 0.06,
+        bevelEnabled: true,
+        bevelThickness: 0.025,
+        bevelSize: 0.025,
+        bevelSegments: 4,
+      });
+      const shieldRimMat = new THREE.MeshPhysicalMaterial({
+        color: 0xf59e0b,
+        roughness: 0.28,
+        metalness: 0.25,
+        clearcoat: 0.35,
+      });
+      const outerShieldMesh = new THREE.Mesh(outerShieldGeo, shieldRimMat);
+      outerShieldMesh.castShadow = true;
+      shieldGroup.add(outerShieldMesh);
+
+      const innerShieldGeo = outerShieldGeo.clone();
+      innerShieldGeo.scale(0.81, 0.81, 0.45);
+      const sPos = innerShieldGeo.attributes.position;
+      const sUv = innerShieldGeo.attributes.uv;
+      for (let i = 0; i < sPos.count; i++) {
+        const sx = sPos.getX(i);
+        const sy = sPos.getY(i);
+        sUv.setXY(i, 0.5 + sx * 0.82, 0.5 + sy * 0.78);
+      }
+      const shieldFaceMat = new THREE.MeshStandardMaterial({
+        map: createShieldTexture(variant),
+        roughness: 0.35,
+        metalness: 0.1,
+      });
+      const innerShieldMesh = new THREE.Mesh(innerShieldGeo, shieldFaceMat);
+      innerShieldMesh.position.z = 0.048;
+      shieldGroup.add(innerShieldMesh);
+
+      const rivetGeo = new THREE.SphereGeometry(0.026, 16, 12);
+      const rivetMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        metalness: 0.7,
+        roughness: 0.3,
+      });
+      [
+        [-0.24, 0.51],
+        [0.24, 0.51],
+        [-0.49, 0.24],
+        [0.49, 0.24],
+        [-0.42, -0.14],
+        [0.42, -0.14],
+        [-0.22, -0.42],
+        [0.22, -0.42],
+      ].forEach(([rx, ry]) => {
+        const rivet = new THREE.Mesh(rivetGeo, rivetMat);
+        rivet.position.set(rx, ry, 0.082);
+        shieldGroup.add(rivet);
+      });
+
+      // Attach shield to outer Left Hand (-X side; rotation is stabilized in bodyPivot space inside updateContinuousLimbs!)
+      shieldGroup.position.set(-0.20, -0.02, 0.22);
+      leftArm.handGroup.add(shieldGroup);
+
+      // 2. "CỐ LÊN" Cheer Flag (Attached to outer Right Hand `+X`; rotation is stabilized upright in bodyPivot space!)
+      const flagGroup = new THREE.Group();
+      const poleGeo = new THREE.CylinderGeometry(0.028, 0.028, 1.38, 16);
+      const poleMesh = new THREE.Mesh(poleGeo, whiteGlossMat);
+      poleMesh.position.y = 0.45;
+      poleMesh.castShadow = true;
+      flagGroup.add(poleMesh);
+
+      const poleTopBall = new THREE.Mesh(
+        new THREE.SphereGeometry(0.056, 16, 16),
+        shieldRimMat
+      );
+      poleTopBall.position.y = 1.15;
+      flagGroup.add(poleTopBall);
+
+      const flagBannerGeo = new THREE.PlaneGeometry(0.78, 0.48, 18, 10);
+      flagBannerGeo.translate(0.40, 0, 0);
+      const flagPosAttr = flagBannerGeo.attributes.position;
+      const baseFlagCoords = new Float32Array(flagPosAttr.count * 3);
+      for (let i = 0; i < flagPosAttr.count; i++) {
+        baseFlagCoords[i * 3] = flagPosAttr.getX(i);
+        baseFlagCoords[i * 3 + 1] = flagPosAttr.getY(i);
+        baseFlagCoords[i * 3 + 2] = flagPosAttr.getZ(i);
+      }
+
+      const flagBannerMat = new THREE.MeshStandardMaterial({
+        map: createCheerFlagTexture(),
+        roughness: 0.4,
+        side: THREE.DoubleSide,
+      });
+      const flagBannerMesh = new THREE.Mesh(flagBannerGeo, flagBannerMat);
+      flagBannerMesh.position.set(0, 0.86, 0);
+      flagBannerMesh.castShadow = true;
+      flagGroup.add(flagBannerMesh);
+
+      // Gripped inside the right palm; upright orientation is stabilized in updateContinuousLimbs()
+      flagGroup.position.set(0.06, -0.02, 0.08);
+      rightArm.handGroup.add(flagGroup);
+
+      // 3. Mascot Long's "Checkmark" Wand (Gậy Dấu Tích Xanh - Cảnh 2)
+      const checkmarkWandGroup = new THREE.Group();
+      const wandPole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.026, 0.022, 1.05, 16),
+        whiteGlossMat
+      );
+      wandPole.position.y = 0.36;
+      checkmarkWandGroup.add(wandPole);
+
+      const wandCollar = new THREE.Mesh(
+        new THREE.TorusGeometry(0.045, 0.016, 12, 24),
+        shieldRimMat
+      );
+      wandCollar.rotation.x = Math.PI / 2;
+      wandCollar.position.y = 0.85;
+      checkmarkWandGroup.add(wandCollar);
+
+      // Glowing Green 3D Checkmark Emblem at top of wand
+      const checkDisc = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.24, 0.05, 32),
+        new THREE.MeshStandardMaterial({
+          color: 0x10b981,
+          emissive: 0x059669,
+          emissiveIntensity: 0.45,
+          roughness: 0.25,
+        })
+      );
+      checkDisc.rotation.x = Math.PI / 2;
+      checkDisc.position.y = 1.08;
+      checkmarkWandGroup.add(checkDisc);
+
+      const checkShort = new THREE.Mesh(
+        new RoundedBoxGeometry(0.065, 0.16, 0.075, 3, 0.02),
+        whiteGlossMat
+      );
+      checkShort.position.set(-0.055, 1.04, 0.01);
+      checkShort.rotation.z = 0.68;
+      checkmarkWandGroup.add(checkShort);
+
+      const checkLong = new THREE.Mesh(
+        new RoundedBoxGeometry(0.065, 0.28, 0.075, 3, 0.02),
+        whiteGlossMat
+      );
+      checkLong.position.set(0.045, 1.09, 0.01);
+      checkLong.rotation.z = -0.58;
+      checkmarkWandGroup.add(checkLong);
+
+      checkmarkWandGroup.position.set(0.05, -0.02, 0.08);
+      checkmarkWandGroup.visible = false;
+      rightArm.handGroup.add(checkmarkWandGroup);
+
+      // 4. Mascot Long's Smartphone / Tablet showing App Long Châu (Cảnh 4)
+      const tabletGroup = new THREE.Group();
+      const phoneBody = new THREE.Mesh(
+        new RoundedBoxGeometry(0.34, 0.58, 0.04, 4, 0.02),
+        visorBezelMat
+      );
+      tabletGroup.add(phoneBody);
+      const phoneScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.30, 0.52),
+        new THREE.MeshBasicMaterial({ map: createAppScreenTexture() })
+      );
+      phoneScreen.position.z = 0.022;
+      tabletGroup.add(phoneScreen);
+      tabletGroup.position.set(0.06, -0.02, 0.14);
+      tabletGroup.visible = false;
+      rightArm.handGroup.add(tabletGroup);
+
+      // 5. Mascot Châu's Doctor Stethoscope (Ống nghe Y tế đeo cổ)
+      const stethoscopeGroup = new THREE.Group();
+      const stethMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.35 });
+      const silverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 });
+      const stethTube = new THREE.Mesh(
+        new THREE.TorusGeometry(0.34, 0.022, 12, 36, Math.PI * 1.15),
+        stethMat
+      );
+      stethTube.position.set(0, 0.32, 0.42);
+      stethTube.rotation.set(0.52, 0, Math.PI * 0.92);
+      stethoscopeGroup.add(stethTube);
+
+      const chestPiece = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.068, 0.068, 0.028, 24),
+        silverMat
+      );
+      chestPiece.rotation.x = Math.PI / 2;
+      chestPiece.position.set(-0.22, 0.12, 0.57);
+      stethoscopeGroup.add(chestPiece);
+      const chestInner = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.045, 0.032, 24),
+        crestMat
+      );
+      chestInner.rotation.x = Math.PI / 2;
+      chestInner.position.set(-0.22, 0.12, 0.572);
+      stethoscopeGroup.add(chestInner);
+      stethoscopeGroup.visible = variant === 'mint';
+      bodyPivot.add(stethoscopeGroup);
+
+      // 6. Mascot Châu's Glowing Medical Notebook (Left Hand) & Pen (Right Hand) for Cảnh 3
+      const notebookGroup = new THREE.Group();
+      const bookCover = new THREE.Mesh(
+        new RoundedBoxGeometry(0.42, 0.52, 0.045, 4, 0.015),
+        crestMat
+      );
+      notebookGroup.add(bookCover);
+      const bookPage = new THREE.Mesh(
+        new RoundedBoxGeometry(0.38, 0.48, 0.05, 3, 0.01),
+        new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 0.35,
+          roughness: 0.3,
+        })
+      );
+      bookPage.position.z = 0.008;
+      notebookGroup.add(bookPage);
+      const bookCrossH = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.056), crestMat);
+      const bookCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.056), crestMat);
+      notebookGroup.add(bookCrossH, bookCrossV);
+      notebookGroup.position.set(-0.10, -0.02, 0.18);
+      notebookGroup.visible = false;
+      leftArm.handGroup.add(notebookGroup);
+
+      // 7. Mascot Long's Cute Mini Delivery Scooter (Xe máy giao hàng mini - Cảnh 4)
+      const scooterGroup = new THREE.Group();
+      const scooterBody = new THREE.Mesh(
+        new RoundedBoxGeometry(0.58, 0.42, 1.15, 6, 0.14),
+        helmetMat
+      );
+      scooterBody.position.set(0, 0.36, 0.05);
+      scooterGroup.add(scooterBody);
+
+      const scooterFrontShield = new THREE.Mesh(
+        new RoundedBoxGeometry(0.52, 0.68, 0.14, 5, 0.06),
+        whiteGlossMat
+      );
+      scooterFrontShield.position.set(0, 0.62, 0.48);
+      scooterFrontShield.rotation.x = -0.22;
+      scooterGroup.add(scooterFrontShield);
+
+      const headlight = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, 0.06, 24),
+        new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.8 })
+      );
+      headlight.rotation.x = Math.PI / 2;
+      headlight.position.set(0, 0.86, 0.56);
+      scooterGroup.add(headlight);
+
+      const handleBar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 0.72, 14),
+        silverMat
+      );
+      handleBar.rotation.z = Math.PI / 2;
+      handleBar.position.set(0, 0.92, 0.42);
+      scooterGroup.add(handleBar);
+
+      // Delivery Box on back of scooter
+      const deliveryBox = new THREE.Mesh(
+        new RoundedBoxGeometry(0.54, 0.46, 0.46, 4, 0.05),
+        shieldRimMat
+      );
+      deliveryBox.position.set(0, 0.74, -0.45);
+      scooterGroup.add(deliveryBox);
+
+      // Front & Back Scooter Wheels
+      [-0.38, 0.46].forEach((wz) => {
+        const wheel = new THREE.Mesh(
+          new THREE.TorusGeometry(0.18, 0.075, 14, 24),
+          soleMat
+        );
+        wheel.rotation.y = Math.PI / 2;
+        wheel.position.set(0, 0.24, wz);
+        scooterGroup.add(wheel);
+      });
+      scooterGroup.visible = false;
+      root.add(scooterGroup);
+
+      shieldGroup.visible = variant === 'blue';
+      flagGroup.visible = variant === 'mint';
+
+      // Initial damped joint state dictionary (28+ DOF per mascot including independent Index finger point!)
+      const rigState = {
+        bodyY: 1.42,
+        bodyRotX: 0,
+        bodyRotY: 0,
+        bodyRotZ: 0,
+        headRotX: 0,
+        headRotY: 0,
+        headRotZ: 0,
+        lShoulderX: 0,
+        lShoulderY: 0,
+        lShoulderZ: -0.32,
+        lElbowX: -0.25,
+        lElbowZ: 0,
+        lWristX: 0,
+        lWristY: 0,
+        lWristZ: 0,
+        lFingerCurl: 0.22,
+        lIndexPoint: 0,
+        rShoulderX: 0,
+        rShoulderY: 0,
+        rShoulderZ: 0.32,
+        rElbowX: -0.25,
+        rElbowZ: 0,
+        rWristX: 0,
+        rWristY: 0,
+        rWristZ: 0,
+        rFingerCurl: 0.22,
+        rIndexPoint: 0,
+        lHipX: 0,
+        lHipZ: 0,
+        lKneeX: 0,
+        lAnkleX: 0,
+        rHipX: 0,
+        rHipZ: 0,
+        rKneeX: 0,
+        rAnkleX: 0,
+        shieldPitch: -0.06,
+        shieldYaw: -0.24,
+        shieldRoll: -0.04,
+        flagPitch: 0.04,
+        flagYaw: -0.08,
+        flagRoll: -0.14,
+      };
+
+      // Helper vectors & quaternions for updating the 4 continuous spline limbs and prop constraints in bodyPivot space
+      const vStart = new THREE.Vector3();
+      const vMid = new THREE.Vector3();
+      const vEnd = new THREE.Vector3();
+      const downVec = new THREE.Vector3(0, -1, 0);
+      const invBodyMatrix = new THREE.Matrix4();
+      const qBodyWorld = new THREE.Quaternion();
+      const qHandWorld = new THREE.Quaternion();
+      const qHandInBody = new THREE.Quaternion();
+      const qPropTargetBody = new THREE.Quaternion();
+      const ePropTargetBody = new THREE.Euler();
+
+      function updateContinuousLimbs() {
+        bodyPivot.updateWorldMatrix(true, true);
+        invBodyMatrix.copy(bodyPivot.matrixWorld).invert();
+
+        // Left & Right Arms: update spline tube AND align sleeveEndFrame with exact endTangent!
+        [leftArm, rightArm].forEach((arm) => {
+          vStart.setFromMatrixPosition(arm.shoulderPivot.matrixWorld).applyMatrix4(invBodyMatrix);
+          vMid.setFromMatrixPosition(arm.elbowPivot.matrixWorld).applyMatrix4(invBodyMatrix);
+          vEnd.setFromMatrixPosition(arm.wristControlPoint.matrixWorld).applyMatrix4(invBodyMatrix);
+          const endInfo = arm.softSleeve.updateLimb(vStart, vMid, vEnd);
+          arm.sleeveEndFrame.position.copy(endInfo.endPos);
+          arm.sleeveEndFrame.quaternion.setFromUnitVectors(downVec, endInfo.endTangent);
+        });
+
+        // Left & Right Legs: update spline tube AND align trouserEndFrame with exact endTangent!
+        [leftLeg, rightLeg].forEach((leg) => {
+          vStart.setFromMatrixPosition(leg.hipPivot.matrixWorld).applyMatrix4(invBodyMatrix);
+          vMid.setFromMatrixPosition(leg.kneePivot.matrixWorld).applyMatrix4(invBodyMatrix);
+          vEnd.setFromMatrixPosition(leg.ankleControlPoint.matrixWorld).applyMatrix4(invBodyMatrix);
+          const endInfo = leg.softTrouser.updateLimb(vStart, vMid, vEnd);
+          leg.trouserEndFrame.position.copy(endInfo.endPos);
+          leg.trouserEndFrame.quaternion.setFromUnitVectors(downVec, endInfo.endTangent);
+        });
+
+        // Update child hand world matrices after sleeveEndFrame alignment, then apply body-space Rotation Constraint to Props!
+        bodyPivot.updateWorldMatrix(false, true);
+        bodyPivot.getWorldQuaternion(qBodyWorld);
+
+        // Stabilize Left-Hand Props (Shield & Notebook) in bodyPivot space
+        leftArm.handGroup.getWorldQuaternion(qHandWorld);
+        qHandInBody.copy(qBodyWorld).invert().multiply(qHandWorld);
+        ePropTargetBody.set(rigState.shieldPitch, rigState.shieldYaw, rigState.shieldRoll, 'XYZ');
+        qPropTargetBody.setFromEuler(ePropTargetBody);
+        shieldGroup.quaternion.copy(qHandInBody).invert().multiply(qPropTargetBody);
+        notebookGroup.quaternion.copy(qHandInBody).invert().multiply(qPropTargetBody);
+
+        // Stabilize Right-Hand Props (Flag, Checkmark Wand, Smartphone Tablet) in bodyPivot space
+        rightArm.handGroup.getWorldQuaternion(qHandWorld);
+        qHandInBody.copy(qBodyWorld).invert().multiply(qHandWorld);
+        ePropTargetBody.set(rigState.flagPitch, rigState.flagYaw, rigState.flagRoll, 'XYZ');
+        qPropTargetBody.setFromEuler(ePropTargetBody);
+        flagGroup.quaternion.copy(qHandInBody).invert().multiply(qPropTargetBody);
+        checkmarkWandGroup.quaternion.copy(qHandInBody).invert().multiply(qPropTargetBody);
+        tabletGroup.quaternion.copy(qHandInBody).invert().multiply(qPropTargetBody);
+      }
+
+      root.userData = {
+        variant,
+        bodyPivot,
+        headPivot,
+        headGroup,
+        facePatchMat,
+        leftArm,
+        rightArm,
+        leftLeg,
+        rightLeg,
+        capeGroup,
+        capeMesh,
+        baseCapeCoords,
+        ribbonTails,
+        shieldGroup,
+        flagGroup,
+        flagBannerMesh,
+        baseFlagCoords,
+        checkmarkWandGroup,
+        tabletGroup,
+        stethoscopeGroup,
+        notebookGroup,
+        scooterGroup,
+        rigState,
+        updateContinuousLimbs,
+        currentExpression: 'classic',
+        isBlinking: false,
+      };
+
+      updateContinuousLimbs();
+      return root;
+    }
+
+    // Build both Official Long Châu Mascots spaced cleanly at x = ±1.55
+    const blueMascot = buildLongChauMascot('blue');
+    const mintMascot = buildLongChauMascot('mint');
+
+    blueMascot.position.set(-1.55, 0, 0);
+    blueMascot.rotation.y = 0.16;
+
+    mintMascot.position.set(1.55, 0, 0);
+    mintMascot.rotation.y = -0.16;
+
+    scene.add(blueMascot, mintMascot);
+    const mascots = [blueMascot, mintMascot];
+
+    // =========================================================================
+    // 5B. 4-SCENE STORY STAGE SET PIECES & AR HOLOGRAM GRAPHICS ("ĐẠI CHIẾN CÚM MÙA")
+    // =========================================================================
+    function buildStoryStageVFX() {
+      const stageVFX = new THREE.Group();
+      scene.add(stageVFX);
+
+      function makeARBillboard(title, sub, c1, c2, border, w = 2.5, h = 0.84) {
+        const tex = createARBannerTexture(title, sub, c1, c2, border);
+        const mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          transparent: true,
+          side: THREE.DoubleSide,
+        });
+        return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      }
+
+      // -----------------------------------------------------------------------
+      // SCENE 1 VFX: Autumn Leaves + Flu Virus Swarm + "ẮT XÌ!" Bubble + Shield Barrier
+      // -----------------------------------------------------------------------
+      const scene1Group = new THREE.Group();
+      stageVFX.add(scene1Group);
+
+      // 32 Falling Autumn Golden Leaves
+      const leafGeo = new THREE.ConeGeometry(0.09, 0.22, 4);
+      leafGeo.scale(1.0, 1.0, 0.2);
+      const leafColors = [0xf59e0b, 0xd97706, 0xeab308, 0xea580c];
+      const fallingLeaves = [];
+      for (let i = 0; i < 32; i++) {
+        const leaf = new THREE.Mesh(
+          leafGeo,
+          new THREE.MeshStandardMaterial({
+            color: leafColors[i % leafColors.length],
+            roughness: 0.5,
+          })
+        );
+        leaf.position.set(
+          (Math.random() - 0.5) * 9,
+          Math.random() * 5 + 0.5,
+          (Math.random() - 0.5) * 4
+        );
+        leaf.userData = {
+          speedY: 0.7 + Math.random() * 0.6,
+          speedX: -1.1 - Math.random() * 0.8,
+          rotSpeed: 1.5 + Math.random() * 2.0,
+          phase: Math.random() * Math.PI * 2,
+        };
+        scene1Group.add(leaf);
+        fallingLeaves.push(leaf);
+      }
+
+      // 6 Spiky 3D Flu Viruses (Grumpy Purple/Green Monsters)
+      const virusSwarm = [];
+      const virusBodyMat = new THREE.MeshStandardMaterial({
+        color: 0x7c3aed,
+        roughness: 0.35,
+        emissive: 0x4c1d95,
+        emissiveIntensity: 0.25,
+      });
+      const spikeMat = new THREE.MeshStandardMaterial({
+        color: 0x84cc16,
+        roughness: 0.3,
+        emissive: 0x3f6212,
+        emissiveIntensity: 0.3,
+      });
+
+      for (let v = 0; v < 6; v++) {
+        const vGroup = new THREE.Group();
+        const vCore = new THREE.Mesh(new THREE.SphereGeometry(0.24, 20, 16), virusBodyMat);
+        vGroup.add(vCore);
+
+        // Virus spikes
+        for (let s = 0; s < 12; s++) {
+          const phi = Math.acos(1 - (2 * (s + 0.5)) / 12);
+          const theta = Math.PI * (1 + Math.sqrt(5)) * s;
+          const dir = new THREE.Vector3(
+            Math.sin(phi) * Math.cos(theta),
+            Math.cos(phi),
+            Math.sin(phi) * Math.sin(theta)
+          );
+          const spike = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.14, 8), spikeMat);
+          spike.position.copy(dir).multiplyScalar(0.26);
+          spike.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+          vGroup.add(spike);
+        }
+
+        // Grumpy eyes on front of virus
+        [-0.08, 0.08].forEach((ex, eIdx) => {
+          const eye = new THREE.Mesh(
+            new THREE.SphereGeometry(0.048, 12, 10),
+            new THREE.MeshBasicMaterial({ color: 0xfef08a })
+          );
+          eye.position.set(ex, 0.04, 0.21);
+          vGroup.add(eye);
+          const brow = new THREE.Mesh(
+            new THREE.BoxGeometry(0.09, 0.022, 0.02),
+            new THREE.MeshBasicMaterial({ color: 0x1e1b4b })
+          );
+          brow.position.set(ex, 0.09, 0.23);
+          brow.rotation.z = eIdx === 0 ? -0.38 : 0.38;
+          vGroup.add(brow);
+        });
+
+        vGroup.userData = {
+          baseOffset: new THREE.Vector3(
+            0.2 + (v % 3) * 0.85,
+            1.35 + Math.floor(v / 3) * 0.95,
+            0.6 + (v % 2) * 0.45
+          ),
+          phase: v * 1.1,
+        };
+        scene1Group.add(vGroup);
+        virusSwarm.push(vGroup);
+      }
+
+      // "ẮT XÌ! 🤧" Speech Bubble above Mascot Châu
+      const sneezeBanner = makeARBillboard(
+        'ẮT XÌ! 🤧',
+        'Sụt sịt • Ho • Sốt...',
+        '#e11d48',
+        '#be123c',
+        '#fecdd3',
+        1.75,
+        0.64
+      );
+      sneezeBanner.position.set(1.55, 3.68, 1.35);
+      scene1Group.add(sneezeBanner);
+
+      // Hero Shield Expanding Energy Barrier Ring
+      const shieldBarrierRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.15, 0.045, 16, 48),
+        new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.75,
+        })
+      );
+      shieldBarrierRing.position.set(-0.3, 1.65, 1.15);
+      scene1Group.add(shieldBarrierRing);
+
+      // -----------------------------------------------------------------------
+      // SCENE 2 VFX: Self-Medication Matrix Ring (Fake Pills + "?" + Soap Bubbles)
+      // -----------------------------------------------------------------------
+      const scene2Group = new THREE.Group();
+      scene2Group.visible = false;
+      stageVFX.add(scene2Group);
+
+      const matrixOrbitGroup = new THREE.Group();
+      matrixOrbitGroup.position.set(1.35, 1.85, 0.2);
+      scene2Group.add(matrixOrbitGroup);
+
+      const fakePills = [];
+      const pillColors = [0xa855f7, 0xef4444, 0xf97316, 0xec4899, 0x6366f1, 0x14b8a6];
+      for (let k = 0; k < 6; k++) {
+        const angle = (k / 6) * Math.PI * 2;
+        const itemGroup = new THREE.Group();
+        itemGroup.position.set(Math.cos(angle) * 1.38, Math.sin(angle * 2) * 0.25, Math.sin(angle) * 1.15);
+
+        if (k % 2 === 0) {
+          // Suspicious Two-Tone Capsule Pill
+          const half1 = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.11, 0.16, 10, 16),
+            new THREE.MeshStandardMaterial({ color: pillColors[k], roughness: 0.25 })
+          );
+          half1.position.y = 0.06;
+          const half2 = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.112, 0.16, 10, 16),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35 })
+          );
+          half2.position.y = -0.06;
+          itemGroup.add(half1, half2);
+          itemGroup.rotation.z = 0.65;
+        } else {
+          // Floating "?" Question Mark Card
+          const qCard = makeARBillboard('❓', 'THUỐC TRÔI NỔI?', '#7c2d12', '#991b1b', '#fca5a5', 0.86, 0.52);
+          itemGroup.add(qCard);
+        }
+        matrixOrbitGroup.add(itemGroup);
+        fakePills.push(itemGroup);
+      }
+
+      // Iridescent Soap Bubbles when Checkmark Wand smashes the fake pills
+      const soapBubbles = [];
+      const bubbleMat = new THREE.MeshPhysicalMaterial({
+        color: 0xe0f2fe,
+        roughness: 0.05,
+        metalness: 0.1,
+        transmission: 0.72,
+        transparent: true,
+        opacity: 0.78,
+        clearcoat: 1.0,
+      });
+      for (let b = 0; b < 18; b++) {
+        const r = 0.08 + (b % 4) * 0.045;
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), bubbleMat);
+        bubble.userData = {
+          baseAngle: (b / 18) * Math.PI * 2,
+          radius: 0.5 + (b % 5) * 0.26,
+          speed: 0.9 + (b % 3) * 0.45,
+          yOffset: (b % 6) * 0.35,
+        };
+        scene2Group.add(bubble);
+        soapBubbles.push(bubble);
+      }
+
+      // -----------------------------------------------------------------------
+      // SCENE 3 VFX: Medicine Cart ("100% CHÍNH HÃNG"), Scale/Heart ("ĐÚNG BỆNH - ĐÚNG LIỀU"), Shield Coin ("BÌNH ỔN GIÁ")
+      // -----------------------------------------------------------------------
+      const scene3Group = new THREE.Group();
+      scene3Group.visible = false;
+      stageVFX.add(scene3Group);
+
+      // Sub-piece 3.1: Glowing Medicine Cart + "100% CHÍNH HÃNG"
+      const medCartGroup = new THREE.Group();
+      medCartGroup.position.set(-0.15, 0, 1.15);
+      scene3Group.add(medCartGroup);
+
+      const cartBase = new THREE.Mesh(
+        new RoundedBoxGeometry(1.18, 0.12, 0.76, 4, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3 })
+      );
+      cartBase.position.y = 0.32;
+      medCartGroup.add(cartBase);
+
+      const cartShelf = cartBase.clone();
+      cartShelf.position.y = 0.78;
+      medCartGroup.add(cartShelf);
+
+      // 4 Cart pillars & handle
+      [
+        [-0.52, -0.32],
+        [0.52, -0.32],
+        [-0.52, 0.32],
+        [0.52, 0.32],
+      ].forEach(([cx, cz]) => {
+        const pillar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.028, 0.028, 0.72, 12),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.7, roughness: 0.2 })
+        );
+        pillar.position.set(cx, 0.56, cz);
+        medCartGroup.add(pillar);
+
+        const wheel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.09, 0.09, 0.06, 16),
+          new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 })
+        );
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(cx, 0.14, cz);
+        medCartGroup.add(wheel);
+      });
+
+      // Glowing Medicine Boxes stacked on the top shelf
+      const boxPalette = [0x0052cc, 0x10b981, 0xf59e0b, 0x0ea5e9];
+      for (let m = 0; m < 4; m++) {
+        const mBox = new THREE.Mesh(
+          new RoundedBoxGeometry(0.24, 0.30, 0.22, 3, 0.02),
+          new THREE.MeshStandardMaterial({
+            color: boxPalette[m],
+            emissive: boxPalette[m],
+            emissiveIntensity: 0.22,
+            roughness: 0.28,
+          })
+        );
+        mBox.position.set(-0.33 + m * 0.22, 0.99, (m % 2 === 0 ? 0.08 : -0.08));
+        medCartGroup.add(mBox);
+      }
+
+      const bannerAuthentic = makeARBillboard(
+        '✨ 100% CHÍNH HÃNG',
+        'NGUỒN GỐC RÕ RÀNG • FPT LONG CHÂU',
+        '#0052cc',
+        '#0284c7',
+        '#fde047',
+        2.5,
+        0.76
+      );
+      bannerAuthentic.position.set(0.15, 3.65, 0.25);
+      medCartGroup.add(bannerAuthentic);
+
+      // Sub-piece 3.2: Precision Scale & Beating Heart + "ĐÚNG BỆNH - ĐÚNG LIỀU"
+      const scaleHeartGroup = new THREE.Group();
+      scaleHeartGroup.position.set(0.1, 0, 1.1);
+      scene3Group.add(scaleHeartGroup);
+
+      const scalePedestal = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.42, 0.65, 24),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 })
+      );
+      scalePedestal.position.y = 0.36;
+      scaleHeartGroup.add(scalePedestal);
+
+      const heartShape = new THREE.Shape();
+      heartShape.moveTo(0, 0.18);
+      heartShape.bezierCurveTo(-0.35, 0.52, -0.65, 0.10, 0, -0.38);
+      heartShape.bezierCurveTo(0.65, 0.10, 0.35, 0.52, 0, 0.18);
+      const heart3DGeo = new THREE.ExtrudeGeometry(heartShape, {
+        depth: 0.12,
+        bevelEnabled: true,
+        bevelThickness: 0.03,
+        bevelSize: 0.03,
+        bevelSegments: 4,
+      });
+      const heart3DMesh = new THREE.Mesh(
+        heart3DGeo,
+        new THREE.MeshStandardMaterial({
+          color: 0xe11d48,
+          emissive: 0xbe123c,
+          emissiveIntensity: 0.45,
+          roughness: 0.2,
+        })
+      );
+      heart3DMesh.position.set(0, 1.05, 0);
+      scaleHeartGroup.add(heart3DMesh);
+
+      const bannerRightDose = makeARBillboard(
+        '❤️ ĐÚNG BỆNH - ĐÚNG LIỀU',
+        'TƯ VẤN TẬN TÂM • DƯỢC SĨ CHUYÊN MÔN CAO',
+        '#0d9488',
+        '#059669',
+        '#a7f3d0',
+        2.6,
+        0.76
+      );
+      bannerRightDose.position.set(-0.1, 3.65, 0.25);
+      scaleHeartGroup.add(bannerRightDose);
+
+      // Sub-piece 3.3: Golden Shield Coin + "BÌNH ỔN GIÁ"
+      const priceCoinGroup = new THREE.Group();
+      priceCoinGroup.position.set(0, 0, 1.05);
+      scene3Group.add(priceCoinGroup);
+
+      const goldCoin = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.42, 0.10, 36),
+        new THREE.MeshPhysicalMaterial({
+          color: 0xfbbf24,
+          metalness: 0.65,
+          roughness: 0.22,
+          clearcoat: 0.5,
+        })
+      );
+      goldCoin.rotation.x = Math.PI / 2;
+      goldCoin.position.y = 0.86;
+      priceCoinGroup.add(goldCoin);
+
+      const bannerStablePrice = makeARBillboard(
+        '🛡️ BÌNH ỔN GIÁ',
+        'CAM KẾT GIÁ TỐT NHẤT CHO MỌI NHÀ',
+        '#d97706',
+        '#0052cc',
+        '#fef08a',
+        2.5,
+        0.76
+      );
+      bannerStablePrice.position.set(0, 3.65, 0.30);
+      priceCoinGroup.add(bannerStablePrice);
+
+      // -----------------------------------------------------------------------
+      // SCENE 4 VFX: Vietnam Pharmacy Network Hologram Map + Finale Banner ("TẢI APP NGAY • 1800 6928")
+      // -----------------------------------------------------------------------
+      const scene4Group = new THREE.Group();
+      scene4Group.visible = false;
+      stageVFX.add(scene4Group);
+
+      // Glowing 3D S-Curve Vietnam Map Hologram (with Hoàng Sa & Trường Sa archipelagos!)
+      const vnMapGroup = new THREE.Group();
+      vnMapGroup.position.set(2.95, 1.75, 0.25);
+      scene4Group.add(vnMapGroup);
+
+      const vnPoints = [
+        new THREE.Vector3(-0.15, 1.05, 0),  // Northern Vietnam (Hà Nội / Đông Bắc)
+        new THREE.Vector3(0.05, 0.72, 0),   // Bắc Trung Bộ
+        new THREE.Vector3(0.28, 0.28, 0),   // Đà Nẵng / Trung Trung Bộ
+        new THREE.Vector3(0.34, -0.18, 0),  // Nam Trung Bộ / Nha Trang
+        new THREE.Vector3(0.08, -0.62, 0),  // TP.HCM / Đông Nam Bộ
+        new THREE.Vector3(-0.22, -0.95, 0), // Đồng bằng Sông Cửu Long / Cà Mau
+      ];
+      const vnCurve = new THREE.CatmullRomCurve3(vnPoints);
+      const vnTube = new THREE.Mesh(
+        new THREE.TubeGeometry(vnCurve, 48, 0.14, 14, false),
+        new THREE.MeshStandardMaterial({
+          color: 0x0ea5e9,
+          emissive: 0x0284c7,
+          emissiveIntensity: 0.65,
+          transparent: true,
+          opacity: 0.88,
+        })
+      );
+      vnMapGroup.add(vnTube);
+
+      // Sparkling Pharmacy Nodes across Mainland + Hoàng Sa & Trường Sa
+      const nodeCoords = [
+        [-0.18, 1.02], [0.02, 0.95], [-0.08, 0.82], [0.08, 0.65],
+        [0.24, 0.36], [0.32, 0.12], [0.35, -0.15], [0.22, -0.38],
+        [0.06, -0.60], [-0.08, -0.75], [-0.20, -0.92],
+        [0.62, 0.34], // Quần đảo Hoàng Sa
+        [0.74, -0.42], // Quần đảo Trường Sa
+      ];
+      const mapPinNodes = [];
+      nodeCoords.forEach(([nx, ny], idx) => {
+        const pin = new THREE.Mesh(
+          new THREE.SphereGeometry(idx >= 11 ? 0.055 : 0.048, 12, 12),
+          new THREE.MeshBasicMaterial({ color: idx >= 11 ? 0xfbbf24 : 0xfef08a })
+        );
+        pin.position.set(nx, ny, 0.14);
+        vnMapGroup.add(pin);
+        mapPinNodes.push(pin);
+      });
+
+      const mapLabel = makeARBillboard(
+        '🗺️ HỆ THỐNG TOÀN QUỐC',
+        'NHÀ THUỐC FPT LONG CHÂU GẦN NHẤT',
+        '#0f766e',
+        '#0284c7',
+        '#99f6e4',
+        1.95,
+        0.62
+      );
+      mapLabel.position.set(0.1, 1.48, 0);
+      vnMapGroup.add(mapLabel);
+
+      // Grand Finale Centerpiece Banner ("TẢI APP NGAY • HOTLINE 1800 6928")
+      const finaleBannerGroup = new THREE.Group();
+      finaleBannerGroup.position.set(0, 3.68, 1.35);
+      scene4Group.add(finaleBannerGroup);
+
+      const finaleBoard = makeARBillboard(
+        'FPT LONG CHÂU • TẢI APP NGAY',
+        '📞 HOTLINE MIỄN CƯỚC: 1800 6928 • SÁT CÁNH CÙNG SỨC KHỎE GIA ĐÌNH BẠN',
+        '#0052cc',
+        '#14b8a6',
+        '#fde047',
+        3.9,
+        0.92
+      );
+      finaleBannerGroup.add(finaleBoard);
+
+      const centerHeart = heart3DMesh.clone();
+      centerHeart.position.set(0, -1.98, -0.35);
+      centerHeart.scale.setScalar(0.82);
+      finaleBannerGroup.add(centerHeart);
+
+      return {
+        scene1Group,
+        fallingLeaves,
+        virusSwarm,
+        sneezeBanner,
+        shieldBarrierRing,
+        scene2Group,
+        matrixOrbitGroup,
+        fakePills,
+        soapBubbles,
+        scene3Group,
+        medCartGroup,
+        scaleHeartGroup,
+        heart3DMesh,
+        priceCoinGroup,
+        goldCoin,
+        scene4Group,
+        vnMapGroup,
+        mapPinNodes,
+        finaleBannerGroup,
+        centerHeart,
+      };
+    }
+
+    const storyVFX = buildStoryStageVFX();
+    storyVFX.scene1Group.visible = false;
+
+    // =========================================================================
+    // 6. EXPRESSION, POSE, VIEW MODE, CAMERA, SFX & SCRIPT DIRECTOR CONTROLLERS
+    // =========================================================================
+    let currentPose = 'idle';
+    let animSpeed = 1.0;
+    let blendSpeed = 8.0;
+    let windStrength = 1.2;
+    let showShield = true;
+    let showFlag = true;
+
+    // Script Director State ("Đại Chiến Cúm Mùa" 0:00 -> 2:00)
+    let scriptPlaying = false;
+    let scriptTime = 0; // 0 to 120 seconds
+    let sfxEnabled = true;
+    let autoCamEnabled = true;
+    let lastBeatId = '';
+
+    // Procedural WebAudio Sound Synthesizer for Cinematic Script SFX
+    let audioCtx = null;
+    function playScriptSfx(type) {
+      if (!sfxEnabled) return;
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'sneeze') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(180, now + 0.28);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'hero_shield') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(660, now + 0.35);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } else if (type === 'pop') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(380, now);
+          osc.frequency.exponentialRampToValueAtTime(920, now + 0.11);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'ting') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.setValueAtTime(1318.5, now + 0.09);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.42);
+        } else if (type === 'fanfare') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.12);
+          osc.frequency.setValueAtTime(783.99, now + 0.24);
+          osc.frequency.setValueAtTime(1046.5, now + 0.36);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+          osc.start(now);
+          osc.stop(now + 0.75);
+        }
+      } catch (e) {
+        // Ignore audio autoplay blocks
+      }
+    }
+
+    function updateMascotFace(mascot, expr, blink = false) {
+      if (mascot.userData.currentExpression === expr && mascot.userData.isBlinking === blink) return;
+      mascot.userData.currentExpression = expr;
+      const oldTex = mascot.userData.facePatchMat.map;
+      const newTex = createFaceTexture(mascot.userData.variant, expr, blink);
+      mascot.userData.facePatchMat.map = newTex;
+      mascot.userData.facePatchMat.needsUpdate = true;
+      if (oldTex) oldTex.dispose();
+    }
+
+    function setExpressionAll(expr) {
+      mascots.forEach((m) => {
+        m.userData.currentExpression = '';
+        updateMascotFace(m, expr, false);
+      });
+    }
+
+    function resetPropsAndStageToDefault() {
+      storyVFX.scene1Group.visible = false;
+      storyVFX.scene2Group.visible = false;
+      storyVFX.scene3Group.visible = false;
+      storyVFX.scene4Group.visible = false;
+
+      blueMascot.position.set(-1.55, 0, 0);
+      blueMascot.rotation.set(0, 0.16, 0);
+      mintMascot.position.set(1.55, 0, 0);
+      mintMascot.rotation.set(0, -0.16, 0);
+
+      blueMascot.userData.shieldGroup.visible = showShield;
+      blueMascot.userData.flagGroup.visible = false;
+      blueMascot.userData.checkmarkWandGroup.visible = false;
+      blueMascot.userData.tabletGroup.visible = false;
+      blueMascot.userData.notebookGroup.visible = false;
+      blueMascot.userData.scooterGroup.visible = false;
+
+      mintMascot.userData.shieldGroup.visible = false;
+      mintMascot.userData.flagGroup.visible = showFlag;
+      mintMascot.userData.checkmarkWandGroup.visible = false;
+      mintMascot.userData.tabletGroup.visible = false;
+      mintMascot.userData.notebookGroup.visible = false;
+      mintMascot.userData.scooterGroup.visible = false;
+      mintMascot.userData.stethoscopeGroup.visible = true;
+    }
+
+    function applyPosePropContext(pose) {
+      resetPropsAndStageToDefault();
+
+      if (pose === 'scene1_sneeze') {
+        storyVFX.scene1Group.visible = true;
+        storyVFX.sneezeBanner.visible = true;
+        storyVFX.shieldBarrierRing.visible = false;
+        mintMascot.userData.flagGroup.visible = false;
+        updateMascotFace(mintMascot, 'sneeze', false);
+        updateMascotFace(blueMascot, 'classic', false);
+      } else if (pose === 'scene1_shield') {
+        storyVFX.scene1Group.visible = true;
+        storyVFX.sneezeBanner.visible = false;
+        storyVFX.shieldBarrierRing.visible = true;
+        blueMascot.position.set(-0.45, 0, 0.55);
+        blueMascot.rotation.y = 0.28;
+        mintMascot.position.set(1.35, 0, -0.25);
+        updateMascotFace(blueMascot, 'classic', false);
+        updateMascotFace(mintMascot, 'gentle', false);
+      } else if (pose === 'scene2_confused') {
+        storyVFX.scene2Group.visible = true;
+        blueMascot.userData.shieldGroup.visible = false;
+        blueMascot.userData.checkmarkWandGroup.visible = true;
+        mintMascot.userData.flagGroup.visible = false;
+        updateMascotFace(mintMascot, 'confused', false);
+        updateMascotFace(blueMascot, 'classic', false);
+      } else if (pose === 'scene2_checkmark') {
+        storyVFX.scene2Group.visible = true;
+        blueMascot.userData.shieldGroup.visible = false;
+        blueMascot.userData.checkmarkWandGroup.visible = true;
+        mintMascot.userData.flagGroup.visible = false;
+        blueMascot.position.set(-0.65, 0, 0.35);
+        updateMascotFace(blueMascot, 'classic', false);
+        updateMascotFace(mintMascot, 'cheer', false);
+      } else if (pose === 'scene3_cart') {
+        storyVFX.scene3Group.visible = true;
+        storyVFX.medCartGroup.visible = true;
+        storyVFX.scaleHeartGroup.visible = false;
+        storyVFX.priceCoinGroup.visible = false;
+        blueMascot.userData.shieldGroup.visible = false;
+        mintMascot.userData.flagGroup.visible = false;
+        mintMascot.userData.notebookGroup.visible = true;
+        updateMascotFace(blueMascot, 'classic', false);
+        updateMascotFace(mintMascot, 'gentle', false);
+      } else if (pose === 'scene3_notebook') {
+        storyVFX.scene3Group.visible = true;
+        storyVFX.medCartGroup.visible = false;
+        storyVFX.scaleHeartGroup.visible = true;
+        storyVFX.priceCoinGroup.visible = false;
+        mintMascot.userData.flagGroup.visible = false;
+        mintMascot.userData.notebookGroup.visible = true;
+        updateMascotFace(mintMascot, 'gentle', false);
+        updateMascotFace(blueMascot, 'classic', false);
+      } else if (pose === 'scene3_highfive') {
+        storyVFX.scene3Group.visible = true;
+        storyVFX.medCartGroup.visible = false;
+        storyVFX.scaleHeartGroup.visible = false;
+        storyVFX.priceCoinGroup.visible = true;
+        blueMascot.position.set(-1.36, 0, 0);
+        blueMascot.rotation.y = 0.26;
+        mintMascot.position.set(1.36, 0, 0);
+        mintMascot.rotation.y = -0.26;
+        blueMascot.userData.shieldGroup.visible = false;
+        mintMascot.userData.flagGroup.visible = false;
+        updateMascotFace(blueMascot, 'cheer', false);
+        updateMascotFace(mintMascot, 'cheer', false);
+      } else if (pose === 'scene4_scooter') {
+        storyVFX.scene4Group.visible = true;
+        storyVFX.vnMapGroup.visible = true;
+        storyVFX.finaleBannerGroup.visible = false;
+        blueMascot.userData.shieldGroup.visible = false;
+        blueMascot.userData.tabletGroup.visible = true;
+        blueMascot.userData.scooterGroup.visible = true;
+        mintMascot.userData.flagGroup.visible = false;
+        updateMascotFace(blueMascot, 'classic', false);
+        updateMascotFace(mintMascot, 'gentle', false);
+      } else if (pose === 'scene4_finale') {
+        storyVFX.scene4Group.visible = true;
+        storyVFX.vnMapGroup.visible = false;
+        storyVFX.finaleBannerGroup.visible = true;
+        blueMascot.userData.shieldGroup.visible = true;
+        mintMascot.userData.flagGroup.visible = false;
+        updateMascotFace(blueMascot, 'classic', false);
+        updateMascotFace(mintMascot, 'heart', false);
+      }
+    }
+
+    // View Mode Switcher (Duo / Blue Solo / Mint Solo)
+    document.querySelectorAll('#characterModeGroup .ctrl-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        scriptPlaying = false;
+        document.getElementById('btnPlayScript').classList.remove('playing');
+        document.getElementById('btnPlayScript').textContent = '▶️ Phát Phim Kịch Bản (2:00)';
+        document
+          .querySelectorAll('#characterModeGroup .ctrl-btn')
+          .forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.dataset.mode;
+
+        if (mode === 'duo') {
+          blueMascot.visible = true;
+          mintMascot.visible = true;
+          resetPropsAndStageToDefault();
+        } else if (mode === 'blue') {
+          blueMascot.visible = true;
+          mintMascot.visible = false;
+          resetPropsAndStageToDefault();
+          blueMascot.position.set(0, 0, 0);
+          blueMascot.rotation.y = 0;
+        } else if (mode === 'mint') {
+          blueMascot.visible = false;
+          mintMascot.visible = true;
+          resetPropsAndStageToDefault();
+          mintMascot.position.set(0, 0, 0);
+          mintMascot.rotation.y = 0;
+        }
+      });
+    });
+
+    // Pose Switcher
+    document.querySelectorAll('#poseGroup .ctrl-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        scriptPlaying = false;
+        document.getElementById('btnPlayScript').classList.remove('playing');
+        document.getElementById('btnPlayScript').textContent = '▶️ Phát Phim Kịch Bản (2:00)';
+        document.querySelectorAll('#poseGroup .ctrl-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPose = btn.dataset.pose;
+        applyPosePropContext(currentPose);
+      });
+    });
+
+    // Expression Switcher
+    document.querySelectorAll('#expressionGroup .ctrl-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document
+          .querySelectorAll('#expressionGroup .ctrl-btn')
+          .forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        setExpressionAll(btn.dataset.expr);
+      });
+    });
+
+    // Toggles: Shield, Flag, Cape, Wireframe
+    const btnShield = document.getElementById('toggleShield');
+    btnShield.addEventListener('click', () => {
+      showShield = !showShield;
+      btnShield.classList.toggle('active', showShield);
+      blueMascot.userData.shieldGroup.visible = showShield;
+    });
+
+    const btnFlag = document.getElementById('toggleFlag');
+    btnFlag.addEventListener('click', () => {
+      showFlag = !showFlag;
+      btnFlag.classList.toggle('active', showFlag);
+      mintMascot.userData.flagGroup.visible = showFlag;
+    });
+
+    const btnCape = document.getElementById('toggleCape');
+    btnCape.addEventListener('click', () => {
+      const active = !btnCape.classList.contains('active');
+      btnCape.classList.toggle('active', active);
+      mascots.forEach((m) => {
+        m.userData.capeGroup.visible = active;
+      });
+    });
+
+    const btnWireframe = document.getElementById('toggleWireframe');
+    btnWireframe.addEventListener('click', () => {
+      const wf = !btnWireframe.classList.contains('active');
+      btnWireframe.classList.toggle('active', wf);
+      mascots.forEach((m) => {
+        m.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = wf;
+          }
+        });
+      });
+    });
+
+    // Smooth Damped Camera Presets
+    document.querySelectorAll('.cam-pill[data-cam]').forEach((pill) => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.cam-pill[data-cam]').forEach((p) => p.classList.remove('active'));
+        pill.classList.add('active');
+        const preset = pill.dataset.cam;
+        camPresetActive = true;
+        if (preset === 'front') {
+          camGoalPos.set(0, 1.75, 10.6);
+          camGoalTarget.set(0, 1.45, 0);
+        } else if (preset === 'three-quarter') {
+          camGoalPos.set(6.2, 2.2, 8.2);
+          camGoalTarget.set(0, 1.45, 0);
+        } else if (preset === 'side') {
+          camGoalPos.set(9.4, 1.85, 0.2);
+          camGoalTarget.set(0, 1.45, 0);
+        } else if (preset === 'back') {
+          camGoalPos.set(0, 2.0, -10.4);
+          camGoalTarget.set(0, 1.45, 0);
+        } else if (preset === 'closeup') {
+          const focusX = blueMascot.visible && mintMascot.visible ? -1.45 : 0;
+          camGoalPos.set(focusX, 2.65, 4.8);
+          camGoalTarget.set(focusX, 2.45, 0);
+        } else if (preset === 'lowhero') {
+          camGoalPos.set(0, 0.75, 8.8);
+          camGoalTarget.set(0, 1.7, 0);
+        }
+      });
+    });
+
+    const btnAutoRotate = document.getElementById('btnAutoRotate');
+    btnAutoRotate.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      controls.autoRotateSpeed = 2.0;
+      btnAutoRotate.classList.toggle('active', controls.autoRotate);
+    });
+
+    document.getElementById('animSpeedSlider').addEventListener('input', (e) => {
+      animSpeed = parseFloat(e.target.value);
+    });
+    document.getElementById('blendSpeedSlider').addEventListener('input', (e) => {
+      blendSpeed = parseFloat(e.target.value);
+    });
+    document.getElementById('windSlider').addEventListener('input', (e) => {
+      windStrength = parseFloat(e.target.value);
+    });
+
+    // Script Timeline Director UI Controls
+    const btnPlayScript = document.getElementById('btnPlayScript');
+    const scriptTimelineSlider = document.getElementById('scriptTimelineSlider');
+    const scriptTimecode = document.getElementById('scriptTimecode');
+    const subtitleSpeaker = document.getElementById('subtitleSpeaker');
+    const subtitleSceneTag = document.getElementById('subtitleSceneTag');
+    const subtitleText = document.getElementById('subtitleText');
+
+    function formatTimecode(sec) {
+      const s = Math.max(0, Math.min(120, Math.floor(sec)));
+      const mm = String(Math.floor(s / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      return `${mm}:${ss} / 02:00`;
+    }
+
+    btnPlayScript.addEventListener('click', () => {
+      scriptPlaying = !scriptPlaying;
+      if (scriptPlaying && scriptTime >= 119.5) {
+        scriptTime = 0;
+        lastBeatId = '';
+      }
+      blueMascot.visible = true;
+      mintMascot.visible = true;
+      btnPlayScript.classList.toggle('playing', scriptPlaying);
+      btnPlayScript.textContent = scriptPlaying
+        ? '⏸️ Tạm Dừng Kịch Bản'
+        : '▶️ Tiếp Tục Phát Phim';
+    });
+
+    document.querySelectorAll('.scene-chip[data-scene-time]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        scriptTime = parseFloat(chip.dataset.sceneTime);
+        scriptPlaying = true;
+        lastBeatId = '';
+        blueMascot.visible = true;
+        mintMascot.visible = true;
+        btnPlayScript.classList.add('playing');
+        btnPlayScript.textContent = '⏸️ Tạm Dừng Kịch Bản';
+        scriptTimelineSlider.value = scriptTime;
+        evaluateScriptTimeline(scriptTime);
+      });
+    });
+
+    scriptTimelineSlider.addEventListener('input', (e) => {
+      scriptTime = parseFloat(e.target.value);
+      lastBeatId = '';
+      blueMascot.visible = true;
+      mintMascot.visible = true;
+      evaluateScriptTimeline(scriptTime);
+    });
+
+    const btnToggleSfx = document.getElementById('btnToggleSfx');
+    btnToggleSfx.addEventListener('click', () => {
+      sfxEnabled = !sfxEnabled;
+      btnToggleSfx.classList.toggle('active', sfxEnabled);
+    });
+
+    const btnToggleAutoCam = document.getElementById('btnToggleAutoCam');
+    btnToggleAutoCam.addEventListener('click', () => {
+      autoCamEnabled = !autoCamEnabled;
+      btnToggleAutoCam.classList.toggle('active', autoCamEnabled);
+    });
+
+    // Built-in 60FPS WebM/MP4 Video Recorder for Filmmaking
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    const btnRecordVideo = document.getElementById('btnRecordVideo');
+    btnRecordVideo.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        btnRecordVideo.classList.remove('recording');
+        btnRecordVideo.textContent = '🎬 Quay Video 60FPS';
+        return;
+      }
+      const stream = renderer.domElement.captureStream(60);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 12_000_000,
+      });
+      mediaRecorder.ondataavailable = (ev) => {
+        if (ev.data.size > 0) recordedChunks.push(ev.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mascot-long-chau-dai-chien-cum-mua-${Date.now()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      mediaRecorder.start();
+      btnRecordVideo.classList.add('recording');
+      btnRecordVideo.textContent = '⏹️ Dừng & Tải Video';
+    });
+
+    // Screenshot PNG & GLTF 3D Export
+    document.getElementById('btnScreenshot').addEventListener('click', () => {
+      renderer.render(scene, camera);
+      const dataUrl = renderer.domElement.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'mascot-fpt-long-chau-3d.png';
+      a.click();
+    });
+
+    document.getElementById('btnExportGLTF').addEventListener('click', () => {
+      const exporter = new GLTFExporter();
+      const exportTarget = new THREE.Group();
+      if (blueMascot.visible) exportTarget.add(blueMascot.clone());
+      if (mintMascot.visible) exportTarget.add(mintMascot.clone());
+
+      exporter.parse(
+        exportTarget,
+        (gltfJson) => {
+          const blob = new Blob([JSON.stringify(gltfJson, null, 2)], {
+            type: 'application/json',
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fpt-long-chau-mascot-3d.gltf';
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        (err) => console.error('GLTF export error:', err),
+        { binary: false }
+      );
+    });
+
+    // =========================================================================
+    // 7. CINEMATIC MULTI-JOINT ANIMATION ENGINE + 4-SCENE SCRIPT CHOREOGRAPHY
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let animClock = 0;
+    let nextBlinkTime = 2.8;
+    let blinkEndTime = 0;
+
+    /**
+     * Full 4-Scene Script Beat Table ("2 Mascot Long & Châu 'Đại Chiến' Cúm Mùa" • 0:00 - 2:00)
+     */
+    const SCRIPT_BEATS = [
+      {
+        id: 'c1_a',
+        start: 0,
+        end: 14,
+        sceneIdx: 0,
+        pose: 'scene1_sneeze',
+        speaker: '🎙️ MASCOT CHÂU (Giọng nũng nịu, sụt sịt)',
+        speakerClass: 'speaker-pill chau',
+        sceneTag: 'Cảnh 1/4: Gió mùa về & Đội quân Cúm (0:00 - 0:30)',
+        line: '“Gió mùa về mang theo bao lãng mạn, nhưng lại "khuyến mãi" thêm cả binh đoàn cúm mùa đáng ghét! Sụt sịt, ho, sốt... thật là mệt mỏi! Ắt xì!!”',
+        sfx: 'sneeze',
+        camPos: [1.1, 1.85, 8.8],
+        camTarget: [0.6, 1.55, 0],
+      },
+      {
+        id: 'c1_b',
+        start: 14,
+        end: 30,
+        sceneIdx: 0,
+        pose: 'scene1_shield',
+        speaker: '🎙️ MASCOT LONG (Giọng vang, hiệp sĩ tự tin)',
+        speakerClass: 'speaker-pill',
+        sceneTag: 'Cảnh 1/4: Hiệp sĩ Long đáp xuống giương khiên chắn gió',
+        line: '“Đừng lo! Cúm mùa dù có "hung hăng" đến đâu, cũng không thể vượt qua hàng rào bảo vệ vững chắc!”',
+        sfx: 'hero_shield',
+        camPos: [-2.4, 1.25, 8.6],
+        camTarget: [0.1, 1.55, 0.2],
+      },
+      {
+        id: 'c2_a',
+        start: 30,
+        end: 42,
+        sceneIdx: 1,
+        pose: 'scene2_confused',
+        speaker: '🎙️ MASCOT CHÂU (Gãi đầu bối rối giữa ma trận thuốc)',
+        speakerClass: 'speaker-pill chau',
+        sceneTag: 'Cảnh 2/4: Ma trận tự chữa bệnh (0:30 - 0:55)',
+        line: '“Giữa ma trận thông tin, tự ý mua thuốc hay nghe lời khuyên "truyền miệng" đôi khi lại rước thêm bực vào người, uống mãi không khỏi.”',
+        sfx: 'pop',
+        camPos: [2.2, 2.0, 8.4],
+        camTarget: [0.6, 1.6, 0],
+      },
+      {
+        id: 'c2_b',
+        start: 42,
+        end: 55,
+        sceneIdx: 1,
+        pose: 'scene2_checkmark',
+        speaker: '🎙️ MASCOT LONG (Vung gậy Checkmark đập tan thuốc trôi nổi)',
+        speakerClass: 'speaker-pill',
+        sceneTag: 'Cảnh 2/4: Gậy Tích Xanh hóa giải thuốc ảo thành bong bóng',
+        line: '“Tuyệt đối không nhắm mắt mua liều! Thuốc trôi nổi, sai liều lượng chính là "kẻ thù" khiến cơ thể mệt mỏi hơn.”',
+        sfx: 'pop',
+        camPos: [-1.8, 1.9, 8.8],
+        camTarget: [0.2, 1.6, 0.2],
+      },
+      {
+        id: 'c3_a',
+        start: 55,
+        end: 70,
+        sceneIdx: 2,
+        pose: 'scene3_cart',
+        speaker: '🎙️ MASCOT LONG (Đẩy xe thuốc tỏa hào quang)',
+        speakerClass: 'speaker-pill',
+        sceneTag: 'Cảnh 3/4 (Chi tiết 1): Lá chắn thép • 100% Chính Hãng (0:55 - 1:10)',
+        line: '“Đã có bộ đôi Long - Châu ra tay! Tại hệ thống nhà thuốc FPT Long Châu, chúng mình mang đến lá chắn bảo vệ sức khỏe với 100% thuốc chính hãng, nguồn gốc rõ ràng!”',
+        sfx: 'ting',
+        camPos: [-0.8, 1.85, 9.6],
+        camTarget: [0, 1.45, 0.3],
+      },
+      {
+        id: 'c3_b',
+        start: 70,
+        end: 85,
+        sceneIdx: 2,
+        pose: 'scene3_notebook',
+        speaker: '🎙️ MASCOT CHÂU (Gật gù ghi sổ tay y tế phát sáng)',
+        speakerClass: 'speaker-pill chau',
+        sceneTag: 'Cảnh 3/4 (Chi tiết 2): Đúng Bệnh - Đúng Liều (1:10 - 1:25)',
+        line: '“Tư vấn tận tâm, cắt thuốc đúng bệnh, đúng liều.”',
+        sfx: 'ting',
+        camPos: [1.5, 1.9, 8.8],
+        camTarget: [0.3, 1.5, 0.3],
+      },
+      {
+        id: 'c3_c',
+        start: 85,
+        end: 100,
+        sceneIdx: 2,
+        pose: 'scene3_highfive',
+        speaker: '🎙️ MASCOT LONG & CHÂU (Đập tay High-Five ăn mừng)',
+        speakerClass: 'speaker-pill both',
+        sceneTag: 'Cảnh 3/4 (Chi tiết 3): Cam kết Bình Ổn Giá (1:25 - 1:40)',
+        line: '“Và luôn cam kết giá tốt nhất, bình ổn nhất cho mọi nhà!”',
+        sfx: 'ting',
+        camPos: [0, 1.65, 9.2],
+        camTarget: [0, 1.55, 0.2],
+      },
+      {
+        id: 'c4_a',
+        start: 100,
+        end: 112,
+        sceneIdx: 3,
+        pose: 'scene4_scooter',
+        speaker: '🎙️ CHÂU & LONG (Mạng lưới nhà thuốc & Xe máy giao thuốc 30p)',
+        speakerClass: 'speaker-pill both',
+        sceneTag: 'Cảnh 4/4: Bản đồ nhà thuốc Việt Nam & Giao hàng siêu tốc (1:40 - 1:52)',
+        line: 'Châu: “Cúm mùa đến? Đến ngay FPT Long Châu gần nhất nhé!” • Long: “Hoặc mở App Long Châu, đặt thuốc ngay, giao liền tay chỉ trong chớp mắt!”',
+        sfx: 'hero_shield',
+        camPos: [0.4, 1.85, 11.2],
+        camTarget: [0.3, 1.5, 0],
+      },
+      {
+        id: 'c4_b',
+        start: 112,
+        end: 120.1,
+        sceneIdx: 3,
+        pose: 'scene4_finale',
+        speaker: '🎙️ ĐỒNG THANH: LONG & CHÂU (Nhảy lên Thả Tim & Giơ Ngón Tay #1)',
+        speakerClass: 'speaker-pill both',
+        sceneTag: 'Cảnh Kết (1:52 - 2:00): TẢI APP NGAY • HOTLINE 1800 6928',
+        line: '“FPT Long Châu – Sát cánh cùng sức khỏe gia đình bạn! (Tải App Ngay • Hotline 1800 6928)”',
+        sfx: 'fanfare',
+        camPos: [0, 1.85, 10.6],
+        camTarget: [0, 1.85, 0],
+      },
+    ];
+
+    const cinemaTimecodeBadge = document.getElementById('cinemaTimecodeBadge');
+    function evaluateScriptTimeline(t) {
+      const tc = formatTimecode(t);
+      scriptTimecode.textContent = tc;
+      scriptTimelineSlider.value = t;
+
+      const beat =
+        SCRIPT_BEATS.find((b) => t >= b.start && t < b.end) ||
+        SCRIPT_BEATS[SCRIPT_BEATS.length - 1];
+      if (cinemaTimecodeBadge) {
+        cinemaTimecodeBadge.textContent = `🎬 CẢNH ${beat.sceneIdx + 1}/4 • ${tc}`;
+      }
+
+      if (beat.id !== lastBeatId) {
+        lastBeatId = beat.id;
+        currentPose = beat.pose;
+        applyPosePropContext(currentPose);
+        playScriptSfx(beat.sfx);
+
+        // Highlight active pose button & scene chip
+        document.querySelectorAll('#poseGroup .ctrl-btn').forEach((b) => {
+          b.classList.toggle('active', b.dataset.pose === currentPose);
+        });
+        document.querySelectorAll('.scene-chip[data-scene-time]').forEach((c, idx) => {
+          c.classList.toggle('active', idx === beat.sceneIdx);
+        });
+
+        // Update Subtitle Overlay
+        subtitleSpeaker.className = beat.speakerClass;
+        subtitleSpeaker.textContent = beat.speaker;
+        subtitleSceneTag.textContent = beat.sceneTag;
+        subtitleText.textContent = beat.line;
+
+        if (autoCamEnabled) {
+          camPresetActive = true;
+          camGoalPos.set(...beat.camPos);
+          camGoalTarget.set(...beat.camTarget);
+        }
+      }
+
+      // Dynamic sub-beat choreography inside active scene
+      if (beat.id === 'c1_b') {
+        // Mascot Long hero landing from above in the first 1.2s of Beat 1B!
+        const localT = Math.min(1, (t - beat.start) / 1.2);
+        const dropHeight = (1 - localT) ** 2 * 2.8;
+        blueMascot.position.set(-0.45, dropHeight, 0.55);
+      }
+    }
+
+    /**
+     * Computes target joint angles for all 28+ degrees of freedom (including 2-segment organic hands
+     * and independent Index finger `#1` pointing!) across all 14 poses.
+     */
+    function computeTargetPose(mascot, p) {
+      const u = mascot.userData;
+      const isBlue = u.variant === 'blue';
+      const hasShield = u.shieldGroup.visible;
+      const hasFlag = u.flagGroup.visible;
+
+      // Neutral anatomical target: palms face inward (wristY = 0), fingers softly cascaded
+      const target = {
+        bodyY: 1.42,
+        bodyRotX: 0,
+        bodyRotY: 0,
+        bodyRotZ: 0,
+        headRotX: 0,
+        headRotY: 0,
+        headRotZ: 0,
+        lShoulderX: 0,
+        lShoulderY: 0,
+        lShoulderZ: -0.30,
+        lElbowX: -0.24,
+        lElbowZ: 0,
+        lWristX: 0,
+        lWristY: 0,
+        lWristZ: 0,
+        lFingerCurl: hasShield ? 0.68 : 0.24,
+        lIndexPoint: 0,
+        rShoulderX: 0,
+        rShoulderY: 0,
+        rShoulderZ: 0.30,
+        rElbowX: -0.24,
+        rElbowZ: 0,
+        rWristX: 0,
+        rWristY: 0,
+        rWristZ: 0,
+        rFingerCurl: hasFlag ? 0.72 : 0.24,
+        rIndexPoint: 0,
+        lHipX: 0,
+        lHipZ: 0,
+        lKneeX: 0.05,
+        lAnkleX: 0,
+        rHipX: 0,
+        rHipZ: 0,
+        rKneeX: 0.05,
+        rAnkleX: 0,
+        shieldPitch: -0.05,
+        shieldYaw: -0.24,
+        shieldRoll: -0.04,
+        flagPitch: 0.04,
+        flagYaw: -0.08,
+        flagRoll: -0.14,
+      };
+
+      if (currentPose === 'tpose') {
+        target.lShoulderZ = -1.18;
+        target.lElbowX = -0.08;
+        target.lWristY = 1.05;
+        target.rShoulderZ = 1.18;
+        target.rElbowX = -0.08;
+        target.rWristY = -1.05;
+        target.lFingerCurl = 0.08;
+        target.rFingerCurl = 0.08;
+      } else if (currentPose === 'idle') {
+        const breath = Math.sin(p * 2.3) * 0.032;
+        target.bodyY = 1.42 + breath;
+        target.headRotZ = Math.sin(p * 1.3) * 0.04;
+        target.headRotY = Math.cos(p * 1.0) * 0.065;
+        target.headRotX = Math.sin(p * 2.3 - 0.5) * 0.025;
+
+        target.lShoulderZ = -0.32 - Math.sin(p * 2.3) * 0.035;
+        target.lShoulderX = hasShield ? -0.26 : -0.06;
+        target.lElbowX = hasShield ? -0.42 : -0.22;
+
+        target.rShoulderZ = 0.32 + Math.sin(p * 2.3) * 0.035;
+        target.rShoulderX = hasFlag ? -0.32 : -0.06;
+        target.rElbowX = hasFlag ? -0.48 : -0.22;
+
+        target.lKneeX = 0.06 - breath * 0.4;
+        target.rKneeX = 0.06 - breath * 0.4;
+        target.lAnkleX = -0.04;
+        target.rAnkleX = -0.04;
+      } else if (currentPose === 'scene1_sneeze') {
+        if (!isBlue) {
+          // Mascot Châu: Shivering in cold wind, hugging arms in, then big "ẮT XÌ!" head/body snap!
+          const cycle = p % 3.2;
+          const isSneezing = cycle > 2.1 && cycle < 2.65;
+          const isBuildUp = cycle > 1.5 && cycle <= 2.1;
+          const shiver = Math.sin(p * 28.0) * 0.028;
+
+          target.bodyY = isSneezing ? 1.36 : 1.38 + shiver * 0.3;
+          target.bodyRotX = isSneezing ? 0.36 : isBuildUp ? -0.18 : 0.14;
+          target.bodyRotZ = shiver;
+          target.headRotX = isSneezing ? 0.42 : isBuildUp ? -0.28 : 0.12;
+          target.headRotZ = shiver * 1.5;
+
+          // Arms crossed/tucked close to chest shivering
+          target.lShoulderZ = -0.18;
+          target.lShoulderX = -0.68;
+          target.lShoulderY = 0.45;
+          target.lElbowX = -0.82;
+          target.lFingerCurl = 0.78;
+
+          target.rShoulderZ = 0.18;
+          target.rShoulderX = -0.68;
+          target.rShoulderY = -0.45;
+          target.rElbowX = -0.82;
+          target.rFingerCurl = 0.78;
+
+          target.lHipZ = 0.05;
+          target.rHipZ = -0.05;
+          target.lKneeX = 0.22;
+          target.rKneeX = 0.22;
+        } else {
+          // Mascot Long on alert ready to jump in
+          target.bodyY = 1.40 + Math.sin(p * 4.0) * 0.04;
+          target.bodyRotY = 0.28;
+          target.lShoulderZ = -0.48;
+          target.lShoulderX = -0.48;
+          target.lElbowX = -0.55;
+          target.rShoulderZ = 0.42;
+          target.rShoulderX = -0.35;
+          target.rElbowX = -0.52;
+          target.rFingerCurl = 0.75;
+        }
+      } else if (currentPose === 'scene1_shield' || currentPose === 'shield') {
+        if (isBlue) {
+          // Mascot Long: Heroic low-stance Shield Block deflecting flu viruses!
+          const pulse = Math.sin(p * 3.5);
+          target.bodyY = 1.37 + pulse * 0.03;
+          target.bodyRotX = 0.12;
+          target.bodyRotY = 0.22;
+          target.headRotY = -0.18;
+          target.headRotX = -0.08;
+
+          target.lShoulderZ = -0.58;
+          target.lShoulderX = -0.72;
+          target.lShoulderY = 0.34;
+          target.lElbowX = -0.55;
+          target.lFingerCurl = 0.82;
+          target.shieldPitch = -0.02;
+          target.shieldYaw = -0.06;
+          target.shieldRoll = 0.0;
+
+          target.rShoulderZ = 0.56;
+          target.rShoulderX = 0.22;
+          target.rElbowX = -0.62;
+          target.rFingerCurl = 0.85;
+
+          target.lHipX = 0.26;
+          target.rHipX = -0.24;
+          target.lKneeX = 0.32;
+          target.rKneeX = 0.28;
+          target.lAnkleX = -0.15;
+          target.rAnkleX = -0.12;
+        } else {
+          // Mascot Châu safe behind Long's shield, cheering gratefully
+          const breath = Math.sin(p * 3.0) * 0.04;
+          target.bodyY = 1.42 + breath;
+          target.headRotZ = 0.06;
+          target.lShoulderZ = -0.38;
+          target.lShoulderX = -0.42;
+          target.lElbowX = -0.68;
+          target.lWristY = 0.85;
+          target.lFingerCurl = 0.18;
+          target.rShoulderZ = 0.42;
+          target.rShoulderX = -0.42;
+          target.rElbowX = -0.55;
+        }
+      } else if (currentPose === 'scene2_confused') {
+        if (!isBlue) {
+          // Mascot Châu: Scratching head/ear in confusion surrounded by fake pills & "?"
+          const scratch = Math.sin(p * 8.5);
+          target.bodyY = 1.41 + Math.sin(p * 2.5) * 0.025;
+          target.bodyRotZ = 0.05;
+          target.headRotZ = -0.12 + Math.sin(p * 2.2) * 0.06;
+          target.headRotY = Math.cos(p * 1.8) * 0.14;
+
+          // Right hand raised up to ear/helmet scratching in confusion
+          target.rShoulderZ = 1.18;
+          target.rShoulderX = -0.58;
+          target.rElbowX = -0.88 + scratch * 0.12;
+          target.rElbowZ = 0.42 + scratch * 0.14;
+          target.rWristY = -0.65;
+          target.rFingerCurl = 0.35;
+          target.rIndexPoint = 0.7;
+
+          // Left hand on hip
+          target.lShoulderZ = -0.48;
+          target.lShoulderX = 0.12;
+          target.lElbowX = -0.65;
+          target.lElbowZ = -0.38;
+          target.lFingerCurl = 0.55;
+        } else {
+          // Mascot Long stepping forward holding the Green Checkmark Wand ready
+          target.bodyY = 1.42 + Math.sin(p * 3.0) * 0.03;
+          target.rShoulderZ = 0.46;
+          target.rShoulderX = -0.48;
+          target.rElbowX = -0.52;
+          target.rFingerCurl = 0.78;
+          target.flagPitch = 0.08;
+          target.flagRoll = -0.12;
+        }
+      } else if (currentPose === 'scene2_checkmark') {
+        if (isBlue) {
+          // Mascot Long swinging the glowing Green Checkmark Wand to pop fake pills into soap bubbles!
+          const swing = Math.sin(p * 6.2);
+          target.bodyY = 1.42 + Math.abs(swing) * 0.06;
+          target.bodyRotY = -swing * 0.18;
+          target.headRotY = swing * 0.12;
+
+          target.rShoulderZ = 0.72 + swing * 0.28;
+          target.rShoulderX = -0.68 + Math.cos(p * 6.2) * 0.25;
+          target.rElbowX = -0.52 - Math.max(0, swing) * 0.25;
+          target.rFingerCurl = 0.82;
+          target.flagPitch = 0.22 + Math.cos(p * 6.2) * 0.28;
+          target.flagYaw = -0.15;
+          target.flagRoll = -0.25 - swing * 0.38;
+
+          target.lShoulderZ = -0.45;
+          target.lShoulderX = -0.28;
+          target.lElbowX = -0.48;
+        } else {
+          // Mascot Châu clapping happily as fake pills turn into soap bubbles
+          const clap = Math.abs(Math.sin(p * 6.2));
+          target.bodyY = 1.42 + clap * 0.05;
+          target.lShoulderZ = -0.26;
+          target.lShoulderX = -0.58;
+          target.lShoulderY = 0.35 - clap * 0.18;
+          target.lElbowX = -0.58;
+          target.lWristY = 0.45;
+          target.lFingerCurl = 0.12;
+
+          target.rShoulderZ = 0.26;
+          target.rShoulderX = -0.58;
+          target.rShoulderY = -0.35 + clap * 0.18;
+          target.rElbowX = -0.58;
+          target.rWristY = -0.45;
+          target.rFingerCurl = 0.12;
+        }
+      } else if (currentPose === 'scene3_cart') {
+        if (isBlue) {
+          // Mascot Long proudly presenting / pushing the 100% Authentic Medicine Cart
+          const sway = Math.sin(p * 3.2);
+          target.bodyY = 1.42 + Math.abs(sway) * 0.04;
+          target.bodyRotY = -0.18;
+          target.headRotY = 0.15;
+
+          // Right hand gesturing toward the glowing cart, Left hand open
+          target.rShoulderZ = 0.68;
+          target.rShoulderX = -0.58;
+          target.rElbowX = -0.42;
+          target.rWristY = -0.95;
+          target.rFingerCurl = 0.12;
+
+          target.lShoulderZ = -0.42;
+          target.lShoulderX = -0.45;
+          target.lElbowX = -0.52;
+          target.lFingerCurl = 0.35;
+        } else {
+          // Mascot Châu holding glowing Medical Notebook on left hand
+          target.bodyY = 1.42 + Math.sin(p * 2.8) * 0.03;
+          target.lShoulderZ = -0.42;
+          target.lShoulderX = -0.52;
+          target.lElbowX = -0.58;
+          target.lFingerCurl = 0.65;
+          target.shieldPitch = -0.35;
+          target.shieldYaw = 0.18;
+          target.shieldRoll = 0.05;
+
+          target.rShoulderZ = 0.48;
+          target.rShoulderX = -0.45;
+          target.rElbowX = -0.52;
+          target.rWristY = -0.85;
+          target.rFingerCurl = 0.15;
+        }
+      } else if (currentPose === 'scene3_notebook') {
+        if (!isBlue) {
+          // Mascot Châu nodding thoughtfully while taking notes in the glowing Medical Notebook
+          const nod = Math.sin(p * 5.2);
+          const write = Math.sin(p * 9.5);
+          target.bodyY = 1.42 + Math.abs(nod) * 0.03;
+          target.headRotX = 0.14 + nod * 0.09;
+          target.headRotZ = 0.05;
+
+          // Left hand holds glowing notebook up
+          target.lShoulderZ = -0.38;
+          target.lShoulderX = -0.58;
+          target.lShoulderY = 0.25;
+          target.lElbowX = -0.65;
+          target.lFingerCurl = 0.68;
+          target.shieldPitch = -0.38;
+          target.shieldYaw = 0.22;
+          target.shieldRoll = 0.06;
+
+          // Right hand writes across the notebook page with index finger extended
+          target.rShoulderZ = 0.32;
+          target.rShoulderX = -0.62;
+          target.rShoulderY = -0.38 + write * 0.08;
+          target.rElbowX = -0.72;
+          target.rWristZ = write * 0.12;
+          target.rFingerCurl = 0.65;
+          target.rIndexPoint = 0.85;
+        } else {
+          // Mascot Long giving an approving nod & thumbs/index gesture beside the scale
+          target.bodyY = 1.42 + Math.sin(p * 3.0) * 0.03;
+          target.headRotX = Math.sin(p * 3.0) * 0.06;
+          target.rShoulderZ = 0.58;
+          target.rShoulderX = -0.52;
+          target.rElbowX = -0.62;
+          target.rWristY = -0.85;
+          target.rFingerCurl = 0.82;
+          target.rIndexPoint = 1.0;
+        }
+      } else if (currentPose === 'scene3_highfive') {
+        // Both Mascots turning toward center and jumping to High-Five next to the "BÌNH ỔN GIÁ" Shield Coin!
+        const hfWave = Math.sin(p * 4.8);
+        const jump = Math.max(0, hfWave);
+        target.bodyY = 1.42 + jump * 0.18;
+
+        if (isBlue) {
+          // Mascot Long (on Left): raises inner Right Arm high toward Mascot Châu to High-Five!
+          target.bodyRotZ = -jump * 0.05;
+          target.headRotZ = -0.05;
+          target.rShoulderX = -1.68 - jump * 0.14;
+          target.rShoulderZ = 0.52;
+          target.rElbowX = -0.35;
+          target.rWristY = -1.15; // Open palm facing forward/inward!
+          target.rFingerCurl = 0.04;
+
+          target.lShoulderZ = -0.45;
+          target.lShoulderX = -0.25;
+          target.lElbowX = -0.45;
+        } else {
+          // Mascot Châu (on Right): raises inner Left Arm high toward Mascot Long to High-Five!
+          target.bodyRotZ = jump * 0.05;
+          target.headRotZ = 0.05;
+          target.lShoulderX = -1.68 - jump * 0.14;
+          target.lShoulderZ = -0.52;
+          target.lElbowX = -0.35;
+          target.lWristY = 1.15; // Open palm facing forward/inward!
+          target.lFingerCurl = 0.04;
+
+          target.rShoulderZ = 0.45;
+          target.rShoulderX = -0.25;
+          target.rElbowX = -0.45;
+        }
+        target.lKneeX = jump * 0.28 + 0.08;
+        target.rKneeX = jump * 0.28 + 0.08;
+      } else if (currentPose === 'scene4_scooter') {
+        if (isBlue) {
+          // Mascot Long riding the cute Mini Delivery Scooter & holding up the App Long Châu Smartphone!
+          const roadVib = Math.sin(p * 14.0) * 0.018;
+          target.bodyY = 1.46 + roadVib;
+          target.bodyRotX = 0.08;
+          target.headRotY = -0.08;
+
+          // Left hand gripping scooter handlebar
+          target.lShoulderZ = -0.24;
+          target.lShoulderX = -0.68;
+          target.lElbowX = -0.45;
+          target.lFingerCurl = 0.85;
+
+          // Right hand raised high showing the App Long Châu phone screen!
+          target.rShoulderX = -1.45;
+          target.rShoulderZ = 0.52;
+          target.rElbowX = -0.38;
+          target.rFingerCurl = 0.72;
+          target.flagPitch = -0.04;
+          target.flagYaw = -0.12;
+          target.flagRoll = 0.02;
+
+          // Seated scooter knee bend
+          target.lHipX = -0.42;
+          target.rHipX = -0.42;
+          target.lKneeX = 0.58;
+          target.rKneeX = 0.58;
+        } else {
+          // Mascot Châu waving warmly beside the glowing 3D Vietnam Pharmacy Network Map!
+          const bounce = Math.abs(Math.sin(p * 3.6)) * 0.045;
+          target.bodyY = 1.42 + bounce;
+          target.headRotZ = 0.06;
+
+          // Left hand waves high to viewers (supinated so open palm faces forward!)
+          target.lShoulderX = -1.65;
+          target.lShoulderZ = -0.48 + Math.sin(p * 7.0) * 0.22;
+          target.lElbowX = -0.38;
+          target.lWristY = 1.12;
+          target.lFingerCurl = 0.05;
+
+          // Right hand gestures toward the Vietnam Map on the right
+          target.rShoulderZ = 0.68;
+          target.rShoulderX = -0.48;
+          target.rElbowX = -0.38;
+          target.rWristY = -0.95;
+          target.rFingerCurl = 0.12;
+        }
+      } else if (currentPose === 'scene4_finale') {
+        // Grand Finale: Both Mascots jump & pose — Long raises "#1" Index Finger UP high, Châu poses "Thả Tim"!
+        const jumpWave = Math.sin(p * 4.6);
+        const jump = Math.max(0, jumpWave);
+        target.bodyY = 1.42 + jump * 0.20;
+        target.headRotZ = (isBlue ? -0.06 : 0.06) + Math.sin(p * 2.3) * 0.04;
+
+        if (isBlue) {
+          // Mascot Long: Right arm pitched UP high so Index Finger points "#1" (Number 1) toward the sky!
+          target.rShoulderX = -1.92 - jump * 0.12;
+          target.rShoulderZ = 0.42;
+          target.rElbowX = -0.32;
+          target.rWristY = -1.08; // Palm facing viewer
+          target.rFingerCurl = 0.96; // Middle, Ring, Pinky curled into a neat fist
+          target.rIndexPoint = 1.0;  // Index finger straight UP (#1)!
+
+          // Left hand holds Long Châu Shield proudly
+          target.lShoulderZ = -0.48;
+          target.lShoulderX = -0.35;
+          target.lElbowX = -0.48;
+          target.shieldPitch = -0.05;
+          target.shieldYaw = -0.18;
+        } else {
+          // Mascot Châu: Both hands brought together in a cute Heart Pose ("Thả tim")!
+          target.lShoulderZ = -0.42;
+          target.lShoulderX = -1.12;
+          target.lShoulderY = 0.48;
+          target.lElbowX = -0.68;
+          target.lWristY = 0.85;
+          target.lFingerCurl = 0.38;
+
+          target.rShoulderZ = 0.42;
+          target.rShoulderX = -1.12;
+          target.rShoulderY = -0.48;
+          target.rElbowX = -0.68;
+          target.rWristY = -0.85;
+          target.rFingerCurl = 0.38;
+        }
+
+        target.lHipX = -jump * 0.16;
+        target.rHipX = jump * 0.12;
+        target.lKneeX = 0.12 + jump * 0.32;
+        target.rKneeX = 0.12 + jump * 0.24;
+        target.lAnkleX = jump * 0.25;
+        target.rAnkleX = jump * 0.25;
+      } else if (currentPose === 'wave') {
+        const bounce = Math.abs(Math.sin(p * 3.4)) * 0.055;
+        target.bodyY = 1.42 + bounce;
+        target.bodyRotZ = -0.04;
+        target.headRotZ = 0.07 + Math.sin(p * 3.4) * 0.045;
+        target.headRotY = 0.08;
+
+        if (hasShield && !hasFlag) {
+          // Blue Mascot: Right hand raised high waving cheerfully (supinated so palm faces forward!), Left hand holds Shield
+          target.rShoulderX = -1.68;
+          target.rShoulderZ = 0.48 + Math.sin(p * 7.2) * 0.24;
+          target.rElbowX = -0.38;
+          target.rWristY = -1.12;
+          target.rWristZ = Math.sin(p * 7.2 - 0.4) * 0.18;
+          target.rFingerCurl = 0.05;
+
+          target.lShoulderZ = -0.38;
+          target.lShoulderX = -0.28;
+          target.lElbowX = -0.45;
+        } else {
+          // Mint Mascot: Left hand raised high waving cheerfully (supinated so palm faces forward!), Right hand holds Flag
+          target.lShoulderX = -1.68;
+          target.lShoulderZ = -0.48 + Math.sin(p * 7.2) * 0.24;
+          target.lElbowX = -0.38;
+          target.lWristY = 1.12;
+          target.lWristZ = Math.sin(p * 7.2 - 0.4) * 0.18;
+          target.lFingerCurl = 0.05;
+
+          target.rShoulderZ = 0.38;
+          target.rShoulderX = -0.34;
+          target.rElbowX = -0.52;
+        }
+      } else if (currentPose === 'walk') {
+        const wCycle = p * 4.2;
+        const sinW = Math.sin(wCycle);
+        const cosW = Math.cos(wCycle);
+
+        target.bodyY = 1.42 + Math.abs(cosW) * 0.065;
+        target.bodyRotX = 0.05;
+        target.bodyRotY = sinW * 0.09;
+        target.bodyRotZ = cosW * 0.03;
+
+        target.headRotY = -sinW * 0.06;
+        target.headRotZ = -cosW * 0.03;
+
+        target.lShoulderZ = -0.32;
+        target.lShoulderX = -sinW * 0.38 - (hasShield ? 0.22 : 0.05);
+        target.lElbowX = -0.38 - Math.max(0, sinW) * 0.22;
+
+        target.rShoulderZ = 0.32;
+        target.rShoulderX = sinW * 0.38 - (hasFlag ? 0.25 : 0.05);
+        target.rElbowX = -0.42 - Math.max(0, -sinW) * 0.22;
+
+        target.lHipX = sinW * 0.46;
+        target.lKneeX = Math.max(0.05, -cosW * 0.52 + 0.22);
+        target.lAnkleX = -target.lKneeX * 0.45 + sinW * 0.15;
+
+        target.rHipX = -sinW * 0.46;
+        target.rKneeX = Math.max(0.05, cosW * 0.52 + 0.22);
+        target.rAnkleX = -target.rKneeX * 0.45 - sinW * 0.15;
+      } else if (currentPose === 'run') {
+        const rCycle = p * 6.4;
+        const sinR = Math.sin(rCycle);
+        const cosR = Math.cos(rCycle);
+
+        target.bodyY = 1.42 + Math.abs(cosR) * 0.12;
+        target.bodyRotX = 0.14;
+        target.bodyRotY = sinR * 0.14;
+        target.headRotX = -0.11;
+        target.headRotY = -sinR * 0.08;
+        target.headRotZ = cosR * 0.05;
+
+        target.lShoulderZ = -0.40;
+        target.lShoulderX = -sinR * 0.48 - 0.24;
+        target.lElbowX = -0.58 - Math.max(0, sinR) * 0.22;
+        target.lFingerCurl = 0.82;
+
+        target.rShoulderZ = 0.40;
+        target.rShoulderX = sinR * 0.48 - 0.24;
+        target.rElbowX = -0.58 - Math.max(0, -sinR) * 0.22;
+        target.rFingerCurl = 0.82;
+
+        target.lHipX = sinR * 0.62;
+        target.lKneeX = Math.max(0.08, -cosR * 0.75 + 0.38);
+        target.lAnkleX = -target.lKneeX * 0.4 + sinR * 0.22;
+
+        target.rHipX = -sinR * 0.62;
+        target.rKneeX = Math.max(0.08, cosR * 0.75 + 0.38);
+        target.rAnkleX = -target.rKneeX * 0.4 - sinR * 0.22;
+      } else if (currentPose === 'cheer') {
+        const jumpWave = Math.sin(p * 5.0);
+        const jump = Math.max(0, jumpWave);
+        const crouch = Math.max(0, -jumpWave);
+
+        target.bodyY = 1.42 + jump * 0.22 - crouch * 0.05;
+        target.headRotZ = Math.sin(p * 2.5) * 0.07;
+        target.headRotX = -jump * 0.08;
+
+        target.lShoulderZ = -0.88 - jump * 0.14;
+        target.lShoulderX = -0.52;
+        target.lElbowX = -0.62 - jump * 0.12;
+        target.lWristY = hasShield ? 0 : 1.05;
+        target.lWristZ = 0.12;
+        target.lFingerCurl = hasShield ? 0.68 : 0.08;
+        target.shieldPitch = -0.08;
+        target.shieldYaw = -0.22;
+        target.shieldRoll = -0.08;
+
+        target.rShoulderZ = 0.88 + jump * 0.14;
+        target.rShoulderX = -0.52;
+        target.rElbowX = -0.62 - jump * 0.12;
+        target.rWristY = hasFlag ? 0 : -1.05;
+        target.rWristZ = -0.12;
+        target.rFingerCurl = hasFlag ? 0.72 : 0.08;
+        target.flagPitch = 0.04;
+        target.flagYaw = -0.06;
+        target.flagRoll = -0.12 + Math.sin(p * 5.0) * 0.12;
+
+        target.lHipX = -jump * 0.18 - crouch * 0.18;
+        target.rHipX = jump * 0.12 - crouch * 0.18;
+        target.lHipZ = -jump * 0.08;
+        target.rHipZ = jump * 0.08;
+        target.lKneeX = crouch * 0.38 + jump * 0.32;
+        target.rKneeX = crouch * 0.38 + jump * 0.22;
+        target.lAnkleX = jump * 0.28 - crouch * 0.22;
+        target.rAnkleX = jump * 0.28 - crouch * 0.22;
+      } else if (currentPose === 'bow') {
+        const bowFactor = 0.5 + 0.5 * Math.sin(p * 2.2);
+        target.bodyY = 1.40 - bowFactor * 0.04;
+        target.bodyRotX = bowFactor * 0.32;
+        target.headRotX = bowFactor * 0.14;
+
+        target.lShoulderZ = -0.28;
+        target.lShoulderX = -0.25;
+        target.lElbowX = -0.55;
+        target.lWristX = 0.25;
+
+        target.rShoulderZ = 0.32;
+        target.rShoulderX = -0.45;
+        target.rElbowX = -0.65;
+        target.rWristY = -0.25;
+
+        target.lHipX = -target.bodyRotX;
+        target.rHipX = -target.bodyRotX;
+        target.lKneeX = 0.08;
+        target.rKneeX = 0.08;
+      }
+
+      return target;
+    }
+
+    function applyHandFingerArticulation(arm, baseCurl, indexPoint) {
+      arm.fingers.forEach((f, idx) => {
+        const cascade = 1.0 + idx * 0.12;
+        const effectiveCurl =
+          idx === 0
+            ? THREE.MathUtils.lerp(baseCurl * cascade, 0.02, indexPoint)
+            : baseCurl * cascade;
+        f.proximalPivot.rotation.x = effectiveCurl * 0.78;
+        f.distalPivot.rotation.x = effectiveCurl * 0.72;
+        // Converge finger splay slightly as fingers curl into a fist
+        f.proximalPivot.rotation.z = f.baseSplayZ * (1.0 - Math.min(0.65, effectiveCurl * 0.5));
+      });
+      // Opposable thumb wraps naturally when gripping or making a #1 fist
+      const thumbCurl = Math.max(baseCurl, indexPoint * 0.75);
+      arm.thumbPivot.rotation.x = 0.36 + thumbCurl * 0.42;
+      arm.thumbTipPivot.rotation.x = thumbCurl * 0.65;
+    }
+
+    function stepMascotRig(mascot, dt, p, phaseOffset = 0) {
+      const u = mascot.userData;
+      const s = u.rigState;
+      const target = computeTargetPose(mascot, p + phaseOffset);
+      const dampLambda = blendSpeed;
+
+      // Smoothly damp every single degree of freedom (zero snapping!)
+      for (const key of Object.keys(target)) {
+        s[key] = THREE.MathUtils.damp(s[key], target[key], dampLambda, dt);
+      }
+
+      // Apply damped state to hierarchical transforms
+      u.bodyPivot.position.y = s.bodyY;
+      u.bodyPivot.rotation.set(s.bodyRotX, s.bodyRotY, s.bodyRotZ);
+      u.headPivot.rotation.set(s.headRotX, s.headRotY, s.headRotZ);
+
+      // Left Arm & 2-Segment Organic Hand Chain
+      u.leftArm.shoulderPivot.rotation.set(s.lShoulderX, s.lShoulderY, s.lShoulderZ);
+      u.leftArm.elbowPivot.rotation.set(s.lElbowX, 0, s.lElbowZ);
+      u.leftArm.wristPivot.rotation.set(s.lWristX, s.lWristY, s.lWristZ);
+      applyHandFingerArticulation(u.leftArm, s.lFingerCurl, s.lIndexPoint);
+
+      // Right Arm & 2-Segment Organic Hand Chain
+      u.rightArm.shoulderPivot.rotation.set(s.rShoulderX, s.rShoulderY, s.rShoulderZ);
+      u.rightArm.elbowPivot.rotation.set(s.rElbowX, 0, s.rElbowZ);
+      u.rightArm.wristPivot.rotation.set(s.rWristX, s.rWristY, s.rWristZ);
+      applyHandFingerArticulation(u.rightArm, s.rFingerCurl, s.rIndexPoint);
+
+      // Left & Right Leg Chains
+      u.leftLeg.hipPivot.rotation.set(s.lHipX, 0, s.lHipZ);
+      u.leftLeg.kneePivot.rotation.set(s.lKneeX, 0, 0);
+      u.leftLeg.anklePivot.rotation.set(s.lAnkleX, 0, 0);
+
+      u.rightLeg.hipPivot.rotation.set(s.rHipX, 0, s.rHipZ);
+      u.rightLeg.kneePivot.rotation.set(s.rKneeX, 0, 0);
+      u.rightLeg.anklePivot.rotation.set(s.rAnkleX, 0, 0);
+
+      // Update continuous spline-skinned sleeves & trousers + prop rotation constraints
+      u.updateContinuousLimbs();
+
+      // Secondary Physics: Bow-Tie Ribbon Tails sway
+      u.ribbonTails.forEach((rt) => {
+        rt.pivot.rotation.z =
+          rt.baseZ + Math.sin(p * 3.8 + phaseOffset + rt.side) * 0.06 * windStrength;
+        rt.pivot.rotation.x =
+          -0.06 - Math.abs(Math.cos(p * 3.8 + phaseOffset)) * 0.08 * windStrength;
+      });
+
+      // Secondary Physics: "CỐ LÊN" Flag Cloth Wave
+      if (u.flagGroup.visible) {
+        const fPos = u.flagBannerMesh.geometry.attributes.position;
+        const fBase = u.baseFlagCoords;
+        for (let i = 0; i < fPos.count; i++) {
+          const fx = fBase[i * 3];
+          const fy = fBase[i * 3 + 1];
+          const distPole = fx / 0.78;
+          const waveZ =
+            Math.sin(p * 6.5 - distPole * 4.5 + fy * 2.0 + phaseOffset) *
+            0.055 *
+            windStrength *
+            distPole;
+          fPos.setZ(i, waveZ);
+        }
+        fPos.needsUpdate = true;
+        u.flagBannerMesh.geometry.computeVertexNormals();
+      }
+
+      // Real-time Superhero Cape Wind Wave Simulation (with strict anti-clipping clamp!)
+      const capePos = u.capeMesh.geometry.attributes.position;
+      const base = u.baseCapeCoords;
+      for (let i = 0; i < capePos.count; i++) {
+        const bx = base[i * 3];
+        const by = base[i * 3 + 1];
+        const bz = base[i * 3 + 2];
+        const distFromTop = Math.min(1, -by / 1.48);
+        const wave =
+          Math.sin(p * 4.8 - distFromTop * 4.2 + bx * 2.1 + phaseOffset) *
+          0.075 *
+          windStrength *
+          distFromTop ** 1.35;
+        const actionLift =
+          (currentPose === 'run' || currentPose === 'scene1_shield' ? 0.24 : currentPose === 'walk' ? 0.12 : 0.05) *
+          windStrength *
+          distFromTop ** 1.15;
+        const safeZ = Math.min(bz + 0.02, bz - actionLift + wave);
+        capePos.setZ(i, safeZ);
+      }
+      capePos.needsUpdate = true;
+      u.capeMesh.geometry.computeVertexNormals();
+    }
+
+    function updateStageVFXAnimations(dt, elapsed) {
+      // Scene 1: Falling Autumn Leaves & Flu Virus Swarm
+      if (storyVFX.scene1Group.visible) {
+        storyVFX.fallingLeaves.forEach((leaf) => {
+          leaf.position.y -= leaf.userData.speedY * dt;
+          leaf.position.x += leaf.userData.speedX * dt;
+          leaf.rotation.x += leaf.userData.rotSpeed * dt;
+          leaf.rotation.z += leaf.userData.rotSpeed * 0.7 * dt;
+          if (leaf.position.y < 0.05 || leaf.position.x < -5.5) {
+            leaf.position.y = 4.8 + Math.random() * 1.2;
+            leaf.position.x = 4.5 + Math.random() * 2.5;
+          }
+        });
+
+        const isShieldBlocking = currentPose === 'scene1_shield';
+        storyVFX.virusSwarm.forEach((v, idx) => {
+          const b = v.userData.baseOffset;
+          const ph = v.userData.phase;
+          if (isShieldBlocking) {
+            // Viruses get blasted outward to the right/back by Long's Hero Shield!
+            const push = 1.4 + Math.sin(elapsed * 3.0 + idx) * 0.35;
+            v.position.set(b.x + push, b.y + 0.4 + Math.sin(elapsed * 5 + ph) * 0.2, b.z - 0.6);
+            v.rotation.z = elapsed * 4.0;
+          } else {
+            // Viruses swarm menacingly around Mascot Châu
+            v.position.set(
+              b.x + Math.sin(elapsed * 2.6 + ph) * 0.35,
+              b.y + Math.cos(elapsed * 3.2 + ph) * 0.22,
+              b.z + Math.sin(elapsed * 2.0 + ph) * 0.25
+            );
+            v.rotation.y = Math.sin(elapsed * 2.0 + ph) * 0.4;
+            v.rotation.z = 0;
+          }
+        });
+
+        if (storyVFX.shieldBarrierRing.visible) {
+          const sScale = 0.85 + (elapsed * 1.4) % 0.65;
+          storyVFX.shieldBarrierRing.scale.setScalar(sScale);
+          storyVFX.shieldBarrierRing.material.opacity = 1.15 - sScale * 0.7;
+        }
+      }
+
+      // Scene 2: Orbiting Fake Pill Matrix & Popping Soap Bubbles
+      if (storyVFX.scene2Group.visible) {
+        storyVFX.matrixOrbitGroup.rotation.y = elapsed * 0.95;
+        const isSmashing = currentPose === 'scene2_checkmark';
+
+        storyVFX.fakePills.forEach((fp, idx) => {
+          fp.rotation.y = -elapsed * 0.95;
+          const popScale = isSmashing ? 0.25 + 0.25 * Math.abs(Math.sin(elapsed * 3.5 + idx)) : 1.0;
+          fp.scale.setScalar(popScale);
+        });
+
+        storyVFX.soapBubbles.forEach((b) => {
+          b.visible = isSmashing;
+          if (isSmashing) {
+            const u = b.userData;
+            const cycleY = (elapsed * u.speed + u.yOffset) % 2.8;
+            const a = u.baseAngle + elapsed * 1.2;
+            b.position.set(
+              0.4 + Math.cos(a) * u.radius,
+              0.6 + cycleY,
+              0.4 + Math.sin(a) * u.radius
+            );
+            const popPulse = cycleY > 2.4 ? (2.8 - cycleY) * 2.5 : 1.0;
+            b.scale.setScalar(popPulse);
+          }
+        });
+      }
+
+      // Scene 3: Beating 3D Heart & Spinning Golden Shield Coin
+      if (storyVFX.scene3Group.visible) {
+        const beatScale = 1.0 + Math.pow(Math.max(0, Math.sin(elapsed * 6.5)), 3) * 0.22;
+        storyVFX.heart3DMesh.scale.setScalar(beatScale);
+        storyVFX.goldCoin.rotation.z = elapsed * 2.4;
+      }
+
+      // Scene 4: Twinkling Vietnam Pharmacy Nodes & Finale Floating Heart
+      if (storyVFX.scene4Group.visible) {
+        storyVFX.mapPinNodes.forEach((pin, idx) => {
+          const s = 0.85 + 0.45 * Math.abs(Math.sin(elapsed * 4.5 + idx * 0.7));
+          pin.scale.setScalar(s);
+        });
+        storyVFX.centerHeart.rotation.y = Math.sin(elapsed * 2.5) * 0.35;
+        storyVFX.centerHeart.position.y = -2.05 + Math.sin(elapsed * 3.5) * 0.08;
+      }
+    }
+
+    let manualRenderMode = false;
+    function animate() {
+      requestAnimationFrame(animate);
+      if (manualRenderMode) return;
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
+      animClock += dt * animSpeed;
+
+      // Advance 2:00 Script Timeline Director if playing
+      if (scriptPlaying) {
+        scriptTime += dt * animSpeed;
+        if (scriptTime >= 120) {
+          scriptTime = 120;
+          scriptPlaying = false;
+          btnPlayScript.classList.remove('playing');
+          btnPlayScript.textContent = '🔄 Phát Lại Kịch Bản (2:00)';
+        }
+        evaluateScriptTimeline(scriptTime);
+      }
+
+      // Smooth camera preset damping
+      if (camPresetActive) {
+        camera.position.lerp(camGoalPos, 1 - Math.exp(-5.5 * dt));
+        controls.target.lerp(camGoalTarget, 1 - Math.exp(-5.5 * dt));
+        if (camera.position.distanceToSquared(camGoalPos) < 0.0005) {
+          camPresetActive = false;
+        }
+      }
+
+      // Natural Eye Blinking
+      if (elapsed > nextBlinkTime && !blueMascot.userData.isBlinking) {
+        mascots.forEach((m) => {
+          m.userData.isBlinking = true;
+          updateMascotFace(m, m.userData.currentExpression, true);
+        });
+        blinkEndTime = elapsed + 0.14;
+        nextBlinkTime = elapsed + 3.2 + Math.random() * 2.4;
+      } else if (blueMascot.userData.isBlinking && elapsed > blinkEndTime) {
+        mascots.forEach((m) => {
+          m.userData.isBlinking = false;
+          updateMascotFace(m, m.userData.currentExpression, false);
+        });
+      }
+
+      const syncPhase =
+        currentPose.startsWith('scene') ? 0 : 1.4;
+      stepMascotRig(blueMascot, dt, animClock, 0);
+      stepMascotRig(mintMascot, dt, animClock, syncPhase);
+      updateStageVFXAnimations(dt, elapsed);
+
+      // Animate Floating Medical Crosses around Stage
+      floatingCrosses.forEach((c) => {
+        const a = c.userData.baseAngle + elapsed * 0.24 * c.userData.speed;
+        c.position.x = Math.cos(a) * c.userData.radius;
+        c.position.z = Math.sin(a) * c.userData.radius;
+        c.position.y = c.userData.baseY + Math.sin(elapsed * 2.0 + c.userData.baseAngle) * 0.14;
+        c.rotation.y = elapsed * 1.2;
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Support URL Query Parameters (?pose=scene1_sneeze&scene=3&cam=front) for Filmmaking & Direct Scene Presets
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('scene')) {
+      const sNum = parseInt(urlParams.get('scene'), 10);
+      const sceneTimes = { 1: 2, 2: 32, 3: 58, 4: 102, 5: 114 };
+      if (sceneTimes[sNum] !== undefined) {
+        scriptTime = sceneTimes[sNum];
+        evaluateScriptTimeline(scriptTime);
+      }
+    }
+    if (urlParams.get('pose')) {
+      const pBtn = document.querySelector(`#poseGroup .ctrl-btn[data-pose="${urlParams.get('pose')}"]`);
+      if (pBtn) pBtn.click();
+    }
+    if (urlParams.get('expr')) {
+      const eBtn = document.querySelector(`#expressionGroup .ctrl-btn[data-expr="${urlParams.get('expr')}"]`);
+      if (eBtn) eBtn.click();
+    }
+    if (urlParams.get('mode')) {
+      const mBtn = document.querySelector(`#characterModeGroup .ctrl-btn[data-mode="${urlParams.get('mode')}"]`);
+      if (mBtn) mBtn.click();
+    }
+    if (urlParams.get('cam')) {
+      const cBtn = document.querySelector(`.cam-pill[data-cam="${urlParams.get('cam')}"]`);
+      if (cBtn) {
+        cBtn.click();
+        camera.position.copy(camGoalPos);
+        controls.target.copy(camGoalTarget);
+        controls.update();
+        camPresetActive = false;
+      }
+    }
+    // Pre-warm damped rig for 45 steps if pose or scene parameter was passed
+    if (urlParams.get('pose') || urlParams.get('scene')) {
+      for (let w = 0; w < 45; w++) {
+        stepMascotRig(blueMascot, 0.03, 0.9, 0);
+        stepMascotRig(mintMascot, 0.03, 0.9, 0);
+        updateStageVFXAnimations(0.03, 0.9);
+      }
+    }
+
+    // Expose deterministic frame stepper for high-speed video rendering
+    window.__stepDirectorVideoFrame = (targetScriptTime, simDt = 0.04, simElapsed = 0) => {
+      manualRenderMode = true;
+      scriptPlaying = false;
+      btnPlayScript.classList.add('playing');
+      btnPlayScript.textContent = '⏸️ Đang Phát Phim Kịch Bản (2:00)';
+      scriptTime = targetScriptTime;
+      animClock += simDt;
+      evaluateScriptTimeline(scriptTime);
+      if (camPresetActive) {
+        camera.position.lerp(camGoalPos, 1 - Math.exp(-6.5 * simDt));
+        controls.target.lerp(camGoalTarget, 1 - Math.exp(-6.5 * simDt));
+      }
+      stepMascotRig(blueMascot, simDt, animClock, 0);
+      stepMascotRig(mintMascot, simDt, animClock, 0);
+      updateStageVFXAnimations(simDt, simElapsed);
+      floatingCrosses.forEach((c) => {
+        const a = c.userData.baseAngle + simElapsed * 0.24 * c.userData.speed;
+        c.position.x = Math.cos(a) * c.userData.radius;
+        c.position.z = Math.sin(a) * c.userData.radius;
+        c.position.y = c.userData.baseY + Math.sin(simElapsed * 2.0 + c.userData.baseAngle) * 0.14;
+        c.rotation.y = simElapsed * 1.2;
+      });
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // Responsive Resize
+    window.addEventListener('resize', () => {
+      if (!container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+  </script>
+</body>
+</html>

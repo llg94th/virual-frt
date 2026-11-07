@@ -416,8 +416,14 @@ export type OfficeSimulationStoreValue = OfficeSimulationState &
 // 2. PHASE DURATION CONSTANTS (AT 1X SPEED)
 // ============================================================================
 
-const PICKUP_DURATION_MS = 380;
-const HANDOVER_DURATION_MS = 620;
+const PICKUP_DURATION_MS = 95;
+const HANDOVER_DURATION_MS = 220;
+/**
+ * Hệ số tốc độ "THE FLASH SPEED FORCE" (`⚡ thoắt cái tới, thoắt cái đi`):
+ * Tăng tốc độ di chuyển nhân vật lên gấp ~9.5x (~900–1,050 px/s) để nhân vật
+ * phóng vèo như tia chớp từ bàn A sang bàn B chỉ trong ~0.35s, trao hồ sơ rồi vụt biến về chỗ ngay tức khắc!
+ */
+const FLASH_SPEED_MULTIPLIER = 9.5;
 const SPEECH_BUBBLE_DURATION_MS = 3200;
 const PM_CELEBRATION_DURATION_MS = 2800;
 const MAX_ACTIVITY_LOGS = 80;
@@ -1456,7 +1462,10 @@ export class OfficeSimulationEngine {
           sender.carryingTicketId = task.ticketId;
 
           const stepPx =
-            (sender.baseSpeed * (sender.speedMultiplier ?? 1.0) * scaledDeltaMs) /
+            (sender.baseSpeed *
+              (sender.speedMultiplier ?? 1.0) *
+              FLASH_SPEED_MULTIPLIER *
+              scaledDeltaMs) /
             1000;
           const stepRes = stepAlongPath(
             sender.currentPosition,
@@ -1641,7 +1650,8 @@ export class OfficeSimulationEngine {
           const stepPx =
             (sender.baseSpeed *
               (sender.speedMultiplier ?? 1.0) *
-              1.08 *
+              FLASH_SPEED_MULTIPLIER *
+              1.18 *
               scaledDeltaMs) /
             1000;
           const stepRes = stepAlongPath(
@@ -1881,7 +1891,10 @@ export class OfficeSimulationEngine {
         }
 
         const stepPx =
-          (manager.baseSpeed * (manager.speedMultiplier ?? 1.0) * scaledDeltaMs) /
+          (manager.baseSpeed *
+            (manager.speedMultiplier ?? 1.0) *
+            (FLASH_SPEED_MULTIPLIER * 0.42) *
+            scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
           manager.currentPosition,
@@ -2008,9 +2021,12 @@ export class OfficeSimulationEngine {
           boss.targetPosition = targetPos;
         }
 
-        // Nhân tốc độ bước đi với `boss.speedMultiplier ?? 1.0` (ToanLBK = 1.5x!)
+        // Nhân tốc độ bước đi với `boss.speedMultiplier ?? 1.0` (ToanLBK = 1.5x!) + The Flash Boost
         const stepPx =
-          (boss.baseSpeed * (boss.speedMultiplier ?? 1.0) * scaledDeltaMs) /
+          (boss.baseSpeed *
+            (boss.speedMultiplier ?? 1.0) *
+            (FLASH_SPEED_MULTIPLIER * 0.45) *
+            scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
           boss.currentPosition,
@@ -2057,7 +2073,11 @@ export class OfficeSimulationEngine {
         emp.currentPath.length >= 2
       ) {
         const stepPx =
-          (emp.baseSpeed * (emp.speedMultiplier ?? 1.0) * scaledDeltaMs) / 1000;
+          (emp.baseSpeed *
+            (emp.speedMultiplier ?? 1.0) *
+            FLASH_SPEED_MULTIPLIER *
+            scaledDeltaMs) /
+          1000;
         const stepRes = stepAlongPath(
           emp.currentPosition,
           emp.currentPath,
@@ -2092,7 +2112,11 @@ export class OfficeSimulationEngine {
         emp.currentPath.length >= 2
       ) {
         const stepPx =
-          (emp.baseSpeed * (emp.speedMultiplier ?? 1.0) * 1.08 * scaledDeltaMs) /
+          (emp.baseSpeed *
+            (emp.speedMultiplier ?? 1.0) *
+            FLASH_SPEED_MULTIPLIER *
+            1.15 *
+            scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
           emp.currentPosition,
@@ -2158,7 +2182,11 @@ export class OfficeSimulationEngine {
         }
 
         const stepPx =
-          (emp.baseSpeed * (emp.speedMultiplier ?? 1.0) * 1.12 * scaledDeltaMs) /
+          (emp.baseSpeed *
+            (emp.speedMultiplier ?? 1.0) *
+            FLASH_SPEED_MULTIPLIER *
+            1.15 *
+            scaledDeltaMs) /
           1000;
         const stepRes = stepAlongPath(
           emp.currentPosition,
@@ -2198,8 +2226,8 @@ export class OfficeSimulationEngine {
   /**
    * Vòng lặp 60fps điều khiển Kỹ sư (như `TienHK`, `SonNA2`, `ChienND22`, `ManhPT13`, `BaoNAT`, `ThanhDQ13`)
    * đứng dậy đi bộ theo đường A* tới Cụm Máy Tính Server Jenkins (`CI`, `UAT`, hoặc `RELEASE`),
-   * đứng trước bàn điều khiển 3 màn hình gõ bàn phím 4.8 giây chạy bản build từ 0% -> 100%,
-   * rồi quay về bàn làm việc.
+   * đứng trước bàn điều khiển 3 màn hình gõ bàn phím chạy bản build từ 0% -> 100%,
+   * rồi phóng về bàn làm việc theo kiểu The Flash!
    */
   private stepJenkinsBuild(scaledDeltaMs: number, nowWall: number): boolean {
     const task = this.state.activeJenkinsBuild;
@@ -2224,8 +2252,9 @@ export class OfficeSimulationEngine {
       builder.carryingTicketId = null;
       builder.isHotfixSprinter = Boolean(task.isHotfixRescue);
 
-      // Khi ở chế độ Hotfix Rescue (`⚡ HOTFIX SPRINT`), kỹ sư chạy nước rút nhanh gấp 1.65 lần!
-      const sprintBoost = task.isHotfixRescue ? 1.68 : 1.08;
+      // Khi ở chế độ The Flash Speed Force, kỹ sư phóng vèo ra Server Jenkins trong chớp mắt!
+      const sprintBoost =
+        (task.isHotfixRescue ? 1.35 : 1.05) * FLASH_SPEED_MULTIPLIER;
       const stepPx =
         (builder.baseSpeed *
           (builder.speedMultiplier ?? 1.0) *
@@ -2274,7 +2303,7 @@ export class OfficeSimulationEngine {
       const elapsed = (this.phaseElapsedMs.get(task.id) ?? 0) + scaledDeltaMs;
       this.phaseElapsedMs.set(task.id, elapsed);
 
-      const buildDurationMs = task.isHotfixRescue ? 4200 : 4800;
+      const buildDurationMs = task.isHotfixRescue ? 1100 : 1400;
       task.buildProgress = Math.min(
         100,
         Math.max(4, Math.round((elapsed / buildDurationMs) * 100))
@@ -2385,7 +2414,8 @@ export class OfficeSimulationEngine {
       const stepPx =
         (builder.baseSpeed *
           (builder.speedMultiplier ?? 1.0) *
-          1.1 *
+          FLASH_SPEED_MULTIPLIER *
+          1.18 *
           scaledDeltaMs) /
         1000;
       const stepRes = stepAlongPath(

@@ -1410,10 +1410,10 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
         }
       }
 
-      // Smooth spring-like interpolation
-      cam.x += (cam.targetX - cam.x) * 0.085;
-      cam.y += (cam.targetY - cam.y) * 0.085;
-      cam.zoom += (cam.targetZoom - cam.zoom) * 0.075;
+      // Smooth spring-like interpolation (Snappy for The Flash Speed Force transfers)
+      cam.x += (cam.targetX - cam.x) * 0.14;
+      cam.y += (cam.targetY - cam.y) * 0.14;
+      cam.zoom += (cam.targetZoom - cam.zoom) * 0.11;
 
       if (time - lastZoomHudSync > 240) {
         lastZoomHudSync = time;
@@ -1535,74 +1535,135 @@ export const OfficeCanvas2D: React.FC<OfficeCanvas2DProps> = ({
       }
 
       // ------------------------------------------------------------------------
-      // 6. ACTIVE DOCUMENT TRANSFER PATHS ON ISOMETRIC CORRIDORS (DEFAULT OFF)
+      // 6. THE FLASH SPEED FORCE LIGHTNING STREAK & ACTIVE DOCUMENT TRANSFER PATHS
       // ------------------------------------------------------------------------
-      if (cfg.showActivePaths) {
-        for (const task of activeTasks) {
-          if (task.phase === 'COMPLETED') continue;
+      for (const task of activeTasks) {
+        if (task.phase === 'COMPLETED') continue;
 
-          const rawPath =
-            task.outboundPath && task.outboundPath.length >= 2
+        const activePath =
+          task.phase === 'RETURNING_TO_DESK'
+            ? task.returnPath
+            : task.outboundPath && task.outboundPath.length >= 2
               ? task.outboundPath
               : computeCorridorPathBetweenDesks(task.fromDeskId, task.toDeskId);
 
-          if (rawPath.length < 2) continue;
+        if (!activePath || activePath.length < 2) continue;
 
-          const isDoneReturn = task.isReturnToPM || task.targetStatus === 'DONE';
-          const isPrimary = primaryTask?.id === task.id;
-          const pathColor = isDoneReturn
-            ? '#059669'
-            : PRIORITY_COLORS[task.ticketPriority]?.cover || '#ea580c';
-
-          const isoPts = rawPath.map((pt) => worldToIso(pt.x, pt.y, 10.2));
-
-          ctx.save();
-          // Glowing ribbon on floor
-          ctx.strokeStyle = isDoneReturn
-            ? 'rgba(16, 185, 129, 0.32)'
-            : 'rgba(234, 88, 12, 0.28)';
-          ctx.lineWidth = isPrimary ? 9 : 6;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.beginPath();
-          ctx.moveTo(isoPts[0].x, isoPts[0].y);
-          for (let i = 1; i < isoPts.length; i++) {
-            ctx.lineTo(isoPts[i].x, isoPts[i].y);
-          }
-          ctx.stroke();
-
-          // Animated marching-ants path line
-          ctx.strokeStyle = pathColor;
-          ctx.lineWidth = isPrimary ? 3 : 2.2;
-          ctx.setLineDash([8, 6]);
-          ctx.lineDashOffset = -(time * 0.05);
-          ctx.beginPath();
-          ctx.moveTo(isoPts[0].x, isoPts[0].y);
-          for (let i = 1; i < isoPts.length; i++) {
-            ctx.lineTo(isoPts[i].x, isoPts[i].y);
-          }
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Target Pulsing Isometric Beacon at destination Handoff Point
-          const destPt = isoPts[isoPts.length - 1];
-          const pulseRadius = 9 + 4.5 * Math.sin(time * 0.009);
-          ctx.strokeStyle = pathColor;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.ellipse(
-            destPt.x,
-            destPt.y,
-            pulseRadius * 1.3,
-            pulseRadius * 0.7,
-            0,
-            0,
-            Math.PI * 2
+        // Vệt Tia Chớp Đỏ-Vàng The Flash (Speed Force Lightning Trail) phóng dọc hành lang khi nhân vật lướt qua!
+        if (
+          task.phase === 'WALKING_TO_TARGET' ||
+          task.phase === 'RETURNING_TO_DESK'
+        ) {
+          const senderEmp = emps.find((e) => e.id === task.fromEmployeeId);
+          const segIdx = Math.min(
+            activePath.length - 1,
+            Math.max(0, task.currentSegmentIndex ?? 0)
           );
-          ctx.stroke();
+          const trailPts = activePath
+            .slice(Math.max(0, segIdx - 2), segIdx + 1)
+            .map((pt) => worldToIso(pt.x, pt.y, 12.5));
+          if (senderEmp) {
+            trailPts.push(
+              worldToIso(
+                senderEmp.currentPosition.x,
+                senderEmp.currentPosition.y,
+                12.5
+              )
+            );
+          }
 
-          ctx.restore();
+          if (trailPts.length >= 2) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Outer Crimson Speed Force Glow (#ef4444)
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
+            ctx.lineWidth = 7.5;
+            ctx.beginPath();
+            ctx.moveTo(trailPts[0].x, trailPts[0].y);
+            for (let i = 1; i < trailPts.length; i++) {
+              ctx.lineTo(trailPts[i].x, trailPts[i].y);
+            }
+            ctx.stroke();
+
+            // Inner Golden-Yellow Lightning Core (#facc15 / #fef08a)
+            ctx.strokeStyle = '#fef08a';
+            ctx.lineWidth = 2.6;
+            ctx.beginPath();
+            ctx.moveTo(trailPts[0].x, trailPts[0].y);
+            for (let i = 1; i < trailPts.length; i++) {
+              const jx =
+                i < trailPts.length - 1
+                  ? Math.sin(time * 0.08 + i * 3.1) * 3.5
+                  : 0;
+              const jy =
+                i < trailPts.length - 1
+                  ? Math.cos(time * 0.08 + i * 2.7) * 2.2
+                  : 0;
+              ctx.lineTo(trailPts[i].x + jx, trailPts[i].y + jy);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
         }
+
+        if (!cfg.showActivePaths) continue;
+
+        const isDoneReturn = task.isReturnToPM || task.targetStatus === 'DONE';
+        const isPrimary = primaryTask?.id === task.id;
+        const pathColor = isDoneReturn
+          ? '#059669'
+          : PRIORITY_COLORS[task.ticketPriority]?.cover || '#ea580c';
+
+        const isoPts = activePath.map((pt) => worldToIso(pt.x, pt.y, 10.2));
+
+        ctx.save();
+        // Glowing ribbon on floor
+        ctx.strokeStyle = isDoneReturn
+          ? 'rgba(16, 185, 129, 0.32)'
+          : 'rgba(234, 88, 12, 0.28)';
+        ctx.lineWidth = isPrimary ? 9 : 6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(isoPts[0].x, isoPts[0].y);
+        for (let i = 1; i < isoPts.length; i++) {
+          ctx.lineTo(isoPts[i].x, isoPts[i].y);
+        }
+        ctx.stroke();
+
+        // Animated marching-ants path line
+        ctx.strokeStyle = pathColor;
+        ctx.lineWidth = isPrimary ? 3 : 2.2;
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -(time * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(isoPts[0].x, isoPts[0].y);
+        for (let i = 1; i < isoPts.length; i++) {
+          ctx.lineTo(isoPts[i].x, isoPts[i].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Target Pulsing Isometric Beacon at destination Handoff Point
+        const destPt = isoPts[isoPts.length - 1];
+        const pulseRadius = 9 + 4.5 * Math.sin(time * 0.009);
+        ctx.strokeStyle = pathColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(
+          destPt.x,
+          destPt.y,
+          pulseRadius * 1.3,
+          pulseRadius * 0.7,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+
+        ctx.restore();
       }
 
       // ------------------------------------------------------------------------

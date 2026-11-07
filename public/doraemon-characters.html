@@ -1,0 +1,2149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DORAEMON 22ND CENTURY CREW • 2D Isometric Character Rig Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dora-blue: #0096e6;
+      --dora-blue-dark: #006bb3;
+      --dora-blue-light: #e0f4ff;
+      --dora-red: #e60012;
+      --bell-gold: #fbbf24;
+      --bell-gold-bright: #fef08a;
+      --anywhere-pink: #ec4899;
+      --dorami-yellow: #facc15;
+      --card-bg: #ffffff;
+      --ink-dark: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 12% 15%, rgba(0, 150, 230, 0.25), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(236, 72, 153, 0.20), transparent 45%),
+        radial-gradient(circle at 50% 88%, rgba(251, 191, 36, 0.16), transparent 50%),
+        linear-gradient(180deg, #06152d 0%, #0a2246 48%, #071731 100%);
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 64px;
+    }
+
+    /* 22nd Century 4D Time-Space Grid Overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 26px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Theme Switcher Pill Bar */
+    .theme-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .theme-links {
+      display: inline-flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-link {
+      text-decoration: none;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 7px 16px;
+      border-radius: 999px;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .theme-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .theme-link.active {
+      background: linear-gradient(135deg, #0096e6 0%, #0284c7 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0, 150, 230, 0.45);
+    }
+
+    /* Header Banner */
+    .header-banner {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding: 24px 30px;
+      background: linear-gradient(135deg, rgba(8, 47, 73, 0.92), rgba(15, 23, 42, 0.95));
+      border: 2px solid rgba(56, 189, 248, 0.45);
+      border-radius: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      margin-bottom: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative Red Collar Stripe & Golden Bell Accent */
+    .header-banner::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #e60012 0%, #fbbf24 50%, #ec4899 100%);
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .bell-badge {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: radial-gradient(circle at 32% 30%, #fef08a, #f59e0b 70%, #b45309 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 34px;
+      box-shadow: 0 8px 26px rgba(251, 191, 36, 0.45), 0 0 0 3px #e60012;
+      border: 2px solid #fffbeb;
+    }
+
+    .brand-text h1 {
+      font-family: 'Fredoka', sans-serif;
+      font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: linear-gradient(90deg, #ffffff 0%, #7dd3fc 45%, #fde047 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      color: #bae6fd;
+      font-size: 0.9rem;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Global Control Bar */
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1.5px solid rgba(56, 189, 248, 0.28);
+      padding: 14px 20px;
+      border-radius: 18px;
+      margin-bottom: 26px;
+      backdrop-filter: blur(12px);
+      justify-content: space-between;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .control-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #38bdf8;
+      margin-right: 4px;
+      font-weight: 800;
+    }
+
+    .btn {
+      appearance: none;
+      background: rgba(30, 41, 59, 0.9);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: rgba(51, 65, 85, 0.95);
+      color: #fff;
+      border-color: #38bdf8;
+      transform: translateY(-1px);
+    }
+
+    .btn.active {
+      background: linear-gradient(135deg, #0096e6 0%, #0284c7 100%);
+      color: #ffffff;
+      border-color: #bae6fd;
+      box-shadow: 0 4px 14px rgba(0, 150, 230, 0.4);
+    }
+
+    /* Interactive Stage Deck (All 6 Crew on Isometric 22nd-Century Stage) */
+    .stage-section {
+      margin-bottom: 32px;
+      background: linear-gradient(180deg, rgba(12, 34, 64, 0.94) 0%, rgba(8, 22, 44, 0.98) 100%);
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    }
+
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      background: rgba(7, 16, 33, 0.75);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stage-header-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.05rem;
+      color: #fef08a;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stage-stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #7dd3fc;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .stage-canvas-wrap {
+      width: 100%;
+      height: 370px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    #crewStageCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Secret Gadget Card Grid */
+    .gadget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(390px, 1fr));
+      gap: 26px;
+    }
+
+    .gadget-card {
+      background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 65%, #e0f2fe 100%);
+      color: var(--ink-dark);
+      border-radius: 22px;
+      padding: 18px 18px 20px;
+      border: 3px solid #0284c7;
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.48),
+        inset 0 0 0 2px rgba(255, 255, 255, 0.8);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .gadget-card:hover {
+      transform: translateY(-5px);
+      box-shadow:
+        0 26px 52px rgba(0, 0, 0, 0.65),
+        0 0 26px rgba(56, 189, 248, 0.38);
+    }
+
+    /* 4D Pocket Top Curve Motif */
+    .gadget-header {
+      text-align: center;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+      border-bottom: 2px solid rgba(2, 132, 199, 0.18);
+      padding-bottom: 8px;
+    }
+
+    .gadget-title {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #0369a1;
+      line-height: 1.05;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .gadget-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #e60012;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* Character Viewport inside Secret Gadget Card */
+    .poster-viewport {
+      position: relative;
+      height: 275px;
+      background:
+        radial-gradient(circle at 50% 42%, #153e75 0%, #0b2244 72%, #061326 100%);
+      border: 2.5px solid #0284c7;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: inset 0 6px 20px rgba(0, 0, 0, 0.65);
+      z-index: 1;
+    }
+
+    .poster-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    .viewport-badges {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .role-pill {
+      background: rgba(15, 23, 42, 0.86);
+      color: #fef08a;
+      border: 1px solid rgba(251, 191, 36, 0.55);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.69rem;
+      font-weight: 700;
+      backdrop-filter: blur(4px);
+    }
+
+    .model-id-pill {
+      background: linear-gradient(135deg, #e60012, #be123c);
+      color: #fff;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      box-shadow: 0 2px 8px rgba(230, 0, 18, 0.4);
+    }
+
+    /* Per-card mini direction & anim bar */
+    .card-mini-controls {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      z-index: 2;
+    }
+
+    .mini-btn-group {
+      display: flex;
+      gap: 3px;
+      background: rgba(7, 17, 34, 0.85);
+      padding: 3px;
+      border-radius: 9px;
+      border: 1px solid rgba(125, 211, 252, 0.25);
+      backdrop-filter: blur(6px);
+    }
+
+    .mini-btn {
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.66rem;
+      font-weight: 700;
+      padding: 4px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .mini-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .mini-btn.active {
+      background: #0096e6;
+      color: #ffffff;
+    }
+
+    /* Card Footer Info */
+    .gadget-body {
+      padding-top: 12px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .pocket-serial {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-align: center;
+      color: #0284c7;
+    }
+
+    .char-name {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.42rem;
+      font-weight: 700;
+      text-align: center;
+      color: #0f172a;
+      letter-spacing: 0.02em;
+      line-height: 1.15;
+    }
+
+    .char-epithet {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #e11d48;
+      margin-top: -4px;
+    }
+
+    .gadget-power-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(90deg, rgba(2, 132, 199, 0.1), rgba(251, 191, 36, 0.2), rgba(2, 132, 199, 0.1));
+      border-top: 1.5px dashed rgba(2, 132, 199, 0.4);
+      border-bottom: 1.5px dashed rgba(2, 132, 199, 0.4);
+      padding: 6px 10px;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      font-size: 1.02rem;
+      color: #0369a1;
+      letter-spacing: 0.04em;
+    }
+
+    .bell-symbol {
+      font-size: 1.15rem;
+    }
+
+    .feature-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 2px;
+    }
+
+    .feature-tag {
+      font-size: 0.71rem;
+      font-weight: 700;
+      background: rgba(2, 132, 199, 0.1);
+      color: #075985;
+      border: 1px solid rgba(2, 132, 199, 0.28);
+      padding: 3px 8px;
+      border-radius: 8px;
+    }
+
+    .char-desc {
+      font-size: 0.79rem;
+      line-height: 1.45;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    @media (max-width: 860px) {
+      .gadget-grid {
+        grid-template-columns: 1fr;
+      }
+      .stage-canvas-wrap {
+        height: 310px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Top Crossover Switcher -->
+    <nav class="theme-nav">
+      <div class="theme-links">
+        <a href="/doraemon-characters.html" class="theme-link active">🔔 Doraemon 22nd-Century Crew</a>
+        <a href="/onepiece-characters.html" class="theme-link">🏴‍☠️ One Piece Grand Line Crew</a>
+      </div>
+      <div class="stage-stats">
+        <span>🚁 BAMBOO-COPTER PHYSICS</span>
+        <span>🚪 ANYWHERE DOOR PORTAL</span>
+        <span>🔔 4D POCKET RIGS</span>
+      </div>
+    </nav>
+
+    <!-- Top Banner -->
+    <header class="header-banner">
+      <div class="brand-title">
+        <div class="bell-badge" title="22nd Century Secret Gadget Museum">🔔</div>
+        <div class="brand-text">
+          <h1>Doraemon • 22nd Century Isometric Crew Models</h1>
+          <p>Procedural HTML5 Canvas Vector Rigs • 4 Isometric Directions (SE, SW, NE, NW) • Secret Gadgets & Bamboo-Copter Flight</p>
+        </div>
+      </div>
+      <div class="stage-stats">
+        <span>⚡ 60FPS HIGH-DPI CANVAS</span>
+        <span>🧭 2:1 ISOMETRIC DIAMOND</span>
+        <span>🎒 6 SECRET GADGET ARCHETYPES</span>
+      </div>
+    </header>
+
+    <!-- Global Controls -->
+    <section class="controls-bar">
+      <div class="control-group" id="globalDirGroup">
+        <span class="control-label">🧭 ALL DIRECTIONS:</span>
+        <button class="btn active" data-dir="SE">↙ SE (Front-Right)</button>
+        <button class="btn" data-dir="SW">↘ SW (Front-Left)</button>
+        <button class="btn" data-dir="NE">↖ NE (Back-Right)</button>
+        <button class="btn" data-dir="NW">↗ NW (Back-Left)</button>
+        <button class="btn" id="btnAutoRotate">🔄 Auto-Turn: OFF</button>
+      </div>
+
+      <div class="control-group" id="globalAnimGroup">
+        <span class="control-label">🎬 ALL ANIMATION:</span>
+        <button class="btn" data-anim="idle">😊 Idle Breathe</button>
+        <button class="btn" data-anim="walk">🏃‍♂️ Town Patrol (Walk)</button>
+        <button class="btn" data-anim="work">💻 Code / Build Gadget</button>
+        <button class="btn" data-anim="carry">💯 Carry 100-Pt Scroll</button>
+        <button class="btn active" data-anim="special">🚁 Bamboo-Copter / Gadget</button>
+      </div>
+    </section>
+
+    <!-- Interactive Crew Lineup Stage -->
+    <section class="stage-section">
+      <div class="stage-header">
+        <div class="stage-header-title">
+          <span>🚪 ANYWHERE DOOR • 22ND CENTURY SECRET GADGET OFFICE DECK (INTERACTIVE LINEUP)</span>
+        </div>
+        <div class="stage-stats">
+          <span>Click any character on stage to summon their 4D Secret Gadget & Speech Burst!</span>
+          <span id="fpsCounter">60 FPS</span>
+        </div>
+      </div>
+      <div class="stage-canvas-wrap">
+        <canvas id="crewStageCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- 6 Secret Gadget Crew Cards -->
+    <section class="gadget-grid" id="gadgetGrid"></section>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. CREW MODEL DEFINITIONS (6 DORAEMON 22ND CENTURY ARCHETYPES)
+    // =========================================================================
+    const CREW_MODELS = [
+      {
+        id: 'doraemon-devops',
+        modelNum: 'GADGET 01',
+        name: 'DORAEMON',
+        epithet: '"22nd Century Cyber DevOps" • 4D Pocket Architect',
+        roleBadge: '🔔 22ND CENTURY DEVOPS',
+        gadgetSpec: 'ANYWHERE DOOR • BAMBOO-COPTER • DORAYAKI',
+        speech: 'TADA~! ANYWHERE DOOR DEPLOYED TO PRODUCTION!! 🔔🚪✨',
+        features: [
+          'Sky-Blue & White Round Robot Cat Body',
+          'Red Nose, 6 Whiskers & Golden Bell Collar (🔔)',
+          '4D Pocket (Túi Thần Kỳ) & Dorayaki Treat',
+          'Spinning Bamboo-Copter & Pink Anywhere Door'
+        ],
+        desc: 'Pulls zero-downtime cloud deployments and pink Anywhere Door production portals straight out of his 4th-Dimensional Pocket.',
+        defaultDir: 'SE',
+        defaultAnim: 'special'
+      },
+      {
+        id: 'nobita-coder',
+        modelNum: 'GADGET 02',
+        name: 'NOBITA NOBI',
+        epithet: '"Sharpshooter Backend Engineer" • Air-Cannon Coder',
+        roleBadge: '👓 BACKEND SHARPSHOOTER',
+        gadgetSpec: 'SILVER AIR CANNON • 100-PT TEST SCROLL',
+        speech: 'BULLSEYE! 100-POINT UNIT TEST & AIR CANNON BLAST!! 💯💥',
+        features: [
+          'Large Round White-Lens Glasses (👓)',
+          'Iconic Bright Yellow Polo & Navy Shorts',
+          'Silver Air Cannon (Đại Bác Không Khí) on Arm',
+          '100-Point Exam Scroll & Spinning Bamboo-Copter'
+        ],
+        desc: 'Fastest marksman in the galaxy when blasting away backend race conditions with his wrist-mounted Air Cannon and 100-point test suite.',
+        defaultDir: 'SE',
+        defaultAnim: 'carry'
+      },
+      {
+        id: 'shizuka-boss',
+        modelNum: 'GADGET 03',
+        name: 'SHIZUKA MINAMOTO',
+        epithet: '"Heart-Cheering Female Boss / PM" • Executive Coordinator',
+        roleBadge: '🌸 FEMALE BOSS / PM LEAD',
+        gadgetSpec: 'HEART CHEER AURA • SWEET POTATO & VIOLIN',
+        speech: 'WONDERFUL RELEASE EVERYONE! 100% APPROVED WITH LOVE! ❤️🌸✨',
+        features: [
+          'Twin Pigtails with Pink Ribbons (🎀)',
+          'Rose-Pink Dress with Crisp White Collar',
+          'Spinning Bamboo-Copter on Head',
+          'Floating 3D Pink Hearts & Music Notes (❤️ 🌸 ✨)'
+        ],
+        desc: 'Radiates warmth, harmony, and floating 3D pink hearts across the virtual office, inspiring the entire engineering team to ship on time.',
+        defaultDir: 'SE',
+        defaultAnim: 'special'
+      },
+      {
+        id: 'jaian-lead',
+        modelNum: 'GADGET 04',
+        name: 'TAKESHI "JAIAN" GODA',
+        epithet: '"Booming Tech Lead / Angry Boss" • Sonic Recital Enforcer',
+        roleBadge: '🎤 BOOMING TECH LEAD',
+        gadgetSpec: 'SONIC RECITAL MIC • 200dB SHOCKWAVE RINGS',
+        speech: 'WHAT IS YOUR CODE IS MINE! LISTEN TO MY CONCERT!! 🎤💢🎵',
+        features: [
+          'Sturdy Powerhouse Build & Buzz-Cut Tuft',
+          'Bright Orange Jersey with Black Jagged Zigzag',
+          'Silver Concert Microphone & Sonic Shockwaves',
+          'Booming Musical Notes & Angry Boss Aura (🎤 💢 🎵)'
+        ],
+        desc: 'Commands sprint reviews with earth-shaking vocal authority. One verse from his microphone clears every blocked PR in the repository.',
+        defaultDir: 'SW',
+        defaultAnim: 'special'
+      },
+      {
+        id: 'suneo-fe',
+        modelNum: 'GADGET 05',
+        name: 'SUNEO HONEKAWA',
+        epithet: '"Flashy Frontend & Mobile UI" • Luxury RC Drone Pilot',
+        roleBadge: '💎 FLASHY FRONTEND / UI',
+        gadgetSpec: 'GOLDEN RC CONTROLLER • HOVERING MINI UFO',
+        speech: 'CHECK OUT THIS ULTRA-RARE 120FPS HOLOGRAPHIC UI!! ✨💎🛸',
+        features: [
+          'Iconic Sleek Pointed Fox-Like Hair & Smirk',
+          'Turquoise Designer Shirt & Khaki Shorts',
+          'Golden Remote Controller with Antenna',
+          'Hovering Mini UFO Drone & Diamond Sparkles (✨ 💎)'
+        ],
+        desc: 'Showcases cutting-edge glassmorphism, luxury micro-interactions, and autonomous RC UI drones with dazzling diamond sparkles.',
+        defaultDir: 'SW',
+        defaultAnim: 'work'
+      },
+      {
+        id: 'dorami-qa',
+        modelNum: 'GADGET 06',
+        name: 'DORAMI',
+        epithet: '"22nd Century QA Inspector" • Time-Kerchief Bug Fixer',
+        roleBadge: '🎀 22ND CENTURY QA LEAD',
+        gadgetSpec: 'TIME KERCHIEF • 10,000 HP MELON-BREAD SCAN',
+        speech: 'TIME KERCHIEF ACTIVATED! ALL REGRESSIONS REWOUND TO ZERO!! 🎀⏱️✨',
+        features: [
+          'Bright Yellow Robot Cat & Giant Red Ribbon Ears',
+          'Red Collar with Golden Bell & Checkered 4D Pocket',
+          'Red-Blue Time Kerchief (Khăn Trùm Thời Gian) Aura',
+          'Precision QA Checklists & Melon Bread Power'
+        ],
+        desc: '10,000-horsepower QA specialist who wraps buggy modules in her reversible Time Kerchief to restore pristine, bug-free state.',
+        defaultDir: 'SE',
+        defaultAnim: 'special'
+      }
+    ];
+
+    // Per-character runtime state
+    const charStates = {};
+    CREW_MODELS.forEach((m, idx) => {
+      charStates[m.id] = {
+        dir: m.defaultDir,
+        anim: m.defaultAnim,
+        burstUntil: 0,
+        phaseOffset: idx * 1.15
+      };
+    });
+
+    let globalAutoRotate = false;
+    const DIRS = ['SE', 'SW', 'NW', 'NE'];
+
+    // =========================================================================
+    // 2. BUILD 22ND CENTURY SECRET GADGET CARDS IN DOM
+    // =========================================================================
+    const gadgetGrid = document.getElementById('gadgetGrid');
+    const posterCanvases = {};
+
+    CREW_MODELS.forEach((m) => {
+      const card = document.createElement('article');
+      card.className = 'gadget-card';
+      card.innerHTML = `
+        <div class="gadget-header">
+          <div class="gadget-title"><span>🔔</span> <span>22ND CENTURY ARCHIVE</span></div>
+          <div class="gadget-sub">4D POCKET SECRET GADGET • ISOMETRIC RIG</div>
+        </div>
+        <div class="poster-viewport">
+          <canvas class="poster-canvas" id="canvas-${m.id}"></canvas>
+          <div class="viewport-badges">
+            <span class="role-pill">${m.roleBadge}</span>
+            <span class="model-id-pill">${m.modelNum}</span>
+          </div>
+          <div class="card-mini-controls">
+            <div class="mini-btn-group" data-card-dirs="${m.id}">
+              ${['SE', 'SW', 'NE', 'NW'].map(d =>
+                `<button class="mini-btn ${charStates[m.id].dir === d ? 'active' : ''}" data-dir="${d}">${d}</button>`
+              ).join('')}
+            </div>
+            <div class="mini-btn-group" data-card-anims="${m.id}">
+              ${[
+                { k: 'idle', label: 'IDLE' },
+                { k: 'walk', label: 'WALK' },
+                { k: 'work', label: 'CODE' },
+                { k: 'carry', label: 'DOCS' },
+                { k: 'special', label: 'FLY/GADGET' }
+              ].map(a =>
+                `<button class="mini-btn ${charStates[m.id].anim === a.k ? 'active' : ''}" data-anim="${a.k}">${a.label}</button>`
+              ).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="gadget-body">
+          <div class="pocket-serial">• 4D POCKET REGISTERED SPEC •</div>
+          <div class="char-name">${m.name}</div>
+          <div class="char-epithet">${m.epithet}</div>
+          <div class="gadget-power-row">
+            <span class="bell-symbol">🚁</span>
+            <span>${m.gadgetSpec}</span>
+          </div>
+          <div class="feature-tags">
+            ${m.features.map(f => `<span class="feature-tag">✦ ${f}</span>`).join('')}
+          </div>
+          <p class="char-desc">${m.desc}</p>
+        </div>
+      `;
+      gadgetGrid.appendChild(card);
+
+      const c = card.querySelector(`#canvas-${m.id}`);
+      posterCanvases[m.id] = c;
+
+      // Click canvas to trigger burst
+      c.addEventListener('click', () => {
+        charStates[m.id].burstUntil = performance.now() + 2800;
+      });
+
+      // Mini direction buttons
+      card.querySelectorAll(`[data-card-dirs="${m.id}"] .mini-btn`).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const dir = btn.getAttribute('data-dir');
+          charStates[m.id].dir = dir;
+          syncCardButtons(m.id);
+        });
+      });
+
+      // Mini anim buttons
+      card.querySelectorAll(`[data-card-anims="${m.id}"] .mini-btn`).forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const anim = btn.getAttribute('data-anim');
+          charStates[m.id].anim = anim;
+          charStates[m.id].burstUntil = performance.now() + 2400;
+          syncCardButtons(m.id);
+        });
+      });
+    });
+
+    function syncCardButtons(id) {
+      const st = charStates[id];
+      document.querySelectorAll(`[data-card-dirs="${id}"] .mini-btn`).forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-dir') === st.dir);
+      });
+      document.querySelectorAll(`[data-card-anims="${id}"] .mini-btn`).forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-anim') === st.anim);
+      });
+    }
+
+    // Global direction controls
+    document.querySelectorAll('#globalDirGroup [data-dir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dir = btn.getAttribute('data-dir');
+        document.querySelectorAll('#globalDirGroup [data-dir]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        CREW_MODELS.forEach(m => {
+          charStates[m.id].dir = dir;
+          syncCardButtons(m.id);
+        });
+      });
+    });
+
+    // Global animation controls
+    document.querySelectorAll('#globalAnimGroup [data-anim]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const anim = btn.getAttribute('data-anim');
+        document.querySelectorAll('#globalAnimGroup [data-anim]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        CREW_MODELS.forEach(m => {
+          charStates[m.id].anim = anim;
+          if (anim === 'special') {
+            charStates[m.id].burstUntil = performance.now() + 2800;
+          }
+          syncCardButtons(m.id);
+        });
+      });
+    });
+
+    const btnAutoRotate = document.getElementById('btnAutoRotate');
+    btnAutoRotate.addEventListener('click', () => {
+      globalAutoRotate = !globalAutoRotate;
+      btnAutoRotate.classList.toggle('active', globalAutoRotate);
+      btnAutoRotate.textContent = globalAutoRotate ? '🔄 Auto-Turn: ON' : '🔄 Auto-Turn: OFF';
+    });
+
+    // =========================================================================
+    // 3. PROCEDURAL 2D ISOMETRIC DORAEMON CHARACTER & GADGET RENDERER
+    // =========================================================================
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + w, y, x + w, y + h, radius);
+      ctx.arcTo(x + w, y + h, x, y + h, radius);
+      ctx.arcTo(x, y + h, x, y, radius);
+      ctx.arcTo(x, y, x + w, y, radius);
+      ctx.closePath();
+    }
+
+    /**
+     * Draws an isometric 22nd-century cyber pedestal underneath each character
+     */
+    function drawIsoTilePedestal(ctx, cx, cy, radiusX, radiusY, primaryColor, glowColor, time) {
+      ctx.save();
+      const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, radiusX * 1.4);
+      grad.addColorStop(0, glowColor);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, radiusX * 1.35, radiusY * 1.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3D Isometric Platform Thickness
+      const depth = 8;
+      ctx.beginPath();
+      ctx.moveTo(cx - radiusX, cy);
+      ctx.lineTo(cx, cy + radiusY);
+      ctx.lineTo(cx + radiusX, cy);
+      ctx.lineTo(cx + radiusX, cy + depth);
+      ctx.lineTo(cx, cy + radiusY + depth);
+      ctx.lineTo(cx - radiusX, cy + depth);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(12, 30, 58, 0.92)';
+      ctx.fill();
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+
+      // Top Isometric Diamond
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - radiusY);
+      ctx.lineTo(cx + radiusX, cy);
+      ctx.lineTo(cx, cy + radiusY);
+      ctx.lineTo(cx - radiusX, cy);
+      ctx.closePath();
+      const topGrad = ctx.createLinearGradient(cx - radiusX, cy - radiusY, cx + radiusX, cy + radiusY);
+      topGrad.addColorStop(0, 'rgba(20, 48, 86, 0.95)');
+      topGrad.addColorStop(1, 'rgba(10, 25, 48, 0.95)');
+      ctx.fillStyle = topGrad;
+      ctx.fill();
+      ctx.strokeStyle = primaryColor;
+      ctx.lineWidth = 1.7;
+      ctx.stroke();
+
+      // Inner 4D Time Ring
+      const pulse = 0.72 + Math.sin(time * 3.5) * 0.08;
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, radiusX * 0.55 * pulse, radiusY * 0.55 * pulse, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /**
+     * Helper: Draws the iconic spinning Bamboo-Copter (Chong chóng tre) on head
+     */
+    function drawBambooCopter(ctx, x, y, time, spinningFast) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Suction cup base
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.2, Math.PI, 0);
+      ctx.fill();
+
+      // Thin vertical rod
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -9);
+      ctx.stroke();
+
+      // Rotor blades & motion blur disc
+      const bladeLen = spinningFast ? 16 : 12;
+      if (spinningFast) {
+        // High-speed translucent golden motion blur halo
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.48)';
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(0, -9.5, bladeLen, 3.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Rotating solid blade bar
+      const angle = time * (spinningFast ? 26 : 6);
+      const bx = Math.cos(angle) * bladeLen;
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-bx, -9.5);
+      ctx.lineTo(bx, -9.5);
+      ctx.stroke();
+
+      // Center cap
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(0, -9.5, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    /**
+     * Helper: Draws the Pink Anywhere Door (Cánh cửa thần kỳ) behind Doraemon
+     */
+    function drawAnywhereDoor(ctx, x, y, time, openFactor) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Door outer frame
+      const fw = 36;
+      const fh = 58;
+      ctx.fillStyle = '#db2777';
+      ctx.strokeStyle = '#831843';
+      ctx.lineWidth = 1.8;
+      drawRoundedRect(ctx, -fw / 2, -fh, fw, fh, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top pediment molding
+      ctx.fillStyle = '#f472b6';
+      drawRoundedRect(ctx, -fw / 2 - 3, -fh - 4, fw + 6, 5, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Starry 4D portal inside door
+      const grad = ctx.createLinearGradient(0, -fh + 4, 0, -4);
+      grad.addColorStop(0, '#38bdf8');
+      grad.addColorStop(0.5, '#818cf8');
+      grad.addColorStop(1, '#f472b6');
+      ctx.fillStyle = grad;
+      ctx.fillRect(-fw / 2 + 4, -fh + 4, fw - 8, fh - 8);
+
+      // Portal sparkles
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 3; i++) {
+        const sx = -8 + i * 8;
+        const sy = -fh + 14 + ((time * 22 + i * 15) % (fh - 20));
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Swinging Pink Door Leaf
+      const leafW = (fw - 8) * (1 - openFactor * 0.55);
+      ctx.fillStyle = '#ec4899';
+      ctx.strokeStyle = '#9d174d';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(-fw / 2 + 4, -fh + 4, leafW, fh - 8);
+      ctx.strokeRect(-fw / 2 + 4, -fh + 4, leafW, fh - 8);
+
+      // Door panels & Golden Knob
+      if (leafW > 8) {
+        ctx.strokeStyle = '#f9a8d4';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-fw / 2 + 7, -fh + 8, Math.max(2, leafW - 6), 18);
+        ctx.strokeRect(-fw / 2 + 7, -fh + 30, Math.max(2, leafW - 6), 18);
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.arc(-fw / 2 + 4 + leafW - 3.5, -fh / 2, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    /**
+     * Master Procedural Character Rig Function for all 6 Doraemon Crew Models
+     * Supports 4 Isometric Directions (SE, SW, NE, NW) & 5 Animation Modes
+     */
+    function drawDoraemonCharacter(ctx, modelId, cx, cy, scale, dir, anim, time, isBurst) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+
+      const facingFront = dir === 'SE' || dir === 'SW';
+      const flipX = (dir === 'SW' || dir === 'NW') ? -1 : 1;
+
+      // Kinematics & Bamboo-copter flight physics
+      const hasCopter =
+        modelId === 'doraemon-devops' ||
+        modelId === 'nobita-coder' ||
+        modelId === 'shizuka-boss' ||
+        anim === 'special' ||
+        isBurst;
+
+      const isFlying = anim === 'special' || isBurst;
+      const speed = anim === 'walk' ? 8.5 : anim === 'work' ? 11 : isFlying ? 5.5 : 3.2;
+      const t = time * speed;
+
+      const walkBob = anim === 'walk' ? Math.abs(Math.sin(t)) * -5 : 0;
+      const hoverAltitude = isFlying ? -12 + Math.sin(time * 4.2) * 4.5 : 0;
+      const idleBob = Math.sin(time * 3.0) * 1.6;
+      const bob = walkBob + hoverAltitude + idleBob;
+
+      const legSwing = anim === 'walk' ? Math.sin(t) * 7 : isFlying ? Math.sin(time * 5) * 3 : 0;
+      const armSwing = anim === 'walk' ? Math.sin(t) * 8 : anim === 'work' ? Math.sin(t * 1.6) * 5 : 0;
+
+      // =====================================================================
+      // A. FLOOR AURAS & BACKGROUND GADGETS
+      // =====================================================================
+      // 1. Doraemon: Pink Anywhere Door portal behind him in special/burst mode
+      if (modelId === 'doraemon-devops' && (anim === 'special' || isBurst)) {
+        drawAnywhereDoor(ctx, -22 * flipX, -2, time, 0.85);
+      }
+
+      // 2. Dorami: Red & Blue Time Kerchief (Khăn Trùm Thời Gian) Magic Field
+      if (modelId === 'dorami-qa') {
+        ctx.save();
+        const rPulse = 1 + Math.sin(time * 4) * 0.06;
+        ctx.fillStyle = (anim === 'special' || isBurst) ? 'rgba(239, 68, 68, 0.24)' : 'rgba(59, 130, 246, 0.16)';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -time * 20;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 38 * rPulse, 19 * rPulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Floating Mini Clock Glyphs on Time Kerchief Aura
+        ctx.setLineDash([]);
+        for (let c = 0; c < 3; c++) {
+          const ang = time * 1.8 + c * ((Math.PI * 2) / 3);
+          const kx = Math.cos(ang) * 30;
+          const ky = Math.sin(ang) * 14;
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#1d4ed8';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(kx, ky, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Clock hands
+          ctx.beginPath();
+          ctx.moveTo(kx, ky);
+          ctx.lineTo(kx + Math.cos(time * 8) * 3, ky + Math.sin(time * 8) * 3);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 3. Jaian: Sonic Recital Floor Shockwave Rings
+      if (modelId === 'jaian-lead' && (anim === 'special' || isBurst)) {
+        ctx.save();
+        for (let w = 0; w < 2; w++) {
+          const prog = ((time * 1.6 + w * 0.5) % 1);
+          ctx.strokeStyle = `rgba(249, 115, 22, ${1 - prog})`;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.ellipse(0, -18, 18 + prog * 34, 9 + prog * 17, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Ground Drop Shadow (shrinks slightly when hovering with Bamboo-Copter)
+      const shadowScale = isFlying ? 0.72 : 1.0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 18 * shadowScale, 9 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Apply horizontal isometric mirror for SW / NW
+      ctx.save();
+      ctx.scale(flipX, 1);
+
+      // =====================================================================
+      // B. ROBOT CAT MODELS (DORAEMON & DORAMI) vs HUMAN CREW MODELS
+      // =====================================================================
+      const isRobotCat = modelId === 'doraemon-devops' || modelId === 'dorami-qa';
+
+      if (isRobotCat) {
+        const mainColor = modelId === 'doraemon-devops' ? '#0096e6' : '#facc15';
+        const darkStroke = modelId === 'doraemon-devops' ? '#034c8c' : '#a16207';
+
+        // 1. Feet (White Oval Robot Cat Feet)
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.4;
+        // Left foot
+        ctx.beginPath();
+        ctx.ellipse(-6.5, -2 + bob + legSwing * 0.4, 6.5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // Right foot
+        ctx.beginPath();
+        ctx.ellipse(6.5, -1 + bob - legSwing * 0.4, 6.5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. Chubby Round Robot Cat Body
+        ctx.fillStyle = mainColor;
+        ctx.strokeStyle = darkStroke;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(0, -16 + bob, 14.5, 13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (facingFront) {
+          // White Belly Circle
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.ellipse(1.5, -15.5 + bob, 10.5, 9.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // 4D Pocket (Túi Thần Kỳ - Semi-circle on belly)
+          ctx.fillStyle = modelId === 'dorami-qa' ? '#fef9c3' : '#ffffff';
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.arc(1.5, -15 + bob, 7.2, 0.08 * Math.PI, 0.92 * Math.PI);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Dorami checkered pocket accent
+          if (modelId === 'dorami-qa') {
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-2, -15 + bob);
+            ctx.lineTo(-2, -9 + bob);
+            ctx.moveTo(2, -15 + bob);
+            ctx.lineTo(2, -8.5 + bob);
+            ctx.moveTo(5, -15 + bob);
+            ctx.lineTo(5, -9.5 + bob);
+            ctx.stroke();
+          }
+        } else {
+          // Back view: Iconic Tail!
+          if (modelId === 'doraemon-devops') {
+            // Short stem + Red Ball Tail
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -10 + bob);
+            ctx.lineTo(-4, -8 + bob);
+            ctx.stroke();
+            ctx.fillStyle = '#e60012';
+            ctx.beginPath();
+            ctx.arc(-5, -8 + bob, 3.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            // Dorami Flower Tail
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 1.2;
+            for (let p = 0; p < 5; p++) {
+              const pa = (p * Math.PI * 2) / 5;
+              ctx.beginPath();
+              ctx.arc(-4 + Math.cos(pa) * 2.5, -9 + bob + Math.sin(pa) * 2.5, 2.2, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            }
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.arc(-4, -9 + bob, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // 3. Red Collar & Golden Bell (🔔)
+        ctx.fillStyle = '#e60012';
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 1.2;
+        drawRoundedRect(ctx, -12.5, -27.5 + bob, 25, 4.2, 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (facingFront) {
+          // Golden Bell at center-front of collar
+          ctx.fillStyle = '#fbbf24';
+          ctx.strokeStyle = '#92400e';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(2, -24.8 + bob, 4.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Bell horizontal ring & dark slot
+          ctx.beginPath();
+          ctx.moveTo(-2, -25.2 + bob);
+          ctx.lineTo(6, -25.2 + bob);
+          ctx.stroke();
+          ctx.fillStyle = '#451a03';
+          ctx.beginPath();
+          ctx.arc(2, -23.4 + bob, 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 4. Oversized Round Robot Cat Head (Classic Doraemon 1:1 Head-to-Body ratio!)
+        const headY = -41 + bob;
+
+        // Dorami's Giant Red Ribbon Bow Ears (behind top of head)
+        if (modelId === 'dorami-qa') {
+          ctx.fillStyle = '#ef4444';
+          ctx.strokeStyle = '#991b1b';
+          ctx.lineWidth = 1.5;
+          // Left Bow Ear
+          ctx.beginPath();
+          ctx.moveTo(-6, headY - 12);
+          ctx.quadraticCurveTo(-18, headY - 26, -15, headY - 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // Right Bow Ear
+          ctx.beginPath();
+          ctx.moveTo(6, headY - 12);
+          ctx.quadraticCurveTo(18, headY - 26, 15, headY - 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // Center bow knot
+          ctx.fillStyle = '#dc2626';
+          ctx.beginPath();
+          ctx.arc(0, headY - 14.5, 3.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Main Sphere Head
+        ctx.fillStyle = mainColor;
+        ctx.strokeStyle = darkStroke;
+        ctx.lineWidth = 1.7;
+        ctx.beginPath();
+        ctx.arc(0, headY, 16.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (facingFront) {
+          // White Face Mask Area
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.ellipse(2, headY + 3, 13.5, 11.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Two Large Touching Oval White Eyes at Top of Face Mask
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 1.3;
+          // Left eye
+          ctx.beginPath();
+          ctx.ellipse(-1.2, headY - 6.2, 4.1, 5.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Right eye
+          ctx.beginPath();
+          ctx.ellipse(6.2, headY - 6.2, 4.1, 5.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Pupils + Specular Eye Shine
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.ellipse(0.2, headY - 5.8, 1.6, 2.3, 0, 0, Math.PI * 2);
+          ctx.ellipse(5.0, headY - 5.8, 1.6, 2.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0.6, headY - 6.6, 0.8, 0, Math.PI * 2);
+          ctx.arc(5.4, headY - 6.6, 0.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (modelId === 'doraemon-devops') {
+            // Iconic Shiny Red Ball Nose
+            ctx.fillStyle = '#e60012';
+            ctx.strokeStyle = '#7f1d1d';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(2.6, headY - 1.2, 3.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // White highlight on red nose
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(1.7, headY - 2.2, 1.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Vertical Philtrum Line + Big Happy Smile
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(2.6, headY + 2.1);
+            ctx.lineTo(2.6, headY + 7.5);
+            ctx.stroke();
+
+            // Wide happy open mouth
+            ctx.fillStyle = '#e11d48';
+            ctx.beginPath();
+            ctx.arc(2.6, headY + 5.2, 7.5, 0.08 * Math.PI, 0.92 * Math.PI);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Tongue inside mouth
+            ctx.fillStyle = '#fb7185';
+            ctx.beginPath();
+            ctx.ellipse(2.6, headY + 10.2, 4.2, 2.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 6 Whiskers (3 Left, 3 Right)
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.15;
+            // Left whiskers
+            [-1, 0, 1].forEach(w => {
+              ctx.beginPath();
+              ctx.moveTo(-4, headY + 1 + w * 2.2);
+              ctx.lineTo(-12.5, headY + w * 3.2);
+              ctx.stroke();
+            });
+            // Right whiskers
+            [-1, 0, 1].forEach(w => {
+              ctx.beginPath();
+              ctx.moveTo(8.5, headY + 1 + w * 2.2);
+              ctx.lineTo(15.5, headY + w * 3.2);
+              ctx.stroke();
+            });
+          } else {
+            // Dorami: Cute Small Pink Nose, Rosy Cheeks & Sweet Smile (No Whiskers!)
+            ctx.fillStyle = '#fb7185';
+            ctx.beginPath();
+            ctx.arc(2.6, headY - 1.2, 1.9, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Rosy cheeks
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(-5, headY + 2, 2.8, 1.6, 0, 0, Math.PI * 2);
+            ctx.ellipse(10, headY + 2, 2.8, 1.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sweet smile
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.arc(2.6, headY + 3.5, 4.8, 0.15 * Math.PI, 0.85 * Math.PI);
+            ctx.stroke();
+          }
+        }
+
+        // 5. Arms & White Sphere Hands (Paws) + Gadgets
+        // Back arm
+        ctx.strokeStyle = darkStroke;
+        ctx.fillStyle = mainColor;
+        ctx.lineWidth = 5.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-11, -21 + bob);
+        ctx.lineTo(-16, -14 + bob - armSwing * 0.5);
+        ctx.stroke();
+        // White sphere paw
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.arc(-16.5, -13 + bob - armSwing * 0.5, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Front arm & held gadget (Dorayaki / Melon Bread / Laptop)
+        const handX = 15.5;
+        const handY = -14 + bob + armSwing * 0.5;
+        ctx.strokeStyle = darkStroke;
+        ctx.lineWidth = 5.5;
+        ctx.beginPath();
+        ctx.moveTo(11, -21 + bob);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.arc(handX + 1, handY + 1, 4.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Held Gadget on Doraemon / Dorami
+        if (modelId === 'doraemon-devops' && (anim === 'carry' || anim === 'special' || isBurst)) {
+          // Delicious Golden-Brown Dorayaki (Bánh rán)
+          ctx.fillStyle = '#d97706';
+          ctx.strokeStyle = '#78350f';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.ellipse(handX + 5, handY - 2, 6.5, 4.2, -0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Cream / Red Bean stripe in middle
+          ctx.strokeStyle = '#fef3c7';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(handX - 0.5, handY - 1);
+          ctx.lineTo(handX + 10.5, handY - 3);
+          ctx.stroke();
+        } else if (modelId === 'dorami-qa') {
+          // Golden Melon Bread with crisscross crust
+          ctx.fillStyle = '#fde047';
+          ctx.strokeStyle = '#ca8a04';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.ellipse(handX + 5, handY - 2, 6, 4.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // 6. Spinning Bamboo-Copter on Top of Head
+        drawBambooCopter(ctx, 0, headY - 16.5, time, isFlying);
+
+      } else {
+        // =====================================================================
+        // C. HUMAN CREW MODELS (NOBITA, SHIZUKA, JAIAN, SUNEO)
+        // =====================================================================
+        const isJaian = modelId === 'jaian-lead';
+        const torsoW = isJaian ? 22 : 16;
+        const torsoH = isJaian ? 20 : 17;
+
+        // 1. Legs & Shoes
+        const shoeColor =
+          modelId === 'nobita-coder' ? '#38bdf8' :
+          modelId === 'shizuka-boss' ? '#e11d48' :
+          modelId === 'jaian-lead' ? '#451a03' : '#0284c7';
+
+        const legSkinOrPants =
+          modelId === 'jaian-lead' ? '#334155' : '#fde68a';
+
+        // Left & Right Legs
+        ctx.strokeStyle = legSkinOrPants;
+        ctx.lineWidth = isJaian ? 5.2 : 4.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-4.5, -12 + bob);
+        ctx.lineTo(-4.5, -2 + bob + legSwing * 0.45);
+        ctx.moveTo(4.5, -12 + bob);
+        ctx.lineTo(4.5, -1 + bob - legSwing * 0.45);
+        ctx.stroke();
+
+        // Shoes
+        ctx.fillStyle = shoeColor;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(-4.5, -1.5 + bob + legSwing * 0.45, 4.8, 2.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(4.5, -0.5 + bob - legSwing * 0.45, 4.8, 2.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Shorts / Skirt Base
+        if (modelId === 'nobita-coder' || modelId === 'suneo-fe') {
+          ctx.fillStyle = modelId === 'nobita-coder' ? '#1e3a8a' : '#b45309';
+          drawRoundedRect(ctx, -torsoW / 2 + 1, -15 + bob, torsoW - 2, 7, 3);
+          ctx.fill();
+        }
+
+        // 2. Torso & Signature Outfits
+        const shirtColor =
+          modelId === 'nobita-coder' ? '#facc15' :
+          modelId === 'shizuka-boss' ? '#f43f5e' :
+          modelId === 'jaian-lead' ? '#f97316' : '#06b6d4';
+
+        ctx.fillStyle = shirtColor;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+
+        if (modelId === 'shizuka-boss') {
+          // Flared Rose-Pink Dress Silhouette
+          ctx.beginPath();
+          ctx.moveTo(-7, -29 + bob);
+          ctx.lineTo(7, -29 + bob);
+          ctx.lineTo(11, -10 + bob);
+          ctx.lineTo(-11, -10 + bob);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // White Dress Hem Stripe
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-10, -12.5 + bob);
+          ctx.lineTo(10, -12.5 + bob);
+          ctx.stroke();
+        } else {
+          drawRoundedRect(ctx, -torsoW / 2, -29 + bob, torsoW, torsoH, 5);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Jaian's Iconic Black Jagged Zigzag Stripe Across Chest!
+        if (modelId === 'jaian-lead') {
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(-torsoW / 2 + 1, -21 + bob);
+          ctx.lineTo(-5, -25 + bob);
+          ctx.lineTo(0, -20 + bob);
+          ctx.lineTo(5, -25 + bob);
+          ctx.lineTo(torsoW / 2 - 1, -21 + bob);
+          ctx.lineTo(torsoW / 2 - 1, -16 + bob);
+          ctx.lineTo(5, -20 + bob);
+          ctx.lineTo(0, -15 + bob);
+          ctx.lineTo(-5, -20 + bob);
+          ctx.lineTo(-torsoW / 2 + 1, -16 + bob);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // White Peter Pan / Polo Collar (Nobita, Shizuka, Suneo)
+        if (modelId !== 'jaian-lead' && facingFront) {
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.moveTo(-5, -29 + bob);
+          ctx.lineTo(0, -25 + bob);
+          ctx.lineTo(5, -29 + bob);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // 3. Head, Hair & Iconic Facial Features
+        const headY = -40 + bob;
+        const headR = isJaian ? 12.8 : 11.5;
+
+        // Shizuka's Twin Pigtails Behind Head
+        if (modelId === 'shizuka-boss') {
+          ctx.fillStyle = '#1e1b4b';
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 1.3;
+          // Left pigtail + pink ribbon
+          ctx.beginPath();
+          ctx.ellipse(-14, headY + 2, 5.5, 3.2, -0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#f472b6';
+          ctx.beginPath();
+          ctx.arc(-10.5, headY, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Right pigtail + pink ribbon
+          ctx.fillStyle = '#1e1b4b';
+          ctx.beginPath();
+          ctx.ellipse(14, headY + 2, 5.5, 3.2, 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#f472b6';
+          ctx.beginPath();
+          ctx.arc(10.5, headY, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Head Sphere
+        ctx.fillStyle = '#fde68a';
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, headY, headR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Hair Top & Back Cap
+        ctx.fillStyle = '#0f172a';
+        if (modelId === 'suneo-fe') {
+          // Suneo's Iconic Pointed Fox-Like Spiky Hair jutting forward!
+          ctx.beginPath();
+          ctx.arc(0, headY - 2, headR, Math.PI * 0.85, Math.PI * 1.95);
+          ctx.lineTo(18, headY - 12);
+          ctx.lineTo(13, headY - 6);
+          ctx.lineTo(19, headY - 5);
+          ctx.lineTo(11, headY - 1);
+          ctx.closePath();
+          ctx.fill();
+        } else if (modelId === 'jaian-lead') {
+          // Jaian's Crew Cut with Front Spike Tuft
+          ctx.beginPath();
+          ctx.arc(0, headY - 2, headR + 0.4, Math.PI * 0.9, Math.PI * 2.1);
+          ctx.closePath();
+          ctx.fill();
+          // Front jagged bangs
+          ctx.beginPath();
+          ctx.moveTo(-4, headY - 8);
+          ctx.lineTo(2, headY - 4);
+          ctx.lineTo(6, headY - 8);
+          ctx.fill();
+        } else {
+          // Nobita / Shizuka Neat Rounded Hair Cap
+          ctx.beginPath();
+          ctx.arc(0, headY - 1.5, headR + 0.5, Math.PI * 0.88, Math.PI * 2.12);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Facial Details (Front View)
+        if (facingFront) {
+          if (modelId === 'nobita-coder') {
+            // Nobita's Iconic Large Round White-Lens Glasses!
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.7;
+            ctx.beginPath();
+            ctx.arc(-2.5, headY - 0.5, 4.6, 0, Math.PI * 2);
+            ctx.arc(5.8, headY - 0.5, 4.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Glasses bridge & temple frame
+            ctx.beginPath();
+            ctx.moveTo(-7.1, headY - 1);
+            ctx.lineTo(-10.5, headY - 2);
+            ctx.stroke();
+            // Pupils inside glasses
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(-1.8, headY - 0.5, 1.3, 0, Math.PI * 2);
+            ctx.arc(5.2, headY - 0.5, 1.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Happy determined mouth
+            ctx.beginPath();
+            ctx.arc(2, headY + 5.5, 2.8, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+          } else {
+            // Eyes for Shizuka, Jaian, Suneo
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.ellipse(-1.5, headY - 0.5, 1.6, 2.2, 0, 0, Math.PI * 2);
+            ctx.ellipse(5.5, headY - 0.5, 1.6, 2.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (modelId === 'shizuka-boss') {
+              // Rosy cheeks & gentle smile
+              ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+              ctx.beginPath();
+              ctx.arc(-5, headY + 2.5, 2.2, 0, Math.PI * 2);
+              ctx.arc(8.5, headY + 2.5, 2.2, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#e11d48';
+              ctx.lineWidth = 1.3;
+              ctx.beginPath();
+              ctx.arc(2, headY + 4, 3, 0.15 * Math.PI, 0.85 * Math.PI);
+              ctx.stroke();
+            } else if (modelId === 'jaian-lead') {
+              // Booming singing open mouth + bold eyebrows
+              ctx.strokeStyle = '#0f172a';
+              ctx.lineWidth = 1.8;
+              ctx.beginPath();
+              ctx.moveTo(-4, headY - 4);
+              ctx.lineTo(0, headY - 2.5);
+              ctx.moveTo(8, headY - 4);
+              ctx.lineTo(4, headY - 2.5);
+              ctx.stroke();
+
+              ctx.fillStyle = '#991b1b';
+              ctx.beginPath();
+              ctx.ellipse(2.2, headY + 5, 4.8, 3.2, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            } else if (modelId === 'suneo-fe') {
+              // Suneo's pointed fox-snout smirk
+              ctx.fillStyle = '#fde68a';
+              ctx.strokeStyle = '#78350f';
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.moveTo(2, headY + 2);
+              ctx.lineTo(12, headY + 3.5);
+              ctx.lineTo(2, headY + 6.5);
+              ctx.fill();
+              ctx.stroke();
+            }
+          }
+        }
+
+        // 4. Arms & Signature Handheld Gadgets
+        const handX = torsoW / 2 + 5;
+        const handY = -17 + bob + armSwing * 0.5;
+
+        // Back Arm
+        ctx.strokeStyle = shirtColor;
+        ctx.lineWidth = 4.6;
+        ctx.beginPath();
+        ctx.moveTo(-torsoW / 2 + 1, -25 + bob);
+        ctx.lineTo(-torsoW / 2 - 4, -16 + bob - armSwing * 0.5);
+        ctx.stroke();
+
+        // Front Arm
+        ctx.beginPath();
+        ctx.moveTo(torsoW / 2 - 1, -25 + bob);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+
+        // Character-Specific Gadgets on Front Arm!
+        if (modelId === 'nobita-coder') {
+          if (anim === 'carry') {
+            // 100-Point Exam Scroll (💯)
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.2;
+            drawRoundedRect(ctx, handX - 2, handY - 12, 16, 20, 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e60012';
+            ctx.font = '900 7.5px "JetBrains Mono", monospace';
+            ctx.fillText('100', handX, handY - 2);
+          } else {
+            // Silver Air Cannon (Đại bác không khí) mounted on arm!
+            ctx.fillStyle = '#cbd5e1';
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.3;
+            drawRoundedRect(ctx, handX - 3, handY - 5, 13, 8, 3);
+            ctx.fill();
+            ctx.stroke();
+            // Red muzzle tip
+            ctx.fillStyle = '#e60012';
+            ctx.fillRect(handX + 8, handY - 4.5, 3, 7);
+
+            // Firing shockwave ring in special/work mode
+            if (anim === 'special' || anim === 'work' || isBurst) {
+              const ringOffset = ((time * 38) % 24);
+              ctx.strokeStyle = `rgba(56, 189, 248, ${1 - ringOffset / 24})`;
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.ellipse(handX + 14 + ringOffset, handY - 1, 2.5, 6 + ringOffset * 0.2, 0, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+        } else if (modelId === 'jaian-lead') {
+          // Silver Concert Microphone (🎤)
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(handX + 1, handY + 2);
+          ctx.lineTo(handX + 4, handY - 7);
+          ctx.stroke();
+          ctx.fillStyle = '#94a3b8';
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.arc(handX + 4.5, handY - 8.5, 3.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        } else if (modelId === 'suneo-fe') {
+          // Golden RC Remote Controller with Antenna
+          ctx.fillStyle = '#fbbf24';
+          ctx.strokeStyle = '#92400e';
+          ctx.lineWidth = 1.2;
+          drawRoundedRect(ctx, handX - 1, handY - 5, 9, 7, 2);
+          ctx.fill();
+          ctx.stroke();
+          // Antenna + Signal wave
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(handX + 6, handY - 5);
+          ctx.lineTo(handX + 11, handY - 14);
+          ctx.stroke();
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(handX + 11, handY - 14, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 5. Spinning Bamboo-Copter on Head
+        if (hasCopter) {
+          drawBambooCopter(ctx, 0, headY - headR, time, isFlying);
+        }
+      }
+
+      // Coding Hologram Laptop when in 'work' mode
+      if (anim === 'work') {
+        ctx.save();
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.2;
+        drawRoundedRect(ctx, 8, -28 + bob, 16, 11, 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore(); // End flipX
+
+      // =====================================================================
+      // D. FLOATING EMOTES, DRONES & GADGET PARTICLES (NON-FLIPPED TEXT/ICONS)
+      // =====================================================================
+      // 1. Shizuka: Floating 3D Pink Hearts & Cherry Blossoms (❤️ 🌸 ✨)
+      if (modelId === 'shizuka-boss') {
+        const icons = ['❤️', '🌸', '✨'];
+        icons.forEach((ic, i) => {
+          const ang = time * 2.1 + i * 2.1;
+          const ix = Math.cos(ang) * 25;
+          const iy = -52 + bob + Math.sin(time * 3.4 + i) * 6 - i * 4;
+          ctx.save();
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = '#f43f5e';
+          ctx.shadowBlur = 8;
+          ctx.fillText(ic, ix, iy);
+          ctx.restore();
+        });
+      }
+
+      // 2. Jaian: Booming Sonic Notes & Angry Boss Vein (🎤 💢 🎵)
+      if (modelId === 'jaian-lead') {
+        const notes = ['🎵', '💢', '🎶'];
+        notes.forEach((n, i) => {
+          const nx = -22 + i * 22 + Math.sin(time * 5 + i) * 4;
+          const ny = -56 + bob - ((time * 16 + i * 9) % 18);
+          ctx.save();
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(n, nx, ny);
+          ctx.restore();
+        });
+      }
+
+      // 3. Suneo: Hovering Mini UFO Drone & Sparkling Diamonds (🛸 ✨ 💎)
+      if (modelId === 'suneo-fe') {
+        const ufoX = Math.cos(time * 2.6) * 24;
+        const ufoY = -58 + bob + Math.sin(time * 4.5) * 4;
+        ctx.save();
+        // UFO Saucer Body
+        ctx.fillStyle = '#38bdf8';
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(ufoX, ufoY - 2, 5, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.ellipse(ufoX, ufoY, 9.5, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Diamond Sparkles
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('💎', -20, -48 + bob + Math.sin(time * 3) * 4);
+        ctx.fillText('✨', 22, -52 + bob + Math.cos(time * 3) * 4);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // 4. HIGH-DPI CANVAS RESIZE & 60FPS ANIMATION LOOP
+    // =========================================================================
+    const stageCanvas = document.getElementById('crewStageCanvas');
+    const fpsEl = document.getElementById('fpsCounter');
+
+    function syncCanvasSize(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      return { w: rect.width, h: rect.height, dpr };
+    }
+
+    // Click detection on main stage deck
+    stageCanvas.addEventListener('click', (e) => {
+      const rect = stageCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const count = CREW_MODELS.length;
+      CREW_MODELS.forEach((m, idx) => {
+        const slotX = (rect.width / (count + 1)) * (idx + 1);
+        const slotY = rect.height * 0.68 + (idx % 2 === 0 ? -18 : 16);
+        if (Math.hypot(mx - slotX, my - (slotY - 38)) < 58) {
+          charStates[m.id].burstUntil = performance.now() + 2800;
+          const nextIdx = (DIRS.indexOf(charStates[m.id].dir) + 1) % DIRS.length;
+          charStates[m.id].dir = DIRS[nextIdx];
+          syncCardButtons(m.id);
+        }
+      });
+    });
+
+    let lastFpsTime = performance.now();
+    let frameCount = 0;
+
+    function renderLoop(now) {
+      const time = now * 0.001;
+      frameCount++;
+      if (now - lastFpsTime >= 500) {
+        const fps = Math.min(60, Math.round((frameCount * 1000) / (now - lastFpsTime)));
+        fpsEl.textContent = `${fps} FPS`;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+
+      if (globalAutoRotate) {
+        const dirIdx = Math.floor(time / 2.2) % DIRS.length;
+        const autoDir = DIRS[dirIdx];
+        CREW_MODELS.forEach(m => {
+          if (charStates[m.id].dir !== autoDir) {
+            charStates[m.id].dir = autoDir;
+            syncCardButtons(m.id);
+          }
+        });
+      }
+
+      // -----------------------------------------------------------------------
+      // A. RENDER MAIN INTERACTIVE STAGE DECK (ALL 6 DORAEMON CHARACTERS)
+      // -----------------------------------------------------------------------
+      const stageMetrics = syncCanvasSize(stageCanvas);
+      const sctx = stageCanvas.getContext('2d');
+      sctx.save();
+      sctx.scale(stageMetrics.dpr, stageMetrics.dpr);
+      sctx.clearRect(0, 0, stageMetrics.w, stageMetrics.h);
+
+      // Isometric 22nd-century cyber floor grid
+      sctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+      sctx.lineWidth = 1;
+      for (let gx = -stageMetrics.h; gx < stageMetrics.w + stageMetrics.h; gx += 64) {
+        sctx.beginPath();
+        sctx.moveTo(gx, 0);
+        sctx.lineTo(gx - stageMetrics.h * 1.6, stageMetrics.h);
+        sctx.stroke();
+        sctx.beginPath();
+        sctx.moveTo(gx, 0);
+        sctx.lineTo(gx + stageMetrics.h * 1.6, stageMetrics.h);
+        sctx.stroke();
+      }
+
+      const count = CREW_MODELS.length;
+      CREW_MODELS.forEach((m, idx) => {
+        const st = charStates[m.id];
+        const isBurst = now < st.burstUntil;
+        const slotX = (stageMetrics.w / (count + 1)) * (idx + 1);
+        const slotY = stageMetrics.h * 0.68 + (idx % 2 === 0 ? -18 : 16);
+
+        const borderCol =
+          m.id === 'doraemon-devops' ? '#38bdf8' :
+          m.id === 'shizuka-boss' ? '#fb7185' :
+          m.id === 'jaian-lead' ? '#fb923c' :
+          m.id === 'suneo-fe' ? '#22d3ee' : '#facc15';
+
+        const glowCol =
+          m.id === 'doraemon-devops' ? 'rgba(56, 189, 248, 0.32)' :
+          m.id === 'shizuka-boss' ? 'rgba(244, 63, 94, 0.30)' :
+          m.id === 'jaian-lead' ? 'rgba(249, 115, 22, 0.28)' :
+          'rgba(250, 204, 21, 0.28)';
+
+        drawIsoTilePedestal(sctx, slotX, slotY, 54, 27, borderCol, glowCol, time);
+
+        drawDoraemonCharacter(
+          sctx,
+          m.id,
+          slotX,
+          slotY,
+          1.45,
+          st.dir,
+          st.anim,
+          time + st.phaseOffset,
+          isBurst
+        );
+
+        // Nameplate & Direction Pill under pedestal
+        sctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        drawRoundedRect(sctx, slotX - 62, slotY + 34, 124, 22, 7);
+        sctx.fill();
+        sctx.strokeStyle = borderCol;
+        sctx.lineWidth = 1.2;
+        sctx.stroke();
+
+        sctx.fillStyle = '#f8fafc';
+        sctx.font = '800 9.5px "Plus Jakarta Sans", sans-serif';
+        sctx.textAlign = 'center';
+        sctx.fillText(`${m.name} [${st.dir}]`, slotX, slotY + 48);
+
+        // Speech bubble on click burst
+        if (isBurst) {
+          sctx.save();
+          sctx.font = '800 10px "Plus Jakarta Sans", sans-serif';
+          const textW = Math.min(240, sctx.measureText(m.speech).width + 20);
+          const bx = slotX - textW / 2;
+          const by = slotY - 152;
+          sctx.fillStyle = '#fef08a';
+          drawRoundedRect(sctx, bx, by, textW, 24, 8);
+          sctx.fill();
+          sctx.strokeStyle = '#0284c7';
+          sctx.lineWidth = 1.6;
+          sctx.stroke();
+          sctx.fillStyle = '#0f172a';
+          sctx.textAlign = 'center';
+          sctx.fillText(m.speech, slotX, by + 15);
+          sctx.restore();
+        }
+      });
+      sctx.restore();
+
+      // -----------------------------------------------------------------------
+      // B. RENDER INDIVIDUAL SECRET GADGET CARD VIEWPORTS
+      // -----------------------------------------------------------------------
+      CREW_MODELS.forEach((m) => {
+        const c = posterCanvases[m.id];
+        if (!c) return;
+        const metrics = syncCanvasSize(c);
+        const ctx = c.getContext('2d');
+        const st = charStates[m.id];
+        const isBurst = now < st.burstUntil;
+
+        ctx.save();
+        ctx.scale(metrics.dpr, metrics.dpr);
+        ctx.clearRect(0, 0, metrics.w, metrics.h);
+
+        const cx = metrics.w * 0.5;
+        const cy = metrics.h * 0.72;
+
+        const borderCol =
+          m.id === 'doraemon-devops' ? '#38bdf8' :
+          m.id === 'shizuka-boss' ? '#fb7185' :
+          m.id === 'jaian-lead' ? '#fb923c' :
+          m.id === 'suneo-fe' ? '#22d3ee' : '#facc15';
+
+        const glowCol =
+          m.id === 'doraemon-devops' ? 'rgba(56, 189, 248, 0.30)' :
+          m.id === 'shizuka-boss' ? 'rgba(244, 63, 94, 0.28)' :
+          'rgba(250, 204, 21, 0.25)';
+
+        drawIsoTilePedestal(ctx, cx, cy, 64, 32, borderCol, glowCol, time);
+
+        drawDoraemonCharacter(
+          ctx,
+          m.id,
+          cx,
+          cy,
+          1.62,
+          st.dir,
+          st.anim,
+          time + st.phaseOffset,
+          isBurst
+        );
+
+        ctx.restore();
+      });
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>

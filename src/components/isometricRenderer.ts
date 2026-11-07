@@ -4643,6 +4643,121 @@ export function drawVectorHeart(
   ctx.restore();
 }
 
+// ============================================================================
+// 12 ANIME CHARACTER ARCHETYPES (6 ONE PIECE CREW + 6 DORAEMON CREW)
+// ============================================================================
+export type OnePieceArchetype =
+  // 6 One Piece Grand Line Models
+  | 'STRAW_HAT_LUFFY'
+  | 'SWORDSMAN_ZORO'
+  | 'PIRATE_EMPRESS'
+  | 'CYBORG_FRANKY'
+  | 'BLACK_LEG_SANJI'
+  | 'SURGEON_CHOPPER_LAW'
+  // 6 Doraemon Crew Models
+  | 'DORAEMON_CYBER'
+  | 'NOBITA_CODER'
+  | 'SHIZUKA_BOSS'
+  | 'JAIAN_CHAIEN'
+  | 'SUNEO_STYLISH'
+  | 'DORAMI_QA';
+
+const ALL_12_ANIME_ARCHETYPES: readonly OnePieceArchetype[] = [
+  'STRAW_HAT_LUFFY',
+  'DORAEMON_CYBER',
+  'SWORDSMAN_ZORO',
+  'NOBITA_CODER',
+  'PIRATE_EMPRESS',
+  'SHIZUKA_BOSS',
+  'CYBORG_FRANKY',
+  'JAIAN_CHAIEN',
+  'BLACK_LEG_SANJI',
+  'SUNEO_STYLISH',
+  'SURGEON_CHOPPER_LAW',
+  'DORAMI_QA',
+];
+
+export function resolveOnePieceArchetype(emp: Employee, empNum: number): OnePieceArchetype {
+  const acc = (emp.account || '').toLowerCase();
+  // 4 Patrolling Bosses mapped so both One Piece & Doraemon crews are represented:
+  if (emp.id === 'EMP-MANAGER-THUNDM' || acc === 'thundm') {
+    return 'PIRATE_EMPRESS'; // Sếp ThuNDM: Nữ Hoàng Hải Tặc Boa Hancock
+  }
+  if (emp.id === 'EMP-MANAGER-DOANNT19' || acc === 'doannt19') {
+    return 'SHIZUKA_BOSS'; // Sếp doannt19: Shizuka dễ thương đeo Chong chóng tre & tóc 2 bím!
+  }
+  if (emp.id === 'EMP-MANAGER-TOANLBK' || acc === 'toanlbk') {
+    return 'JAIAN_CHAIEN'; // Sếp ToanLBK: Chaien (Jaian) áo cam sọc Ziczac cầm Mic gầm vang!
+  }
+  if (emp.id === 'EMP-MANAGER-VANLTB8' || acc === 'vanltb8') {
+    return 'DORAMI_QA'; // Sếp vanltb8: Dorami vàng tươi đeo Nơ Đỏ khổng lồ & Chuông Vàng!
+  }
+  if (emp.isFemaleManager) {
+    return 'PIRATE_EMPRESS';
+  }
+  // Regular employees (EMP-01..EMP-30): deterministic distribution across all 12 models (empNum % 12)
+  return ALL_12_ANIME_ARCHETYPES[Math.abs(empNum) % 12];
+}
+
+/** Vẽ Chong Chóng Tre (`Bamboo-copter / Take-copter`) vàng óng quay tít trên đỉnh đầu nhóm Doraemon */
+function drawBambooCopter(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  time: number,
+  seed: number
+) {
+  ctx.save();
+  // Đế giác hút màu vàng cam trên đỉnh đầu
+  ctx.fillStyle = '#eab308';
+  ctx.strokeStyle = '#713f12';
+  ctx.lineWidth = 0.75;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 1.9, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Trục kim loại thẳng đứng nối lên cánh quạt
+  const rotorY = cy - 4.8;
+  ctx.strokeStyle = '#ca8a04';
+  ctx.lineWidth = 1.25;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 1.2);
+  ctx.lineTo(cx, rotorY);
+  ctx.stroke();
+
+  // Đĩa mờ hiệu ứng cánh quạt quay tốc độ cao (High-speed spinning motion blur disc)
+  ctx.fillStyle = 'rgba(253, 224, 71, 0.36)';
+  ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(cx, rotorY, 7.6, 2.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Cánh quạt vàng quay tít theo thời gian thực
+  const bladeScale = Math.cos(time * 0.042 + seed * 1.9);
+  const bladeLen = Math.max(2.4, Math.abs(bladeScale) * 7.4);
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = 1.85;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - bladeLen, rotorY - bladeScale * 0.6);
+  ctx.lineTo(cx + bladeLen, rotorY + bladeScale * 0.6);
+  ctx.stroke();
+
+  // Chóp khóa tròn nhỏ ở tâm cánh quạt
+  ctx.fillStyle = '#fef08a';
+  ctx.strokeStyle = '#854d0e';
+  ctx.lineWidth = 0.65;
+  ctx.beginPath();
+  ctx.arc(cx, rotorY, 1.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawDetailedIsoCharacter(
   ctx: CanvasRenderingContext2D,
   emp: Employee,
@@ -4696,53 +4811,31 @@ export function drawDetailedIsoCharacter(
   );
   const isFemale = isFemaleManager || emp.gender === 'female' || FEMALE_EMPLOYEE_IDS.has(emp.id);
 
-  // Deterministic One Piece Character Model Archetype (6 Iconic Grand Line Crew & Boss Models)
-  const onePieceModel:
-    | 'STRAW_HAT_LUFFY'
-    | 'SWORDSMAN_ZORO'
-    | 'PIRATE_EMPRESS'
-    | 'CYBORG_FRANKY'
-    | 'BLACK_LEG_SANJI'
-    | 'SURGEON_CHOPPER_LAW' = isFemaleManager
-    ? 'PIRATE_EMPRESS'
-    : emp.id === 'EMP-MANAGER-TOANLBK' || emp.role === 'DEVOPS'
-    ? 'CYBORG_FRANKY'
-    : emp.isProjectManager || emp.role === 'PM'
-    ? 'STRAW_HAT_LUFFY'
-    : emp.role === 'TECH_LEAD' || emp.role === 'BACKEND'
-    ? 'SWORDSMAN_ZORO'
-    : emp.role === 'FRONTEND' || emp.role === 'MOBILE'
-    ? 'BLACK_LEG_SANJI'
-    : emp.role === 'QA' || emp.role === 'BA'
-    ? 'SURGEON_CHOPPER_LAW'
-    : empNum % 6 === 1
-    ? 'STRAW_HAT_LUFFY'
-    : empNum % 6 === 2
-    ? 'SWORDSMAN_ZORO'
-    : empNum % 6 === 3
-    ? 'PIRATE_EMPRESS'
-    : empNum % 6 === 4
-    ? 'CYBORG_FRANKY'
-    : empNum % 6 === 5
-    ? 'BLACK_LEG_SANJI'
-    : 'SURGEON_CHOPPER_LAW';
-  const isChopperVariant = onePieceModel === 'SURGEON_CHOPPER_LAW' && (emp.role === 'BA' || empNum % 2 === 1);
+  // Deterministic 12 Anime Character Models (6 One Piece Grand Line Crew + 6 Doraemon Crew)
+  const onePieceModel: OnePieceArchetype = resolveOnePieceArchetype(emp, empNum);
+  const isChopperVariant =
+    onePieceModel === 'SURGEON_CHOPPER_LAW' && (emp.role === 'BA' || empNum % 2 === 1);
 
   const hairPalette =
     emp.id === 'EMP-MANAGER-THUNDM'
       ? { top: '#1e1b4b', side: '#0f172a' } // Tóc đen ánh tím Boa Hancock sang trọng cho Sếp nữ ThuNDM
-      : emp.id === 'EMP-MANAGER-TOANLBK' || onePieceModel === 'CYBORG_FRANKY'
-      ? { top: '#06b6d4', side: '#0891b2' } // Tóc Pompadour Xanh Cyan SUPER Franky cho Sếp ToanLBK & DevOps
-      : emp.id === 'EMP-MANAGER-DOANNT19'
-      ? { top: '#ea580c', side: '#c2410c' } // Tóc cam Hoa Tiêu Nami tươi tắn cho Sếp nữ doannt19
-      : emp.id === 'EMP-MANAGER-VANLTB8'
-      ? { top: '#312e81', side: '#1e1b4b' } // Tóc tím than Nico Robin cho Sếp nữ vanltb8
+      : onePieceModel === 'DORAEMON_CYBER'
+      ? { top: '#0ea5e9', side: '#0284c7' } // Mũ đầu Mèo Máy Doraemon Xanh Da Trời (#0ea5e9 / #38bdf8)
+      : onePieceModel === 'DORAMI_QA'
+      ? { top: '#facc15', side: '#eab308' } // Mũ đầu Mèo Máy Dorami Vàng Tươi (#fde047 / #facc15)
+      : onePieceModel === 'SHIZUKA_BOSS'
+      ? { top: '#3b1d11', side: '#1f1009' } // Tóc nâu đen mượt mà cột 2 bím của Shizuka (doannt19)
+      : onePieceModel === 'NOBITA_CODER' ||
+        onePieceModel === 'JAIAN_CHAIEN' ||
+        onePieceModel === 'SUNEO_STYLISH' ||
+        onePieceModel === 'STRAW_HAT_LUFFY'
+      ? { top: '#0f172a', side: '#020617' } // Tóc đen đặc trưng của Nobita, Chaien, Suneo & Thuyền trưởng Luffy
+      : onePieceModel === 'CYBORG_FRANKY'
+      ? { top: '#06b6d4', side: '#0891b2' } // Tóc Pompadour Xanh Cyan SUPER Franky
       : onePieceModel === 'SWORDSMAN_ZORO'
       ? { top: '#10b981', side: '#047857' } // Tóc xanh rêu Marimo (Roronoa Zoro)
       : onePieceModel === 'BLACK_LEG_SANJI'
       ? { top: '#fde047', side: '#ca8a04' } // Tóc vàng lãng tử (Vinsmoke Sanji)
-      : onePieceModel === 'STRAW_HAT_LUFFY'
-      ? { top: '#0f172a', side: '#020617' } // Tóc đen nhánh thuyền trưởng Mũ Rơm (Monkey D. Luffy)
       : HAIR_PALETTES[empNum % HAIR_PALETTES.length];
   const desk = DESK_BY_ID[emp.deskId] || DESK_BY_EMPLOYEE_ID[emp.id];
 
@@ -4794,12 +4887,82 @@ export function drawDetailedIsoCharacter(
   const groundIso = worldToIso(pos.x, pos.y, 9.4);
   const rootIso = worldToIso(pos.x, pos.y, baseZ + walkBob);
 
-  // Forward torso lean into the movement direction (Sếp ToanLBK đi 1.5x nghiêng người mạnh mẽ hơn)
-  const leanX = isWalking ? fwdX * (emp.id === 'EMP-MANAGER-TOANLBK' ? 2.6 : 1.8) : isSitting ? fwdX * 1.1 : 0;
-  const leanY = isWalking ? fwdY * (emp.id === 'EMP-MANAGER-TOANLBK' ? 1.3 : 0.9) : isSitting ? fwdY * 0.55 : 0;
+  // Forward torso lean into the movement direction (Chế độ The Flash Speed Force nghiêng người lao vút về phía trước!)
+  const leanX = isWalking ? fwdX * 3.8 : isSitting ? fwdX * 1.1 : 0;
+  const leanY = isWalking ? fwdY * 1.9 : isSitting ? fwdY * 0.55 : 0;
 
   ctx.save();
   if (isFilteredOut) ctx.globalAlpha = 0.25;
+
+  // --------------------------------------------------------------------------
+  // LAYER 0A: THE FLASH SPEED FORCE AFTERIMAGES & SONIC BOOM TRAIL (WHEN MOVING)
+  //           ("Thoắt cái tới, thoắt cái đi" — Tàn ảnh Đỏ-Vàng & Tia chớp Speed Force!)
+  // --------------------------------------------------------------------------
+  if (isWalking) {
+    ctx.save();
+    const baseAlpha = isFilteredOut ? 0.22 : 1.0;
+
+    // 1. Vòng sóng xung kích dưới mặt đất (Sonic Boom Ground Wake)
+    const wakePulse = 14 + ((time * 0.045) % 14);
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.75)';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.ellipse(
+      groundIso.x - fwdX * 6,
+      groundIso.y - fwdY * 4,
+      wakePulse * 1.25,
+      wakePulse * 0.65,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+
+    // 2. 4 Tàn Ảnh Đỏ-Vàng kiểu The Flash (Speed Force Afterimage Ghosts) kéo dài phía sau lưng (-fwdX, -fwdY)
+    for (let g = 4; g >= 1; g--) {
+      const dist = g * 9.5;
+      const gx = rootIso.x - fwdX * dist;
+      const gy = rootIso.y - fwdY * dist * 0.78;
+      const ghostAlpha = baseAlpha * (0.48 - g * 0.095);
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.06, ghostAlpha);
+
+      // Bóng tàn ảnh thân & đầu màu Đỏ Crimson (#dc2626) viền Vàng Chớp (#facc15)
+      const ghostFill = g % 2 === 0 ? '#ef4444' : '#facc15';
+      const ghostStroke = g % 2 === 0 ? '#fde047' : '#dc2626';
+
+      // Tàn ảnh Đầu
+      ctx.fillStyle = ghostFill;
+      ctx.strokeStyle = ghostStroke;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.arc(gx, gy - 28.5, 6.6 - g * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tàn ảnh Thân & Chân đang lao vút
+      drawRoundedRect(ctx, gx - 6.2, gy - 21.0, 12.4, 13.5, 4.0);
+      ctx.fill();
+      ctx.stroke();
+
+      // Vệt xé gió ngang (Speed Blur Streaks) nối từ tàn ảnh về phía nhân vật
+      ctx.strokeStyle = g % 2 === 0 ? '#fef08a' : '#f97316';
+      ctx.lineWidth = 2.2 - g * 0.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(gx, gy - 26);
+      ctx.lineTo(gx - fwdX * 11, gy - 26 - fwdY * 7);
+      ctx.moveTo(gx, gy - 14);
+      ctx.lineTo(gx - fwdX * 13, gy - 14 - fwdY * 8);
+      ctx.moveTo(gx, gy - 4);
+      ctx.lineTo(gx - fwdX * 10, gy - 4 - fwdY * 6);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+    ctx.restore();
+  }
 
   // --------------------------------------------------------------------------
   // LAYER 0: SELECTION HALO, 4 BOSSES MOOD AURA & GROUND SHADOW
@@ -4989,6 +5152,18 @@ export function drawDetailedIsoCharacter(
   const suitBase =
     emp.id === 'EMP-MANAGER-THUNDM'
       ? '#e11d48'
+      : onePieceModel === 'DORAEMON_CYBER'
+      ? '#0ea5e9' // Doraemon Xanh Da Trời (#0ea5e9 / #38bdf8)
+      : onePieceModel === 'NOBITA_CODER'
+      ? '#facc15' // Áo Polo Vàng Tươi Nobita (#facc15)
+      : onePieceModel === 'SHIZUKA_BOSS'
+      ? '#ec4899' // Váy/Áo Hồng Rose-Pink Shizuka (#ec4899 / #f472b6)
+      : onePieceModel === 'JAIAN_CHAIEN'
+      ? '#f97316' // Áo thun Cam Rực sọc Ziczac của Chaien / Jaian (#f97316)
+      : onePieceModel === 'SUNEO_STYLISH'
+      ? '#06b6d4' // Áo Xanh Ngọc Turquoise lịch lãm của Suneo (#06b6d4)
+      : onePieceModel === 'DORAMI_QA'
+      ? '#facc15' // Mèo máy Dorami Vàng Nắng (#fde047 / #facc15)
       : managerMood === 'angry'
       ? '#b91c1c'
       : managerMood === 'happy'
@@ -5173,6 +5348,12 @@ export function drawDetailedIsoCharacter(
     legs.sort((a, b) => a.ankleY - b.ankleY);
 
     for (const leg of legs) {
+      const shoeColor =
+        onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA'
+          ? '#f8fafc' // Bàn chân trắng tròn của Mèo Máy Doraemon & Dorami
+          : isFemaleManager || onePieceModel === 'SHIZUKA_BOSS'
+          ? suitBase
+          : roleMeta.primaryColor;
       drawStylizedSneaker(
         ctx,
         leg.ankleX,
@@ -5180,17 +5361,37 @@ export function drawDetailedIsoCharacter(
         fwdX,
         fwdY,
         isBackView,
-        isFemaleManager ? suitBase : roleMeta.primaryColor
+        shoeColor
       );
+      const thighDark =
+        onePieceModel === 'NOBITA_CODER'
+          ? '#1e3a8a' // Quần đùi xanh Navy đậm đặc trưng của Nobita (#1e3a8a)
+          : onePieceModel === 'DORAEMON_CYBER'
+          ? '#0284c7'
+          : onePieceModel === 'DORAMI_QA'
+          ? '#eab308'
+          : isFemaleManager || onePieceModel === 'SHIZUKA_BOSS'
+          ? suitDark
+          : '#1e293b';
+      const thighMid =
+        onePieceModel === 'NOBITA_CODER'
+          ? '#1d4ed8'
+          : onePieceModel === 'DORAEMON_CYBER'
+          ? '#38bdf8'
+          : onePieceModel === 'DORAMI_QA'
+          ? '#fde047'
+          : isFemaleManager || onePieceModel === 'SHIZUKA_BOSS'
+          ? suitMid
+          : '#475569';
       drawStylizedLimbSegment(
         ctx,
         leg.hipX,
         leg.hipY,
         leg.kneeX,
         leg.kneeY,
-        isFemaleManager ? 3.8 : 4.5,
-        isFemaleManager ? suitDark : '#1e293b',
-        isFemaleManager ? suitMid : '#475569'
+        isFemaleManager || onePieceModel === 'SHIZUKA_BOSS' ? 3.8 : 4.5,
+        thighDark,
+        thighMid
       );
       drawStylizedLimbSegment(
         ctx,
@@ -5198,14 +5399,26 @@ export function drawDetailedIsoCharacter(
         leg.kneeY,
         leg.ankleX,
         leg.ankleY,
-        isFemaleManager ? 3.3 : 4.1,
-        isFemaleManager ? '#d97706' : '#0f172a',
-        isFemaleManager ? '#fde68a' : '#334155'
+        isFemaleManager || onePieceModel === 'SHIZUKA_BOSS' ? 3.3 : 4.1,
+        isFemaleManager || onePieceModel === 'SHIZUKA_BOSS' || onePieceModel === 'NOBITA_CODER'
+          ? '#d97706'
+          : onePieceModel === 'DORAEMON_CYBER'
+          ? '#0284c7'
+          : onePieceModel === 'DORAMI_QA'
+          ? '#ca8a04'
+          : '#0f172a',
+        isFemaleManager || onePieceModel === 'SHIZUKA_BOSS' || onePieceModel === 'NOBITA_CODER'
+          ? '#fde68a'
+          : onePieceModel === 'DORAEMON_CYBER'
+          ? '#38bdf8'
+          : onePieceModel === 'DORAMI_QA'
+          ? '#fde047'
+          : '#334155'
       );
     }
 
-    // VÁY XÒE CHỮ A XẾP LY (PLEATED A-LINE FLARED SKIRT) CHO CẢ 3 SẾP NỮ: ThuNDM, doannt19 & vanltb8
-    if (isFemaleManager) {
+    // VÁY XÒE CHỮ A XẾP LY (PLEATED A-LINE FLARED SKIRT) CHO CẢ 3 SẾP NỮ (ThuNDM, doannt19, vanltb8) & SHIZUKA_BOSS
+    if (isFemaleManager || onePieceModel === 'SHIZUKA_BOSS') {
       const skirtSway = isWalking ? legSwing * 1.6 : 0;
       const skirtTopY = pelvisY - 2.4;
       const skirtBotY = pelvisY + 4.8;
@@ -5354,7 +5567,7 @@ export function drawDetailedIsoCharacter(
     ctx.stroke();
   }
 
-  // Golden Epaulets on Both Shoulders for Pirate Empress (`PIRATE_EMPRESS`)
+  // Golden Epaulets on Both Shoulders for Pirate Empress (`PIRATE_EMPRESS`) or Sturdy Shoulder Pads for Chaien (`JAIAN_CHAIEN`)
   if (onePieceModel === 'PIRATE_EMPRESS') {
     ctx.fillStyle = '#facc15';
     ctx.strokeStyle = '#854d0e';
@@ -5365,114 +5578,214 @@ export function drawDetailedIsoCharacter(
     drawRoundedRect(ctx, torsoLeft + torsoW - 2.4, torsoTop - 0.3, 4.0, 2.3, 1.0);
     ctx.fill();
     ctx.stroke();
+  } else if (onePieceModel === 'JAIAN_CHAIEN') {
+    // Vai u thịt bắp khỏe khoắn đặc trưng của Chaien (Takeshi Goda / Sếp ToanLBK)
+    ctx.fillStyle = '#fb923c';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.85;
+    drawRoundedRect(ctx, torsoLeft - 1.8, torsoTop + 0.2, 3.6, 3.2, 1.4);
+    ctx.fill();
+    ctx.stroke();
+    drawRoundedRect(ctx, torsoLeft + torsoW - 1.8, torsoTop + 0.2, 3.6, 3.2, 1.4);
+    ctx.fill();
+    ctx.stroke();
   }
 
   if (!isBackView) {
-    // === FRONT 3/4 TORSO DETAILS (SE & SW: Collar, Lapels, One Piece Costume Emblems) ===
+    // === FRONT 3/4 TORSO DETAILS (SE & SW: Collar, Lapels, One Piece & Doraemon Costume Emblems) ===
     const frontCenterX = chestX + flipX * 2.1;
 
-    // Inner shirt / chest V-neck triangle (Golden shirt for Sanji, warm skin/scar for Luffy, yellow panel for Law)
-    ctx.fillStyle =
-      isFemaleManager
-        ? '#fff1f2'
-        : onePieceModel === 'BLACK_LEG_SANJI'
-        ? '#fde047'
-        : onePieceModel === 'STRAW_HAT_LUFFY'
-        ? '#fde68a'
-        : onePieceModel === 'SURGEON_CHOPPER_LAW' && !isChopperVariant
-        ? '#facc15'
-        : '#f8fafc';
-    ctx.beginPath();
-    ctx.moveTo(frontCenterX - 3.2, torsoTop + 0.6);
-    ctx.lineTo(frontCenterX + 3.2, torsoTop + 0.6);
-    ctx.lineTo(frontCenterX, torsoTop + 6.2);
-    ctx.closePath();
-    ctx.fill();
-
-    // Jacket center zipper / lapel line
-    ctx.strokeStyle = isFemaleManager || onePieceModel === 'BLACK_LEG_SANJI' ? '#fde047' : suitDark;
-    ctx.lineWidth = 1.05;
-    ctx.beginPath();
-    ctx.moveTo(frontCenterX, torsoTop + 5.8);
-    ctx.lineTo(frontCenterX, torsoTop + torsoH - 0.8);
-    ctx.stroke();
-
-    // Lanyard strap or Golden Heart Necklace around neck
-    ctx.strokeStyle =
-      isFemaleManager || emp.isProjectManager || onePieceModel === 'STRAW_HAT_LUFFY'
-        ? '#fde047'
-        : '#e2e8f0';
-    ctx.lineWidth = 1.15;
-    ctx.beginPath();
-    ctx.moveTo(frontCenterX - 3.2, torsoTop + 1.0);
-    ctx.lineTo(frontCenterX, torsoTop + (isFemaleManager ? 5.6 : 7.2));
-    ctx.lineTo(frontCenterX + 3.2, torsoTop + 1.0);
-    ctx.stroke();
-
-    if (isFemaleManager) {
-      // Sếp Nữ ThuNDM: Dây chuyền mặt trái tim Ruby Vàng + Ghim cài áo Vương miện trên ngực áo Blazer Hồng Ruby
-      drawVectorHeart(ctx, frontCenterX, torsoTop + 5.0, 2.2, '#fde047', '#881337');
-      // Nút vàng đính áo Blazer nữ sang trọng
-      ctx.fillStyle = '#fde047';
+    if (onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA') {
+      // Bụng trắng tròn + Túi Thần Kỳ 4D hình bán nguyệt (`4D Pocket`) + Vòng cổ Đỏ (`#dc2626`) đeo Chuông Vàng (`🔔 #facc15`)!
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 0.75;
       ctx.beginPath();
-      ctx.arc(frontCenterX, torsoTop + 9.2, 1.15, 0, Math.PI * 2);
+      ctx.ellipse(frontCenterX, torsoTop + 8.2, 5.1, 4.8, 0, 0, Math.PI * 2);
       ctx.fill();
-    } else if (onePieceModel === 'STRAW_HAT_LUFFY') {
-      // Thuyền trưởng Mũ Rơm Luffy: Hàng cúc áo vàng nổi bật trên Ghi-lê Đỏ + vết sẹo chữ X trên ngực
-      ctx.strokeStyle = '#b45309';
-      ctx.lineWidth = 0.9;
-      ctx.beginPath();
-      ctx.moveTo(frontCenterX - 1.3, torsoTop + 2.4);
-      ctx.lineTo(frontCenterX + 1.3, torsoTop + 4.8);
-      ctx.moveTo(frontCenterX + 1.3, torsoTop + 2.4);
-      ctx.lineTo(frontCenterX - 1.3, torsoTop + 4.8);
       ctx.stroke();
 
-      ctx.fillStyle = '#fde047';
+      // Túi Thần Kỳ 4D hình bán nguyệt (Semi-circle 4D Pocket) chính giữa bụng
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 0.85;
       ctx.beginPath();
-      ctx.arc(frontCenterX - flipX * 2.4, torsoTop + 5.8, 1.05, 0, Math.PI * 2);
-      ctx.arc(frontCenterX - flipX * 2.4, torsoTop + 8.6, 1.05, 0, Math.PI * 2);
+      ctx.arc(frontCenterX, torsoTop + 7.6, 3.6, 0, Math.PI);
+      ctx.closePath();
       ctx.fill();
-    } else if (onePieceModel === 'BLACK_LEG_SANJI') {
-      // Hắc Cước Sanji: Vest Đen 2 hàng cúc vàng + Cà vạt Hoàng Kim lịch lãm
-      ctx.fillStyle = '#eab308';
+      ctx.stroke();
+
+      // Vòng cổ Đỏ Rực (#dc2626) ôm sát cổ
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 0.8;
+      drawRoundedRect(ctx, torsoLeft + 1.2, torsoTop + 0.2, torsoW - 2.4, 2.5, 1.2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Chuông Vàng 3D (#facc15) phát sáng lấp lánh trước ngực
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#854d0e';
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.moveTo(frontCenterX, torsoTop + 3.0);
-      ctx.lineTo(frontCenterX - 1.5, torsoTop + 8.4);
-      ctx.lineTo(frontCenterX, torsoTop + 10.4);
-      ctx.lineTo(frontCenterX + 1.5, torsoTop + 8.4);
+      ctx.arc(frontCenterX, torsoTop + 2.6, 2.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Khe chuông ngang & chấm đen giữa chuông
+      ctx.strokeStyle = '#713f12';
+      ctx.lineWidth = 0.65;
+      ctx.beginPath();
+      ctx.moveTo(frontCenterX - 1.6, torsoTop + 2.8);
+      ctx.lineTo(frontCenterX + 1.6, torsoTop + 2.8);
+      ctx.stroke();
+      ctx.fillStyle = '#451a03';
+      ctx.beginPath();
+      ctx.arc(frontCenterX, torsoTop + 3.4, 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (onePieceModel === 'JAIAN_CHAIEN') {
+      // Áo thun Cam Rực (#f97316) với Sọc Ziczac Đen Đậm (`\/\/\/`) ngang ngực đặc trưng của Chaien (Jaian)!
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(torsoLeft + 0.8, torsoTop + 6.4);
+      ctx.lineTo(torsoLeft + 3.6, torsoTop + 9.4);
+      ctx.lineTo(torsoLeft + 6.6, torsoTop + 6.2);
+      ctx.lineTo(torsoLeft + 9.6, torsoTop + 9.4);
+      ctx.lineTo(torsoLeft + torsoW - 0.8, torsoTop + 6.4);
+      ctx.lineTo(torsoLeft + torsoW - 0.8, torsoTop + 8.8);
+      ctx.lineTo(torsoLeft + 9.6, torsoTop + 11.6);
+      ctx.lineTo(torsoLeft + 6.6, torsoTop + 8.6);
+      ctx.lineTo(torsoLeft + 3.6, torsoTop + 11.6);
+      ctx.lineTo(torsoLeft + 0.8, torsoTop + 8.8);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Inner shirt / chest V-neck triangle (Golden shirt for Sanji, warm skin/scar for Luffy, yellow panel for Law)
+      ctx.fillStyle =
+        isFemaleManager || onePieceModel === 'SHIZUKA_BOSS'
+          ? '#fff1f2'
+          : onePieceModel === 'BLACK_LEG_SANJI' || onePieceModel === 'SUNEO_STYLISH'
+          ? '#fde047'
+          : onePieceModel === 'STRAW_HAT_LUFFY'
+          ? '#fde68a'
+          : onePieceModel === 'SURGEON_CHOPPER_LAW' && !isChopperVariant
+          ? '#facc15'
+          : '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(frontCenterX - 3.2, torsoTop + 0.6);
+      ctx.lineTo(frontCenterX + 3.2, torsoTop + 0.6);
+      ctx.lineTo(frontCenterX, torsoTop + 6.2);
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = '#fde047';
+      if (onePieceModel === 'NOBITA_CODER' || onePieceModel === 'SHIZUKA_BOSS') {
+        // Cổ áo Polo Trắng tinh khôi của Nobita & Cổ áo Sen Trắng thanh lịch của Shizuka
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 0.75;
+        ctx.beginPath();
+        ctx.moveTo(frontCenterX - 4.2, torsoTop + 0.3);
+        ctx.lineTo(frontCenterX - 1.4, torsoTop + 3.4);
+        ctx.lineTo(frontCenterX, torsoTop + 1.8);
+        ctx.lineTo(frontCenterX + 1.4, torsoTop + 3.4);
+        ctx.lineTo(frontCenterX + 4.2, torsoTop + 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Jacket center zipper / lapel line
+      ctx.strokeStyle =
+        isFemaleManager || onePieceModel === 'BLACK_LEG_SANJI' || onePieceModel === 'SUNEO_STYLISH'
+          ? '#fde047'
+          : suitDark;
+      ctx.lineWidth = 1.05;
       ctx.beginPath();
-      ctx.arc(frontCenterX - 2.3, torsoTop + 7.2, 0.85, 0, Math.PI * 2);
-      ctx.arc(frontCenterX + 2.3, torsoTop + 7.2, 0.85, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (onePieceModel === 'SURGEON_CHOPPER_LAW' && !isChopperVariant) {
-      // Bác sĩ Tử Thần Trafalgar Law: Biểu tượng Hải Tặc Trái Tim (Heart Pirates Smiley) vàng-đen trước ngực
-      ctx.fillStyle = '#facc15';
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 0.8;
+      ctx.moveTo(frontCenterX, torsoTop + 5.8);
+      ctx.lineTo(frontCenterX, torsoTop + torsoH - 0.8);
+      ctx.stroke();
+
+      // Lanyard strap or Golden Heart Necklace around neck
+      ctx.strokeStyle =
+        isFemaleManager || emp.isProjectManager || onePieceModel === 'STRAW_HAT_LUFFY'
+          ? '#fde047'
+          : '#e2e8f0';
+      ctx.lineWidth = 1.15;
       ctx.beginPath();
-      ctx.arc(frontCenterX, torsoTop + 8.2, 2.7, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(frontCenterX - 3.2, torsoTop + 1.0);
+      ctx.lineTo(frontCenterX, torsoTop + (isFemaleManager ? 5.6 : 7.2));
+      ctx.lineTo(frontCenterX + 3.2, torsoTop + 1.0);
       ctx.stroke();
-    } else {
-      // 3D ID Badge Card on Chest
-      const bx = frontCenterX - 2.6;
-      const by = torsoTop + 6.6;
-      drawRoundedRect(ctx, bx, by, 5.2, 4.2, 1.0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 0.65;
-      ctx.stroke();
-      ctx.fillStyle = roleMeta.primaryColor;
-      ctx.fillRect(bx + 0.6, by + 0.6, 4.0, 1.2);
+
+      if (isFemaleManager || onePieceModel === 'SHIZUKA_BOSS') {
+        // Sếp Nữ ThuNDM / Shizuka: Dây chuyền mặt trái tim Ruby Vàng + Nút áo vàng sang trọng
+        drawVectorHeart(ctx, frontCenterX, torsoTop + 5.0, 2.2, '#fde047', '#881337');
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(frontCenterX, torsoTop + 9.2, 1.15, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (onePieceModel === 'STRAW_HAT_LUFFY') {
+        // Thuyền trưởng Mũ Rơm Luffy: Hàng cúc áo vàng nổi bật trên Ghi-lê Đỏ + vết sẹo chữ X trên ngực
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(frontCenterX - 1.3, torsoTop + 2.4);
+        ctx.lineTo(frontCenterX + 1.3, torsoTop + 4.8);
+        ctx.moveTo(frontCenterX + 1.3, torsoTop + 2.4);
+        ctx.lineTo(frontCenterX - 1.3, torsoTop + 4.8);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(frontCenterX - flipX * 2.4, torsoTop + 5.8, 1.05, 0, Math.PI * 2);
+        ctx.arc(frontCenterX - flipX * 2.4, torsoTop + 8.6, 1.05, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (onePieceModel === 'BLACK_LEG_SANJI') {
+        // Hắc Cước Sanji: Vest Đen 2 hàng cúc vàng + Cà vạt Hoàng Kim lịch lãm
+        ctx.fillStyle = '#eab308';
+        ctx.beginPath();
+        ctx.moveTo(frontCenterX, torsoTop + 3.0);
+        ctx.lineTo(frontCenterX - 1.5, torsoTop + 8.4);
+        ctx.lineTo(frontCenterX, torsoTop + 10.4);
+        ctx.lineTo(frontCenterX + 1.5, torsoTop + 8.4);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(frontCenterX - 2.3, torsoTop + 7.2, 0.85, 0, Math.PI * 2);
+        ctx.arc(frontCenterX + 2.3, torsoTop + 7.2, 0.85, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (onePieceModel === 'SUNEO_STYLISH') {
+        // Suneo: Huy hiệu Ngôi Sao Kim Cương Vàng lấp lánh (`✦`) trên ngực áo Xanh Ngọc
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '900 7.5px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✦', frontCenterX, torsoTop + 9.8);
+      } else if (onePieceModel === 'SURGEON_CHOPPER_LAW' && !isChopperVariant) {
+        // Bác sĩ Tử Thần Trafalgar Law: Biểu tượng Hải Tặc Trái Tim (Heart Pirates Smiley) vàng-đen trước ngực
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(frontCenterX, torsoTop + 8.2, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // 3D ID Badge Card on Chest
+        const bx = frontCenterX - 2.6;
+        const by = torsoTop + 6.6;
+        drawRoundedRect(ctx, bx, by, 5.2, 4.2, 1.0);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 0.65;
+        ctx.stroke();
+        ctx.fillStyle = roleMeta.primaryColor;
+        ctx.fillRect(bx + 0.6, by + 0.6, 4.0, 1.2);
+      }
     }
   } else {
-    // === BACK 3/4 TORSO DETAILS (NE & NW: Draped Justice Coat `正義` / Hoodie Hood & Dorsal Seam) ===
+    // === BACK 3/4 TORSO DETAILS (NE & NW: Draped Justice Coat `正義` / Doraemon Tail / Chaien Zigzag / Hoodie Hood) ===
     const backCenterX = chestX - flipX * 1.4;
 
     if (onePieceModel === 'PIRATE_EMPRESS') {
@@ -5502,6 +5815,46 @@ export function drawDetailedIsoCharacter(
       ctx.font = '900 5.5px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('正義', backCenterX + capeSway * 0.4, torsoTop + 9.6);
+    } else if (onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA') {
+      // Vòng cổ Đỏ (#dc2626) phía sau gáy + Đuôi tròn Đỏ (#ef4444) ngoe nguẩy sau lưng Doraemon / Dorami!
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 0.8;
+      drawRoundedRect(ctx, torsoLeft + 1.2, torsoTop + 0.3, torsoW - 2.4, 2.4, 1.1);
+      ctx.fill();
+      ctx.stroke();
+
+      const tailX = backCenterX + Math.sin(walkPhase) * 1.1;
+      const tailY = torsoTop + torsoH - 1.2;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(backCenterX, tailY - 1.2);
+      ctx.lineTo(tailX, tailY + 0.8);
+      ctx.stroke();
+      ctx.fillStyle = '#ef4444';
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.arc(tailX, tailY + 1.4, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (onePieceModel === 'JAIAN_CHAIEN') {
+      // Sọc Ziczac Đen Đậm (`\/\/\/`) vắt ngang sau lưng áo Cam của Chaien (Jaian)!
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(torsoLeft + 0.8, torsoTop + 6.4);
+      ctx.lineTo(torsoLeft + 3.6, torsoTop + 9.4);
+      ctx.lineTo(torsoLeft + 6.6, torsoTop + 6.2);
+      ctx.lineTo(torsoLeft + 9.6, torsoTop + 9.4);
+      ctx.lineTo(torsoLeft + torsoW - 0.8, torsoTop + 6.4);
+      ctx.lineTo(torsoLeft + torsoW - 0.8, torsoTop + 8.8);
+      ctx.lineTo(torsoLeft + 9.6, torsoTop + 11.6);
+      ctx.lineTo(torsoLeft + 6.6, torsoTop + 8.6);
+      ctx.lineTo(torsoLeft + 3.6, torsoTop + 11.6);
+      ctx.lineTo(torsoLeft + 0.8, torsoTop + 8.8);
+      ctx.closePath();
+      ctx.fill();
     } else {
       // Dorsal seam line down the spine
       ctx.strokeStyle = suitDark;
@@ -5522,7 +5875,12 @@ export function drawDetailedIsoCharacter(
       const hoodW = 10.4;
       const hoodH = isFemaleManager ? 4.0 : 5.2;
       drawRoundedRect(ctx, backCenterX - hoodW / 2, torsoTop + 0.5, hoodW, hoodH, 2.4);
-      ctx.fillStyle = isFemaleManager ? '#be123c' : shadeHexColor(suitBase, -14);
+      ctx.fillStyle =
+        onePieceModel === 'NOBITA_CODER' || onePieceModel === 'SHIZUKA_BOSS'
+          ? '#ffffff'
+          : isFemaleManager
+          ? '#be123c'
+          : shadeHexColor(suitBase, -14);
       ctx.fill();
       ctx.strokeStyle = isFemaleManager ? '#fde047' : '#0f172a';
       ctx.lineWidth = 0.85;
@@ -5760,25 +6118,87 @@ export function drawDetailedIsoCharacter(
     }
   }
 
-  // Main Rounded Stylized 3D Head with Warm Radial Skin Gradient
+  // Main Rounded Stylized 3D Head (Robot-Cat Sky-Blue/Yellow Dome + White Face for Doraemon/Dorami, or Warm Skin Gradient)
   drawRoundedRect(ctx, headLeft, headTop, headW, headH, 6.2);
-  const skinGrad = ctx.createRadialGradient(
-    headCenterX - 2.2,
-    headCenterY - 2.8,
-    1.5,
-    headCenterX,
-    headCenterY,
-    10.5
-  );
-  skinGrad.addColorStop(0, '#fff7ed');
-  skinGrad.addColorStop(0.45, '#fde68a');
-  skinGrad.addColorStop(0.82, '#fcd34d');
-  skinGrad.addColorStop(1, '#d97706');
-  ctx.fillStyle = skinGrad;
-  ctx.fill();
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1.05;
-  ctx.stroke();
+  if (onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA') {
+    const hoodGrad = ctx.createRadialGradient(
+      headCenterX - 2.2,
+      headCenterY - 2.8,
+      1.5,
+      headCenterX,
+      headCenterY,
+      11.0
+    );
+    if (onePieceModel === 'DORAEMON_CYBER') {
+      hoodGrad.addColorStop(0, '#7dd3fc');
+      hoodGrad.addColorStop(0.5, '#38bdf8');
+      hoodGrad.addColorStop(1, '#0284c7');
+    } else {
+      hoodGrad.addColorStop(0, '#fef08a');
+      hoodGrad.addColorStop(0.5, '#facc15');
+      hoodGrad.addColorStop(1, '#ca8a04');
+    }
+    ctx.fillStyle = hoodGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.05;
+    ctx.stroke();
+
+    if (!isBackView) {
+      // Khuôn mặt Trắng Tròn bầu bĩnh đặc trưng của Mèo Máy Doraemon & Dorami ở góc nhìn mặt trước
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.ellipse(headCenterX + flipX * 1.4, headCenterY + 1.1, 6.2, 5.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else {
+    const skinGrad = ctx.createRadialGradient(
+      headCenterX - 2.2,
+      headCenterY - 2.8,
+      1.5,
+      headCenterX,
+      headCenterY,
+      10.5
+    );
+    skinGrad.addColorStop(0, '#fff7ed');
+    skinGrad.addColorStop(0.45, '#fde68a');
+    skinGrad.addColorStop(0.82, '#fcd34d');
+    skinGrad.addColorStop(1, '#d97706');
+    ctx.fillStyle = skinGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.05;
+    ctx.stroke();
+  }
+
+  // Twin Pigtails (Tóc buộc 2 bím hai bên) đặc trưng của Shizuka (`SHIZUKA_BOSS` / Sếp `doannt19`)
+  if (onePieceModel === 'SHIZUKA_BOSS') {
+    const pigSway = Math.sin(walkPhase) * 1.1;
+    for (const side of [-1, 1]) {
+      const px = headCenterX + side * 8.2;
+      const py = headCenterY + 2.2 + pigSway * side * 0.4;
+      // Nơ ruy-băng hồng buộc tóc 2 bên của Shizuka
+      ctx.fillStyle = '#f472b6';
+      ctx.strokeStyle = '#9d174d';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.arc(px - side * 1.1, py - 2.4, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Bím tóc nâu đen xòe sang 2 bên
+      ctx.fillStyle = hairPalette.top;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 1.2, 2.2, 3.8, -side * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
 
   if (!isBackView) {
     // === FRONT 3/4 FACE & SCULPTED HAIR (SE & SW) ===
@@ -5789,8 +6209,11 @@ export function drawDetailedIsoCharacter(
     const nearEyeY = eyeY + 0.25;
     const farEyeY = eyeY - 0.25;
 
-    // Warm Rosy Cheek Blush (đậm đà rạng rỡ hơn cho Sếp Nữ ThuNDM)
-    ctx.fillStyle = isFemaleManager ? 'rgba(244, 63, 94, 0.45)' : 'rgba(244, 63, 94, 0.28)';
+    // Warm Rosy Cheek Blush (đậm đà rạng rỡ hơn cho Sếp Nữ ThuNDM, Shizuka & Dorami)
+    ctx.fillStyle =
+      isFemaleManager || onePieceModel === 'SHIZUKA_BOSS' || onePieceModel === 'DORAMI_QA'
+        ? 'rgba(244, 63, 94, 0.45)'
+        : 'rgba(244, 63, 94, 0.28)';
     ctx.beginPath();
     ctx.ellipse(nearEyeX - flipX * 1.1, nearEyeY + 2.5, isFemaleManager ? 2.6 : 2.2, 1.3, 0, 0, Math.PI * 2);
     ctx.ellipse(farEyeX + flipX * 0.7, farEyeY + 2.4, isFemaleManager ? 2.1 : 1.8, 1.15, 0, 0, Math.PI * 2);
@@ -5799,7 +6222,7 @@ export function drawDetailedIsoCharacter(
     // Expressive Blinking & Glossy Eyes with Dual Catchlights + Mood-Specific Eyes for 4 Bosses
     const isBlinking = Math.sin(time * 0.0045 + empNum * 3.1) > 0.96;
     if (managerMood === 'happy') {
-      // Sếp nữ doannt19: Mắt cười tít hình vầng trăng khuyết `^ ^` luôn rạng rỡ vui vẻ!
+      // Sếp nữ doannt19 (Shizuka): Mắt cười tít hình vầng trăng khuyết `^ ^` luôn rạng rỡ vui vẻ!
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1.5;
       ctx.lineCap = 'round';
@@ -5848,8 +6271,8 @@ export function drawDetailedIsoCharacter(
         ctx.fill();
       }
 
-      if (isFemaleManager || managerMood === 'worried') {
-        // Hàng lông mi cong duyên dáng cho Sếp Nữ
+      if (isFemaleManager || managerMood === 'worried' || onePieceModel === 'SHIZUKA_BOSS' || onePieceModel === 'DORAMI_QA') {
+        // Hàng lông mi cong duyên dáng cho Sếp Nữ, Shizuka & Dorami
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1.0;
         ctx.beginPath();
@@ -5896,8 +6319,36 @@ export function drawDetailedIsoCharacter(
       ctx.stroke();
     }
 
-    // One Piece Iconic Facial Scars: Luffy's Stitched Scar Under Eye & Zoro's Vertical Sword Scar
-    if (onePieceModel === 'STRAW_HAT_LUFFY') {
+    // One Piece Iconic Facial Scars OR Doraemon & Dorami Red Nose + Cat Whiskers!
+    if (onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA') {
+      // Mũi Đỏ Tròn (`#ef4444`) bóng sáng + 6 sợi Râu Mèo 2 bên má đặc trưng của Doraemon & Dorami!
+      const noseX = faceX + flipX * 0.2;
+      const noseY = eyeY + 1.15;
+      ctx.fillStyle = '#ef4444';
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.arc(noseX, noseY, 1.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Chấm phản sáng trắng trên đỉnh mũi đỏ
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(noseX - 0.45, noseY - 0.45, 0.48, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3 sợi râu mèo mỗi bên má (Cat Whiskers)
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.65;
+      for (const wy of [-0.6, 0.2, 1.0]) {
+        ctx.beginPath();
+        ctx.moveTo(nearEyeX - 1.2, noseY + 0.8 + wy * 0.7);
+        ctx.lineTo(nearEyeX - 4.2, noseY + 0.5 + wy * 1.3);
+        ctx.moveTo(farEyeX + 1.0, noseY + 0.8 + wy * 0.7);
+        ctx.lineTo(farEyeX + 3.6, noseY + 0.5 + wy * 1.3);
+        ctx.stroke();
+      }
+    } else if (onePieceModel === 'STRAW_HAT_LUFFY') {
       // Vết sẹo khâu 2 mũi dưới mắt của Monkey D. Luffy
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 0.85;
@@ -5921,16 +6372,20 @@ export function drawDetailedIsoCharacter(
 
     // Mouth / Smile / Angry Clenched Teeth / Worried Tense Mouth
     if (managerMood === 'angry') {
-      // Sếp ToanLBK: Miệng nghiến răng giận dữ
+      // Sếp ToanLBK (Chaien): Miệng nghiến răng giận dữ / cất giọng hát Sóng Âm
       drawRoundedRect(ctx, faceX - 2.0, eyeY + 2.5, 4.2, 2.2, 0.8);
       ctx.fillStyle = '#ffffff';
       ctx.fill();
       ctx.strokeStyle = '#7f1d1d';
       ctx.lineWidth = 0.85;
       ctx.stroke();
-    } else if (managerMood === 'happy' || onePieceModel === 'STRAW_HAT_LUFFY') {
-      // Sếp nữ doannt19 & Thuyền trưởng Luffy: Nụ cười tươi rạng rỡ hết cỡ đặc trưng!
-      ctx.fillStyle = isFemaleManager ? '#e11d48' : '#ffffff';
+    } else if (
+      managerMood === 'happy' ||
+      onePieceModel === 'STRAW_HAT_LUFFY' ||
+      onePieceModel === 'DORAEMON_CYBER'
+    ) {
+      // Sếp nữ doannt19 (Shizuka), Doraemon & Thuyền trưởng Luffy: Nụ cười tươi rạng rỡ hết cỡ đặc trưng!
+      ctx.fillStyle = isFemaleManager || onePieceModel === 'DORAEMON_CYBER' ? '#e11d48' : '#ffffff';
       ctx.strokeStyle = isFemaleManager ? '#881337' : '#0f172a';
       ctx.lineWidth = 0.8;
       ctx.beginPath();
@@ -5939,7 +6394,7 @@ export function drawDetailedIsoCharacter(
       ctx.fill();
       ctx.stroke();
     } else if (managerMood === 'worried') {
-      // Sếp nữ vanltb8: Khuôn miệng gợn sóng căng thẳng lo âu + giọt mồ hôi lạnh `💧` bên thái dương
+      // Sếp nữ vanltb8 (Dorami): Khuôn miệng gợn sóng căng thẳng lo âu + giọt mồ hôi lạnh `💧` bên thái dương
       ctx.strokeStyle = '#312e81';
       ctx.lineWidth = 1.15;
       ctx.beginPath();
@@ -5967,8 +6422,35 @@ export function drawDetailedIsoCharacter(
       ctx.stroke();
     }
 
-    // SUPER Cyborg Franky (`CYBORG_FRANKY`): Kính râm chữ V đen bóng + Mũi sắt Cyborg!
-    if (onePieceModel === 'CYBORG_FRANKY') {
+    // NOBITA'S LARGE ROUND GLASSES (`⭕-⭕`), FRANKY'S V-SHADES, OR TECH_LEAD / BA GLASSES
+    if (onePieceModel === 'NOBITA_CODER') {
+      // Cặp kính cận Tròn Xoe gọng đen to bản (`⭕-⭕`) có vệt phản quang trắng đặc trưng của Nobita!
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(nearEyeX, nearEyeY, 2.65, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(farEyeX, farEyeY, 2.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Cầu kính nối giữa 2 tròng kính tròn của Nobita
+      ctx.beginPath();
+      ctx.moveTo(nearEyeX + flipX * 2.4, nearEyeY - 0.2);
+      ctx.lineTo(farEyeX - flipX * 2.2, farEyeY - 0.2);
+      ctx.stroke();
+      // Vệt phản sáng trắng chéo trên tròng kính cận Nobita
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(nearEyeX - 1.2, nearEyeY - 1.3);
+      ctx.lineTo(nearEyeX - 0.2, nearEyeY - 0.3);
+      ctx.moveTo(farEyeX - 1.1, farEyeY - 1.2);
+      ctx.lineTo(farEyeX - 0.2, farEyeY - 0.3);
+      ctx.stroke();
+    } else if (onePieceModel === 'CYBORG_FRANKY') {
       ctx.fillStyle = '#020617';
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 0.9;
@@ -5986,7 +6468,11 @@ export function drawDetailedIsoCharacter(
       // Mũi sắt Cyborg màu bạc ánh kim của Franky
       ctx.fillStyle = '#94a3b8';
       ctx.fillRect(faceX - 0.8, eyeY + 0.4, 1.6, 1.8);
-    } else if (emp.role === 'TECH_LEAD' || emp.role === 'BA') {
+    } else if (
+      (emp.role === 'TECH_LEAD' || emp.role === 'BA') &&
+      onePieceModel !== 'DORAEMON_CYBER' &&
+      onePieceModel !== 'DORAMI_QA'
+    ) {
       // 3/4 Perspective Glasses for TECH_LEAD & BA
       ctx.strokeStyle = emp.role === 'TECH_LEAD' ? '#0284c7' : '#0f172a';
       ctx.lineWidth = 1.1;
@@ -6000,70 +6486,72 @@ export function drawDetailedIsoCharacter(
       ctx.stroke();
     }
 
-    // Sculpted Multi-Layered 3D Front Hair & Sideburns
-    ctx.fillStyle = hairPalette.top;
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 0.95;
-    ctx.beginPath();
-    ctx.moveTo(headLeft - 0.6, headCenterY - 0.5);
-    ctx.quadraticCurveTo(headLeft - 0.8, headTop - 2.5, headCenterX, headTop - 2.4);
-    ctx.quadraticCurveTo(headLeft + headW + 0.8, headTop - 2.5, headLeft + headW + 0.6, headCenterY - 1.2);
-    // Swept 3/4 Fringe / Bangs across forehead (Sanji's blonde hair sweeps further down over one side)
-    ctx.quadraticCurveTo(
-      headCenterX + flipX * 3.5,
-      headTop + (onePieceModel === 'BLACK_LEG_SANJI' ? 5.2 : 3.4),
-      headCenterX - flipX * 1.5,
-      headTop + 4.2
-    );
-    ctx.quadraticCurveTo(
-      headCenterX - flipX * 5.5,
-      headTop + 3.2,
-      headLeft - 0.6,
-      headCenterY - 0.5
-    );
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Sideburn / Wavy Front Locks on the near temple (-flipX side)
-    ctx.fillStyle = hairPalette.side;
-    ctx.beginPath();
-    ctx.ellipse(
-      headCenterX - flipX * 6.4,
-      headCenterY + (isFemaleManager ? 2.4 : -0.2),
-      isFemaleManager ? 2.3 : 1.6,
-      isFemaleManager ? 6.5 : 3.6,
-      flipX * 0.14,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-
-    // Glossy Specular Hair Highlight Arc
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-    ctx.lineWidth = 1.6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(headCenterX - flipX * 1.0, headTop + 1.8, 4.8, 1.15 * Math.PI, 1.82 * Math.PI);
-    ctx.stroke();
-
-    // Female High Bun / Ponytail with Colored Scrunchie
-    if (isFemale && !isFemaleManager) {
-      const bunX = headCenterX - flipX * 4.2;
-      const bunY = headTop - 2.2;
+    // Sculpted Multi-Layered 3D Front Hair & Sideburns (Skipped for robot-cats Doraemon & Dorami who wear smooth robot domes)
+    if (onePieceModel !== 'DORAEMON_CYBER' && onePieceModel !== 'DORAMI_QA') {
       ctx.fillStyle = hairPalette.top;
       ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 0.9;
+      ctx.lineWidth = 0.95;
       ctx.beginPath();
-      ctx.arc(bunX, bunY, 3.8, 0, Math.PI * 2);
+      ctx.moveTo(headLeft - 0.6, headCenterY - 0.5);
+      ctx.quadraticCurveTo(headLeft - 0.8, headTop - 2.5, headCenterX, headTop - 2.4);
+      ctx.quadraticCurveTo(headLeft + headW + 0.8, headTop - 2.5, headLeft + headW + 0.6, headCenterY - 1.2);
+      // Swept 3/4 Fringe / Bangs across forehead (Sanji's blonde hair sweeps further down over one side)
+      ctx.quadraticCurveTo(
+        headCenterX + flipX * 3.5,
+        headTop + (onePieceModel === 'BLACK_LEG_SANJI' ? 5.2 : 3.4),
+        headCenterX - flipX * 1.5,
+        headTop + 4.2
+      );
+      ctx.quadraticCurveTo(
+        headCenterX - flipX * 5.5,
+        headTop + 3.2,
+        headLeft - 0.6,
+        headCenterY - 0.5
+      );
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      ctx.strokeStyle = roleMeta.primaryColor;
-      ctx.lineWidth = 1.8;
+      // Sideburn / Wavy Front Locks on the near temple (-flipX side)
+      ctx.fillStyle = hairPalette.side;
       ctx.beginPath();
-      ctx.arc(bunX + flipX * 1.0, bunY + 1.4, 2.8, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.ellipse(
+        headCenterX - flipX * 6.4,
+        headCenterY + (isFemaleManager ? 2.4 : -0.2),
+        isFemaleManager ? 2.3 : 1.6,
+        isFemaleManager ? 6.5 : 3.6,
+        flipX * 0.14,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      // Glossy Specular Hair Highlight Arc
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(headCenterX - flipX * 1.0, headTop + 1.8, 4.8, 1.15 * Math.PI, 1.82 * Math.PI);
       ctx.stroke();
+
+      // Female High Bun / Ponytail with Colored Scrunchie
+      if (isFemale && !isFemaleManager && onePieceModel !== 'SHIZUKA_BOSS') {
+        const bunX = headCenterX - flipX * 4.2;
+        const bunY = headTop - 2.2;
+        ctx.fillStyle = hairPalette.top;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.arc(bunX, bunY, 3.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = roleMeta.primaryColor;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(bunX + flipX * 1.0, bunY + 1.4, 2.8, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.stroke();
+      }
     }
   } else {
     // === BACK 3/4 HEAD & FULL SCULPTED BACK HAIR (NE & NW — Sau gáy & Mái tóc phía sau) ===
@@ -6121,7 +6609,7 @@ export function drawDetailedIsoCharacter(
     ctx.arc(hairBackX, headTop + 2.2, 5.2, 1.12 * Math.PI, 1.88 * Math.PI);
     ctx.stroke();
 
-    if (isFemaleManager) {
+    if (isFemaleManager && onePieceModel === 'PIRATE_EMPRESS') {
       // Sếp Nữ ThuNDM khi nhìn từ sau lưng (NE / NW): Suối tóc dài uốn sóng bồng bềnh phủ xuống lưng áo Blazer Hồng Ruby!
       const swayX = Math.sin(walkPhase) * 1.6;
       ctx.fillStyle = backHairGrad;
@@ -6163,7 +6651,7 @@ export function drawDetailedIsoCharacter(
       ctx.stroke();
 
       drawVectorHeart(ctx, hairBackX + swayX * 0.3, headCenterY + 2.2, 2.5, '#fde047', '#be123c');
-    } else if (isFemale) {
+    } else if (isFemale && onePieceModel !== 'SHIZUKA_BOSS' && onePieceModel !== 'DORAMI_QA') {
       // Female Sculpted 3D Back Ponytail / Bun with Colored Ribbon swaying with walk
       const swayX = Math.sin(walkPhase) * 1.4;
       const ponyX = hairBackX - flipX * 2.2 + swayX;
@@ -6188,9 +6676,104 @@ export function drawDetailedIsoCharacter(
   }
 
   // --------------------------------------------------------------------------
-  // ONE PIECE SIGNATURE HEADGEAR & CROWN ACCESSORIES (6 GRAND LINE CREW MODELS)
+  // 12 ANIME SIGNATURE HEADGEAR & CROWN ACCESSORIES (6 ONE PIECE + 6 DORAEMON)
   // --------------------------------------------------------------------------
-  if (onePieceModel === 'STRAW_HAT_LUFFY') {
+  if (onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'NOBITA_CODER') {
+    // CHONG CHÓNG TRE (`BAMBOO-COPTER / TAKE-COPTER`) quay tít trên đỉnh đầu Doraemon & Nobita!
+    drawBambooCopter(ctx, headCenterX, headTop - 1.4, time, empNum);
+  } else if (onePieceModel === 'SHIZUKA_BOSS') {
+    // NƠ HỒNG ÁNH KIM + CHONG CHÓNG TRE (`BAMBOO-COPTER`) trên đỉnh đầu Shizuka (và Sếp nữ `doannt19`)!
+    ctx.fillStyle = '#f472b6';
+    ctx.strokeStyle = '#9d174d';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(headCenterX - 3.2, headTop - 0.8, 2.8, 1.5, -0.25, 0, Math.PI * 2);
+    ctx.ellipse(headCenterX + 3.2, headTop - 0.8, 2.8, 1.5, 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    drawBambooCopter(ctx, headCenterX, headTop - 1.6, time, empNum + 3);
+  } else if (onePieceModel === 'DORAMI_QA') {
+    // NƠ TAI MÈO ĐỎ KHỔNG LỒ (`🎀`, `#ef4444`) đặc trưng trên đỉnh đầu Mèo Máy Dorami (và Sếp nữ `vanltb8`)!
+    const bowX = headCenterX;
+    const bowY = headTop - 1.8;
+    ctx.fillStyle = '#ef4444';
+    ctx.strokeStyle = '#7f1d1d';
+    ctx.lineWidth = 0.95;
+    // Cánh nơ trái (Tai mèo trái)
+    ctx.beginPath();
+    ctx.moveTo(bowX, bowY + 0.6);
+    ctx.quadraticCurveTo(bowX - 6.8, bowY - 5.2, bowX - 7.8, bowY + 0.8);
+    ctx.quadraticCurveTo(bowX - 5.2, bowY + 3.4, bowX, bowY + 1.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Cánh nơ phải (Tai mèo phải)
+    ctx.beginPath();
+    ctx.moveTo(bowX, bowY + 0.6);
+    ctx.quadraticCurveTo(bowX + 6.8, bowY - 5.2, bowX + 7.8, bowY + 0.8);
+    ctx.quadraticCurveTo(bowX + 5.2, bowY + 3.4, bowX, bowY + 1.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Nút thắt tròn đỏ/vàng ở tâm chiếc nơ Dorami
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(bowX, bowY + 0.8, 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (onePieceModel === 'JAIAN_CHAIEN') {
+    // TÓC ĐINH GAI GÓC (`SPIKY BUZZ HAIR`) + HIỆU ỨNG GÂN GIẬN DỮ / SÓNG ÂM CA SĨ CHAIEN (`JAIAN` & Sếp `ToanLBK`)
+    const topY = headTop - 1.6;
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(headCenterX - 5.2, topY + 1.6);
+    ctx.lineTo(headCenterX - 3.6, topY - 1.8);
+    ctx.lineTo(headCenterX - 1.6, topY + 0.5);
+    ctx.lineTo(headCenterX, topY - 2.4);
+    ctx.lineTo(headCenterX + 1.6, topY + 0.5);
+    ctx.lineTo(headCenterX + 3.6, topY - 1.8);
+    ctx.lineTo(headCenterX + 5.2, topY + 1.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    if (managerMood === 'angry') {
+      ctx.font = '800 8px sans-serif';
+      ctx.fillText('💢', headCenterX + flipX * 5.8, headTop + 2.5);
+    }
+  } else if (onePieceModel === 'SUNEO_STYLISH') {
+    // MÁI TÓC MỎ NHỌN 3 ĐỈNH VUỐT LỆCH TRỨ DANH CỦA SUNEO (`THREE-PEAKED SIDE-SWEPT HAIR`) + KIM CƯƠNG LẤP LÁNH (`✦`)!
+    const peakBaseX = headCenterX;
+    const peakBaseY = headTop - 1.0;
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(peakBaseX - flipX * 4.5, peakBaseY + 1.8);
+    // Đỉnh nhọn 1
+    ctx.lineTo(peakBaseX + flipX * 5.5, peakBaseY - 3.4);
+    ctx.lineTo(peakBaseX + flipX * 2.2, peakBaseY - 0.8);
+    // Đỉnh nhọn 2 (vươn xa nhất về phía trước mặt như mỏ vịt Suneo)
+    ctx.lineTo(peakBaseX + flipX * 8.6, peakBaseY - 1.2);
+    ctx.lineTo(peakBaseX + flipX * 3.4, peakBaseY + 1.0);
+    // Đỉnh nhọn 3
+    ctx.lineTo(peakBaseX + flipX * 7.4, peakBaseY + 1.8);
+    ctx.lineTo(peakBaseX + flipX * 1.2, peakBaseY + 2.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Ánh sao kim cương hào nhoáng (`✦`) lấp lánh bên cạnh mái tóc Suneo
+    const sparkleAlpha = 0.55 + Math.sin(time * 0.012 + empNum) * 0.4;
+    ctx.save();
+    ctx.globalAlpha = (isFilteredOut ? 0.25 : 1) * sparkleAlpha;
+    ctx.fillStyle = '#fde047';
+    ctx.font = '900 7.5px sans-serif';
+    ctx.fillText('✦', headCenterX - flipX * 7.8, headTop - 1.2);
+    ctx.restore();
+  } else if (onePieceModel === 'STRAW_HAT_LUFFY') {
     // 1. MŨ RƠM HUYỀN THOẠI (`MUGIWARA` — Golden Straw Hat with Bright Red Ribbon Band `#dc2626`)
     const hatX = headCenterX;
     const hatY = headTop - 0.8;
@@ -6461,15 +7044,47 @@ export function drawDetailedIsoCharacter(
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = '#fcd34d';
+    ctx.fillStyle =
+      onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA'
+        ? '#ffffff'
+        : '#fcd34d';
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 0.75;
     ctx.beginPath();
-    ctx.arc(handX, handY, 2.1, 0, Math.PI * 2);
+    ctx.arc(
+      handX,
+      handY,
+      onePieceModel === 'DORAEMON_CYBER' || onePieceModel === 'DORAMI_QA' ? 2.4 : 2.1,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
     ctx.stroke();
 
-    if (isFemaleManager) {
+    if (onePieceModel === 'JAIAN_CHAIEN' && (isManager || managerMood === 'angry' || emp.roamingPhase === 'CHEERING')) {
+      // Chaien (Jaian / Sếp ToanLBK): Tay cầm Micro (`🎤`) phát sóng âm nhạc chấn động văn phòng!
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(handX, handY);
+      ctx.lineTo(handX + flipX * 2.2, handY - 3.6);
+      ctx.stroke();
+      ctx.fillStyle = '#94a3b8';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.arc(handX + flipX * 2.5, handY - 4.4, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Vòng sóng âm (Sonic Aura Rings) tỏa ra từ Micro của Chaien
+      const sonicPulse = 3.2 + ((time * 0.012) % 4.5);
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.75)';
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.arc(handX + flipX * 2.5, handY - 4.4, sonicPulse, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (isFemaleManager) {
       // Trái tim 3D đỏ hồng trên tay Sếp Nữ ThuNDM đang vẫy tay thả tim cho anh em
       drawVectorHeart(ctx, handX - flipX * 2.8, handY - 5.2, 3.3, '#f43f5e', '#fde047');
     } else if (emp.isSmokingAtAtrium) {
@@ -6507,8 +7122,40 @@ export function drawDetailedIsoCharacter(
   }
 
   // --------------------------------------------------------------------------
-  // LAYER 7: FLOATING MOOD PARTICLES (4 BOSSES), ATRIUM SMOKE PUFFS (`🚬 💨`), WORK SYMBOLS & CLEAN NAME PILL
+  // LAYER 7: FLOATING MOOD PARTICLES (4 BOSSES), THE FLASH SPEED FORCE LIGHTNING (`⚡`), ATRIUM SMOKE PUFFS (`🚬 💨`), WORK SYMBOLS & CLEAN NAME PILL
   // --------------------------------------------------------------------------
+  if (isWalking) {
+    // Tia Sét Vàng-Đỏ Speed Force (`⚡`) phóng xẹt điện quanh cơ thể nhân vật khi di chuyển kiểu The Flash!
+    ctx.save();
+    ctx.globalAlpha = isFilteredOut ? 0.25 : 0.96;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (let b = 0; b < 3; b++) {
+      const jitter = Math.sin(time * 0.065 + empNum * 2.3 + b * 2.1);
+      const startX = rootIso.x + fwdX * 4 - b * fwdX * 5;
+      const startY = rootIso.y - 8 - b * 9 + jitter * 2.5;
+
+      // Vẽ tia sét ziczac 4 khúc màu Vàng Kim (#fef08a / #facc15) & Đỏ Cam (#f97316)
+      ctx.strokeStyle = b % 2 === 0 ? '#fef08a' : '#f97316';
+      ctx.lineWidth = b === 0 ? 2.2 : 1.65;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(startX - fwdX * 7 + 3.2, startY - fwdY * 4 - 3.5 * jitter);
+      ctx.lineTo(startX - fwdX * 11 - 2.4, startY - fwdY * 7 + 2.8 * jitter);
+      ctx.lineTo(startX - fwdX * 20, startY - fwdY * 12 - 2.0 * jitter);
+      ctx.stroke();
+    }
+
+    // Icon tia chớp vàng `⚡` lóe sáng sau lưng khi phóng đi
+    if (Math.sin(time * 0.05 + empNum) > -0.2) {
+      ctx.font = '900 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚡', rootIso.x - fwdX * 15, rootIso.y - 18 - fwdY * 8);
+    }
+    ctx.restore();
+  }
+
   if (isFemaleManager) {
     // Hiệu ứng thả tim liên tục (Floating 3D Vector Hearts ❤️ 💖 💕 ✨) bay bổng tỏa ra xung quanh Sếp ThuNDM!
     const heartColors = ['#e11d48', '#f43f5e', '#fb7185', '#ec4899'];

@@ -60,6 +60,8 @@ export class Furn {
   team: { emp: string; x: number; z: number; rot: number }[] = [];
   /** Occupied-by-someone-else seats (other staff in the bay) */
   extraTeam: Seat[] = [];
+  /** every occupied NHÀ THUỐC seat (world coords of the chair) with its layout identity, for real-employee mapping */
+  slots: { id: string; seatCode: string; account: string; deskId?: string; assigned?: string; x: number; z: number; rot: number }[] = [];
   npcSeated = 0;
   npcSit = 0;
   solid = false;
@@ -396,6 +398,7 @@ function lobby(F: Furn, S: Furn) {
   // security turnstile gate line
   for (let i = 0; i < 7; i++) { S.b(-1 + i * 1.7, 0, 10.5, 0.12, 1.05, 1.0, '#b8c2c6'); S.scr(-1 + i * 1.7, 1.05, 10.5, 0.12, 0.06, 0.25, i % 3 === 0 ? '#ff5a4a' : '#38d96a'); }
   S.label({ t: 'KIỂM SOÁT RA VÀO', x: 4.5, y: 2.6, z: 9.9, w: 5, h: 0.6, rot: 0, fg: '#fff', bg: '#34495e' });
+  S.label({ t: 'KIỂM SOÁT RA VÀO', x: 4.5, y: 2.6, z: 9.86, w: 5, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#34495e' }); // readable from both sides
   stand('f1-guard', -1.8, 11.6, 0);
   // Long Chau standee area (greeter model stands here)
   S.b(8.5, 0.012, 17.6, 3.6, 0.01, 3.6, '#f08a3a'); S.b(8.5, 0.02, 17.6, 3.0, 0.01, 3.0, '#ffd9b0');
@@ -505,6 +508,7 @@ function teamFloor(F: Furn, S: Furn) {
       top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
       tint: q.highlight === 'red' ? '#ff7a7a' : q.highlight === 'yellow' ? '#ffd84a' : undefined,
     });
+    if (occupied) S.slots.push({ id: q.id, seatCode: q.seatCode, account: q.account, deskId: q.deskId, assigned: q.assignedEmployeeId, x: seat.x, z: seat.z, rot: th });
     if (emp) S.team.push({ emp, x: seat.x, z: seat.z, rot: th });
     else if (occupied) S.extraTeam.push({ ...seat, id: q.seatCode });
   }

@@ -12,7 +12,7 @@ import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
 import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
-import { AgentView, FloorPeople, Effects, stepAgents, teamAgents, syncTransfers, lookOf, type Agent } from './agents';
+import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, lookOf, type Agent } from './agents';
 import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor } from './nav';
 import { getProp, usePropsState } from './props';
 import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
@@ -357,12 +357,19 @@ const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> 
 const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality }) => {
   const key = useSyncExternalStore(
     officeSimulationEngine.subscribe,
-    () => { const sn = officeSimulationEngine.getSnapshot(); return `${sn.selectedEmployeeId ?? ''}#${sn.employees.map((e) => `${e.id}:${e.status}`).join('|')}`; },
+    () => {
+      const sn = officeSimulationEngine.getSnapshot();
+      return `${sn.selectedEmployeeId ?? ''}\u0001${sn.employees.map((e) => `${e.id}~${e.seatCode ?? ''}~${e.deskId ?? ''}~${e.account ?? ''}`).join('|')}\u0001${sn.employees.map((e) => `${e.id}:${e.status}`).join('|')}`;
+    },
   );
-  const [selectedId, statuses] = useMemo(() => { const i = key.indexOf('#'); return [key.slice(0, i), key.slice(i + 1)] as const; }, [key]);
+  const [selectedId, mapKey, statuses] = useMemo(() => key.split('\u0001') as [string, string, string], [key]);
   const status = useMemo(() => Object.fromEntries(statuses.split('|').map((s) => s.split(':'))) as Record<string, string>, [statuses]);
-  const data = useMemo(() => getFloor(TEAM_FLOOR).str, []);
-  const agents = useMemo(() => teamAgents(), []);
+  // real employees -> seats (exact by assigned id / desk / seat code / account, else a stable proxy seat); re-mapped whenever the roster changes
+  const { mapping, empById } = useMemo(() => {
+    const emps = officeSimulationEngine.getSnapshot().employees;
+    return { mapping: remap(emps), empById: new Map(emps.map((e) => [e.id, e])) };
+  }, [mapKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const agents = mapping.agents;
   const [hover, setHover] = React.useState<string | null>(null);
   const floorVisible = sel === null || sel >= TEAM_FLOOR;
   const near = useNearTower();
@@ -373,20 +380,20 @@ const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality
   useEffect(() => {
     for (const a of agents) { const st = status[a.emp ?? ''] ?? 'IDLE'; a.home.pose = st === 'IDLE' ? 'sit' : 'type'; if (a.st === 'home' && a.pose !== a.home.pose) { a.pose = a.home.pose; a.setPose(a.home.pose); } }
   }, [agents, status]);
-  // simulation-driven document handoffs
+  // simulation-driven document handoffs (re-run after a re-map so proxies resolve)
   useEffect(() => {
     const run = () => syncTransfers(officeSimulationEngine.getSnapshot().activeTransfers);
     run(); return officeSimulationEngine.subscribe(run);
-  }, []);
+  }, [mapping]);
   if (!show) return null;
   return (
     <>
       <StatusDots agents={agents} status={status} />
       {agents.map((a) => {
-        const emp = EMPLOYEE_BY_ID[a.emp ?? ''];
-        const chipOn = interactive && (hover === a.emp || a.emp === 'EMP-01' || selectedId === a.emp);
+        const emp = empById.get(a.emp ?? '');
+        const chipOn = interactive && (hover === a.id || a.emp === 'EMP-01' || a.emps.includes(selectedId));
         const handlers = interactive ? {
-          onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(a.emp ?? null); setCursor('pointer'); },
+          onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(a.id); setCursor('pointer'); },
           onPointerOut: () => { setHover(null); setCursor('auto'); },
           onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); officeSimulationEngine.selectEmployee(a.emp ?? null); },
         } : undefined;
@@ -395,13 +402,13 @@ const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality
           <Html position={[0, 1.95, 0]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.88)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${emp?.badgeColor ?? '#2e8f8a'}` }}>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: STATUS_COLOR[st] ?? '#f59e0b' }} />
-              {emp?.displayName ?? a.emp}<span style={{ opacity: 0.65, fontWeight: 400 }}>{emp?.role ?? ''}</span>
+              {emp?.displayName ?? a.emp}<span style={{ opacity: 0.65, fontWeight: 400 }}>{emp?.account ? `${emp.account} · ` : ''}{emp?.role ?? ''} · {st}</span>
             </div>
           </Html>
         ) : null;
-        return <AgentView key={a.id} a={a} look={lookOf(a.id, emp?.role)} handlers={handlers} chip={chip} />;
+        return <AgentView key={a.id} a={a} look={lookOf(a.emp ?? a.id, emp?.role)} handlers={handlers} chip={chip} />;
       })}
-      {quality === 'high' && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
+      {quality === 'high' && mapping.freeSlots.map((s) => <Npc key={s.id} id={`seat-${s.id}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
     </>
   );
 };

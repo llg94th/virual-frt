@@ -10,7 +10,7 @@ import { FLOOR_H, TEAM_FLOOR, mulberry32, type CharacterAppearance } from '../sh
 import { Character3D, appearanceFor } from '../characters';
 import { officeSimulationEngine } from '../../engine/simulationStore';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
-import type { DocumentTransferTask } from '../../types/office';
+import type { DocumentTransferTask, Employee } from '../../types/office';
 import { getFloor, FT, K } from './furn';
 import { findPath, freePoint, ENTRANCE } from './nav';
 
@@ -23,7 +23,7 @@ export interface Agent {
   home: Home; x: number; z: number; yaw: number; st: St; pose: Pose; shown: boolean;
   path: Float32Array | null; pi: number; speed: number; timer: number; tgtSt: 'go' | 'back';
   tgt: { x: number; z: number; rot: number; pose: 'idle' | 'sit' | 'wave' }; stage: number;
-  job: Job | null; carry: { key: string; color: string } | null;
+  emps: string[]; busy: boolean; job: Job | null; carry: { key: string; color: string } | null;
   g: THREE.Group | null; setPose: (p: Pose) => void; setCarry: (c: { key: string; color: string } | null) => void;
 }
 const noop = () => {};
@@ -33,7 +33,7 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const arr: Agent[] = [];
 export const sim = { budget: 2, quality: 'high' as string };
 const movers = new Float32Array(10), totals = new Float32Array(10);
-export const dbg = { walking: 0, seated: 0, transfers: 0 };
+export const dbg: { walking: number; seated: number; transfers: number; mapped: number; proxied: number; unmappedTransfers: number; inject?: (from: string, to: string, key?: string) => void } = { walking: 0, seated: 0, transfers: 0, mapped: 0, proxied: 0, unmappedTransfers: 0 };
 if (typeof window !== 'undefined') (window as unknown as { __city3dAgents?: unknown }).__city3dAgents = dbg;
 export const register = (a: Agent) => { if (!arr.includes(a)) arr.push(a); };
 export const unregister = (a: Agent) => { const i = arr.indexOf(a); if (i >= 0) arr.splice(i, 1); };
@@ -43,7 +43,7 @@ function makeAgent(id: string, floor: number, kind: Agent['kind'], home: Home, e
   return {
     id, floor, kind, emp, home, x: home.x, z: home.z, yaw: home.rot, st: 'home', pose: home.pose === 'idle' ? 'idle' : home.pose, shown: true,
     path: null, pi: 0, speed: 1.1, timer: rnd(8, 60), tgtSt: 'go', tgt: { x: 0, z: 0, rot: 0, pose: 'idle' }, stage: 0,
-    job: null, carry: null, g: null, setPose: noop, setCarry: noop,
+    emps: emp ? [emp] : [], busy: false, job: null, carry: null, g: null, setPose: noop, setCarry: noop,
   };
 }
 
@@ -77,7 +77,7 @@ function startTrip(a: Agent, x: number, z: number, rot: number, pose: 'idle' | '
   tryPath(a);
 }
 function snapHome(a: Agent) {
-  a.x = a.home.x; a.z = a.home.z; a.yaw = a.home.rot; a.st = 'home'; a.timer = rnd(20, 90); a.path = null;
+  a.x = a.home.x; a.z = a.home.z; a.yaw = a.home.rot; a.st = 'home'; a.timer = rnd(20, 90); a.path = null; a.busy = false;
   setPose(a, a.home.pose);
 }
 const fi = (f: number) => f + 1;
@@ -147,7 +147,7 @@ export function stepAgents(dt: number) {
   sim.budget = 2;
   movers.fill(0); totals.fill(0);
   for (let i = 0; i < arr.length; i++) { const a = arr[i], k = fi(a.floor); if (a.kind === 'team' || a.kind === 'worker') { totals[k]++; if (a.st === 'wait' || a.st === 'go' || a.st === 'back') movers[k]++; } }
-  let walking = 0, seated = 0;
+  let walking = 0, seated = 0, busy = 0;
   for (let i = 0; i < arr.length; i++) {
     const a = arr[i]; a.timer -= dt;
     switch (a.st) {
@@ -155,13 +155,14 @@ export function stepAgents(dt: number) {
       case 'wait': tryPath(a); break;
       case 'go': case 'back': if (a.path && follow(a, dt)) arrive(a); break;
       case 'at': if (a.timer <= 0) { if (a.kind === 'visitor') visitorNext(a); else if (a.kind === 'roamer') randomTrip(a); else goHome(a); } break;
-      case 'handing': if (a.timer <= 0) { a.job = null; a.carry = null; a.setCarry(null); dbg.transfers = Math.max(0, dbg.transfers - 1); goHome(a); } break;
+      case 'handing': if (a.timer <= 0) { a.job = null; a.carry = null; a.setCarry(null); goHome(a); } break;
       case 'gone': if (a.timer <= 0) spawnVisitor(a); break;
     }
+    if (a.busy) busy++;
     if (a.st === 'go' || a.st === 'back') walking++; else if (a.pose === 'sit' || a.pose === 'type') seated++;
     if (a.g) { a.g.position.set(a.x, a.floor * FLOOR_H + FT, a.z); a.g.rotation.y = a.yaw; if (a.g.visible !== a.shown) a.g.visible = a.shown; }
   }
-  dbg.walking = walking; dbg.seated = seated;
+  dbg.walking = walking; dbg.seated = seated; dbg.transfers = busy;
 }
 
 // ---------------------------------------------------------------- agent factories
@@ -173,19 +174,59 @@ export const lookOf = (id: string, role?: string): CharacterAppearance => {
   l = { ...a, top: lift(a.top, 0.3), bottom: lift(a.bottom, 0.15) }; looks.set(id, l); return l;
 };
 
-const teamCache = new Map<string, Agent>();
-export function teamAgents(): Agent[] {
-  if (!teamCache.size) {
-    const rs = mulberry32(31);
-    for (const t of getFloor(TEAM_FLOOR).str.team) {
-      const a = makeAgent(t.emp, TEAM_FLOOR, 'team', { x: t.x, z: t.z, rot: t.rot, pose: 'type' }, t.emp);
-      a.timer = 20 + rs() * 70; teamCache.set(t.emp, a);
-    }
-    teamList = [...teamCache.values()];
+// ---- real-employee -> 3D seat mapping (NHÀ THUỐC bay) ----
+const seatAgents = new Map<string, Agent>();
+let empAgent = new Map<string, Agent>();
+let pmAgent: Agent | null = null;
+export interface TeamMapping { agents: Agent[]; empAgent: Map<string, Agent>; mapped: number; proxied: number; freeSlots: { id: string; x: number; z: number; rot: number }[] }
+const codesOf = (c?: string): string[] => {
+  if (!c) return [];
+  const parts = c.split('/').map((p) => p.trim()).filter(Boolean); if (!parts.length) return [];
+  const out = [parts[0]]; const base = parts[0].slice(0, parts[0].lastIndexOf('.') + 1);
+  for (let i = 1; i < parts.length; i++) out.push(/^\d+$/.test(parts[i]) ? base + parts[i] : parts[i]);
+  return out;
+};
+const acct = (s?: string) => (s ?? '').toLowerCase().replace(/\(.*?\)/g, '').trim().split(/\s+/)[0];
+const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+
+/** Seat every engine employee: exact match by assigned id / deskId / seatCode / account, otherwise a stable proxy seat. */
+export function remap(employees: Employee[]): TeamMapping {
+  const slots = getFloor(TEAM_FLOOR).str.slots;
+  const byAssigned = new Map<string, number>(), byDesk = new Map<string, number>(), byCode = new Map<string, number>(), byAcct = new Map<string, number>();
+  slots.forEach((s, i) => {
+    if (s.assigned) byAssigned.set(s.assigned, i); if (s.deskId) byDesk.set(s.deskId, i);
+    for (const c of codesOf(s.seatCode)) byCode.set(c, i); if (s.account) byAcct.set(acct(s.account), i);
+  });
+  const seatEmps: string[][] = slots.map(() => []);
+  const unmatched: Employee[] = [];
+  const sorted = [...employees].sort((p, q) => (p.id < q.id ? -1 : 1));
+  let mapped = 0;
+  for (const e of sorted) {
+    let i = byAssigned.get(e.id);
+    if (i === undefined && e.deskId) i = byDesk.get(e.deskId);
+    if (i === undefined) for (const c of codesOf(e.seatCode)) { const j = byCode.get(c); if (j !== undefined) { i = j; break; } }
+    if (i === undefined && e.account) i = byAcct.get(acct(e.account));
+    if (i !== undefined) { seatEmps[i].push(e.id); mapped++; } else unmatched.push(e);
   }
-  return teamList;
+  // proxies: stable hash -> a seat nobody sits in yet (probe forward), reuse deterministically when all are taken
+  let proxied = 0;
+  if (slots.length) for (const e of unmatched) {
+    const free: number[] = []; seatEmps.forEach((l, i) => { if (!l.length) free.push(i); });
+    const i = free.length ? free[hash(e.id) % free.length] : hash(e.id) % slots.length;
+    seatEmps[i].push(e.id); proxied++;
+  }
+  const rs = mulberry32(31); const agents: Agent[] = []; const map = new Map<string, Agent>(); const freeSlots: TeamMapping['freeSlots'] = [];
+  slots.forEach((s, i) => {
+    if (!seatEmps[i].length) { freeSlots.push({ id: s.id, x: s.x, z: s.z, rot: s.rot }); return; }
+    let ag = seatAgents.get(s.id);
+    if (!ag) { ag = makeAgent(s.id, TEAM_FLOOR, 'team', { x: s.x, z: s.z, rot: s.rot, pose: 'type' }, seatEmps[i][0]); ag.timer = 20 + rs() * 70; seatAgents.set(s.id, ag); }
+    ag.emp = seatEmps[i][0]; ag.emps = seatEmps[i]; agents.push(ag);
+    for (const id of seatEmps[i]) map.set(id, ag);
+  });
+  teamList = agents; empAgent = map; pmAgent = map.get('EMP-01') ?? agents[0] ?? null;
+  dbg.mapped = mapped; dbg.proxied = proxied;
+  return { agents, empAgent: map, mapped, proxied, freeSlots };
 }
-export const teamByEmp = () => teamCache;
 
 const floorCache = new Map<number, Agent[]>();
 export function floorAgents(f: number): Agent[] {
@@ -209,22 +250,36 @@ export function floorAgents(f: number): Agent[] {
 // ---------------------------------------------------------------- transfers (simulation-driven handoffs)
 const PRIORITY: Record<string, string> = { CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#facc15', LOW: '#4ade80' };
 const seen = new Set<string>();
+const tmp: [number, number] = [0, 0];
+/** Visualise every transfer whose from/to resolves to a seat agent (directly or via proxy seat). */
 export function syncTransfers(list: DocumentTransferTask[]) {
-  if (!teamCache.size) return;
+  if (!empAgent.size) return;
+  let unmapped = 0;
   for (const t of list) {
-    if (t.phase === 'QUEUED' || t.phase === 'COMPLETED' || seen.has(t.id)) continue;
-    const a = teamCache.get(t.fromEmployeeId); if (!a || a.job || !arr.includes(a)) continue;
-    const to = teamCache.get(t.isReturnToPM ? 'EMP-01' : t.toEmployeeId) ?? teamCache.get('EMP-01');
-    if (!to || to === a) continue;
-    const out: [number, number] = [0, 0];
-    if (!freePoint(a.floor, to.home.x, to.home.z, out)) continue;
-    if (seen.size > 300) seen.clear();
-    seen.add(t.id);
-    a.job = { id: t.id, key: t.ticketKey, color: PRIORITY[t.ticketPriority] ?? '#facc15', isReturn: t.isReturnToPM };
-    a.carry = { key: t.ticketKey, color: a.job.color }; a.setCarry(a.carry); dbg.transfers++;
-    startTrip(a, out[0], out[1], Math.atan2(to.home.x - out[0], to.home.z - out[1]), 'wave', 'go', 1.3);
+    if (t.phase === 'COMPLETED') continue;
+    const a = empAgent.get(t.fromEmployeeId);
+    if (!a) { unmapped++; continue; }
+    if (t.phase === 'QUEUED' || seen.has(t.id) || a.busy || !arr.includes(a)) continue;
+    let to = empAgent.get(t.isReturnToPM ? 'EMP-01' : t.toEmployeeId) ?? pmAgent;
+    if (!to || to === a) to = pmAgent && pmAgent !== a ? pmAgent : teamList[(teamList.indexOf(a) + 1) % teamList.length];
+    if (!to || to === a || !freePoint(a.floor, to.home.x, to.home.z, tmp)) continue;
+    const tx = tmp[0], tz = tmp[1], face = Math.atan2(to.home.x - tx, to.home.z - tz);
+    if (seen.size > 400) seen.clear();
+    seen.add(t.id); a.busy = true;
+    if (t.phase === 'RETURNING_TO_DESK') { // already delivered: appear at the target desk and walk home empty-handed
+      a.x = tx; a.z = tz; a.yaw = face; a.job = null; a.carry = null; a.setCarry(null);
+      goHome(a);
+    } else {
+      a.job = { id: t.id, key: t.ticketKey, color: PRIORITY[t.ticketPriority] ?? '#facc15', isReturn: t.isReturnToPM };
+      a.carry = { key: t.ticketKey, color: a.job.color }; a.setCarry(a.carry);
+      startTrip(a, tx, tz, face, 'wave', 'go', 1.3);
+    }
     a.stage = 9;
   }
+  dbg.unmappedTransfers = unmapped;
+}
+if (import.meta.env?.DEV) {
+  dbg.inject = (from, to, key = 'TEST-1') => syncTransfers([{ id: `inj-${Date.now()}-${Math.random()}`, ticketId: key, ticketKey: key, ticketSummary: '', ticketPriority: 'HIGH', targetStatus: 'IN_PROGRESS', fromEmployeeId: from, toEmployeeId: to, fromDeskId: '', toDeskId: '', isReturnToPM: to === 'EMP-01', documentStackSize: 2, phase: 'PICKING_UP', outboundPath: [], returnPath: [], currentSegmentIndex: 0, progress: 0, startedAt: Date.now(), description: '' } as unknown as DocumentTransferTask]);
 }
 
 // ---------------------------------------------------------------- confetti + carried stacks

@@ -1,0 +1,304 @@
+/**
+ * FPT Software F-Town 3 ("Building in the Park"): 7 floors + B1, 2 courtyard atria, terrace gardens,
+ * cutaway dollhouse, real team bay on TEAM_FLOOR. Procedural only.
+ */
+import React, { memo, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import * as THREE from 'three';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
+import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCity, live, mulberry32, type Quality } from '../shared';
+import { Character3D, appearanceFor } from '../characters';
+import { EMPLOYEE_BY_ID } from '../../data/employees';
+import { officeSimulationEngine } from '../../engine/simulationStore';
+import { getFloor, Furn, FT, CLEAR, HALF, COURTYARDS, SLAB_PIECES, CORE, type Box, type Label, type Walker } from './furn';
+
+const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
+const BALL_GEO = new THREE.IcosahedronGeometry(1, 1);
+const ROOF = TOWER_FLOORS; // index of the roof group
+
+// ---------- shared materials ----------
+function useMats() {
+  return useMemo(() => {
+    const glassFull = new THREE.MeshStandardMaterial({ color: '#8fd3cf', transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.6, depthWrite: false, side: THREE.DoubleSide, emissive: '#ffd9a0', emissiveIntensity: 0 });
+    const glassCut = new THREE.MeshStandardMaterial({ color: '#9fd8d4', transparent: true, opacity: 0.05, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
+    const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 });
+    const inner = new THREE.MeshStandardMaterial({ color: '#bfe8ea', transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
+    const screen = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+    const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
+    const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
+    const slab = new THREE.MeshStandardMaterial({ color: '#f2f4f3', roughness: 0.8 });
+    const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });
+    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin };
+  }, []);
+}
+type Mats = ReturnType<typeof useMats>;
+
+// ---------- instancing helpers ----------
+const InstBoxes: React.FC<{ list: Box[]; material: THREE.Material; shadow?: boolean }> = ({ list, material, shadow }) => {
+  const ref = useRef<THREE.InstancedMesh>(null!);
+  useLayoutEffect(() => {
+    const m = ref.current; if (!m) return;
+    const o = new THREE.Object3D(); const col = new THREE.Color();
+    list.forEach((b, i) => {
+      o.position.set(b.p[0], b.p[1], b.p[2]); o.rotation.set(b.rx, b.r, 0, 'YXZ'); o.scale.set(b.s[0], b.s[1], b.s[2]); o.updateMatrix();
+      m.setMatrixAt(i, o.matrix); m.setColorAt(i, col.set(b.c));
+    });
+    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [list]);
+  if (!list.length) return null;
+  return <instancedMesh ref={ref} args={[BOX_GEO, material, list.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />;
+};
+const InstBalls: React.FC<{ furn: Furn; material: THREE.Material }> = ({ furn, material }) => {
+  const ref = useRef<THREE.InstancedMesh>(null!);
+  useLayoutEffect(() => {
+    const m = ref.current; if (!m) return;
+    const o = new THREE.Object3D(); const col = new THREE.Color();
+    furn.balls.forEach((b, i) => { o.position.set(...b.p); o.rotation.set(0, i, 0); o.scale.setScalar(b.r); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, col.set(b.c)); });
+    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [furn]);
+  if (!furn.balls.length) return null;
+  return <instancedMesh ref={ref} args={[BALL_GEO, material, furn.balls.length]} frustumCulled={false} castShadow />;
+};
+
+// ---------- text labels (canvas textures, no network) ----------
+const texCache = new Map<string, THREE.CanvasTexture>();
+function labelTex(l: Label): THREE.CanvasTexture {
+  const key = `${l.t}|${l.fg}|${l.bg}|${l.w / l.h}`;
+  let t = texCache.get(key); if (t) return t;
+  const cw = 1024, ch = Math.max(64, Math.round((cw * l.h) / l.w));
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  const g = c.getContext('2d')!;
+  if (l.bg) { g.fillStyle = l.bg; g.fillRect(0, 0, cw, ch); }
+  g.fillStyle = l.fg ?? '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let size = ch * 0.62; g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`;
+  while (g.measureText(l.t).width > cw * 0.92 && size > 8) { size -= 4; g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`; }
+  g.fillText(l.t, cw / 2, ch / 2 + size * 0.04);
+  t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  texCache.set(key, t); return t;
+}
+const LabelMesh: React.FC<{ l: Label }> = ({ l }) => {
+  const tex = useMemo(() => labelTex(l), [l]);
+  return (
+    <mesh position={[l.x, l.flat ? FT + l.y : l.y, l.z]} rotation={l.flat ? [-Math.PI / 2, 0, l.rot] : [0, l.rot, 0]}>
+      <planeGeometry args={[l.w, l.h]} />
+      <meshBasicMaterial map={tex} transparent toneMapped={false} side={THREE.DoubleSide} />
+    </mesh>
+  );
+};
+
+// ---------- floor ----------
+const setCursor = (c: string) => { try { document.body.style.cursor = c; } catch { /* ignore */ } };
+
+interface FloorProps { f: number; visible: boolean; cut: boolean; quality: Quality; mats: Mats; interior: boolean }
+const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) => {
+  const data = useMemo(() => getFloor(f), [f]);
+  const isRoof = f === ROOF;
+  const walls = useMemo(() => {
+    if (isRoof || data.solid) return [];
+    const H = HALF, h = CLEAR - 0.0;
+    const out: { p: V3t; s: V3t }[] = [];
+    const add = (cx: number, cz: number, w: number, d: number) => out.push({ p: [cx, FT + h / 2, cz], s: [w, h, d] });
+    add(0, -H, 52, 0.06); add(0, H, 52, 0.06); add(-H, 0, 0.06, 52); add(H, 0, 0.06, 52);
+    for (const c of COURTYARDS) {
+      add(c.x, c.z - c.d / 2, c.w, 0.06); add(c.x, c.z + c.d / 2, c.w, 0.06); add(c.x - c.w / 2, c.z, 0.06, c.d); add(c.x + c.w / 2, c.z, 0.06, c.d);
+    }
+    return out;
+  }, [isRoof, data]);
+  const slabs = f === -1 ? [[0, 0, 52, 52] as [number, number, number, number]] : SLAB_PIECES;
+  const dark = f === -1;
+  const onClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); cityStore.set({ selectedFloor: isRoof ? null : f }); };
+  const interiorOn = interior || cut;
+  return (
+    <group position={[0, f * FLOOR_H, 0]} visible={visible} onClick={onClick}
+      onPointerOver={(e) => { e.stopPropagation(); setCursor('pointer'); }} onPointerOut={() => setCursor('auto')}>
+      {slabs.map(([cx, cz, w, d], i) => (
+        <mesh key={i} position={[cx, FT / 2, cz]} scale={[w, FT, d]} geometry={BOX_GEO} material={dark ? mats.solid : mats.slab} castShadow receiveShadow>
+          {dark && <meshStandardMaterial attach="material" color="#5c646a" roughness={0.95} />}
+        </mesh>
+      ))}
+      {walls.map((w, i) => <mesh key={i} position={w.p} scale={w.s} geometry={BOX_GEO} material={cut ? mats.glassCut : mats.glassFull} renderOrder={2} />)}
+      <group visible={interiorOn}>
+        <InstBoxes list={data.boxes} material={mats.solid} shadow={quality !== 'low'} />
+        <InstBoxes list={data.glass} material={mats.inner} />
+        <InstBoxes list={data.screens} material={mats.screen} />
+        <InstBoxes list={data.leds} material={mats.led} />
+        <InstBalls furn={data} material={mats.leaf} />
+        {data.labels.map((l, i) => <LabelMesh key={i} l={l} />)}
+      </group>
+      {!interiorOn && <InstBoxes list={data.boxes.filter((b) => b.s[1] > 2 || b.c === '#dfe7e6' || b.c === '#e9eeed' || b.c === '#f4f6f5')} material={mats.solid} />}
+      {!interiorOn && <InstBalls furn={data} material={mats.leaf} />}
+      {cut && quality !== 'low' && <FloorLights quality={quality} />}
+      {f === 0 && <RevolvingDoor mats={mats} />}
+      {f === 0 && !isRoof && <mesh position={[5, 3.05, 27]} scale={[7, 0.25, 3.4]} geometry={BOX_GEO} material={mats.slab} />}
+    </group>
+  );
+});
+type V3t = [number, number, number];
+
+const FloorLights: React.FC<{ quality: Quality }> = ({ quality }) => {
+  const refs = useRef<THREE.PointLight[]>([]);
+  useFrame(() => { const nf = live.nightFactor; refs.current.forEach((l) => { if (l) l.intensity = 12 + nf * 55; }); });
+  const pts: [number, number][] = quality === 'high' ? [[-13, -13], [13, -13], [-13, 13], [13, 13], [0, 0]] : [[10, -10], [10, 10]];
+  return <>{pts.map(([x, z], i) => <pointLight key={i} ref={(r) => { if (r) refs.current[i] = r; }} position={[x, 2.9, z]} distance={30} decay={2} color="#fff1d6" intensity={20} />)}</>;
+};
+
+const RevolvingDoor: React.FC<{ mats: Mats }> = ({ mats }) => {
+  const g = useRef<THREE.Group>(null!);
+  useFrame((_, dt) => { if (g.current) g.current.rotation.y += dt * 0.8; });
+  return (
+    <group position={[5, FT, HALF - 0.3]}>
+      <mesh position={[0, 1.2, 0]} scale={[0.1, 2.4, 0.1]} geometry={BOX_GEO} material={mats.solid} />
+      <group ref={g}>
+        {[0, Math.PI / 2].map((r) => <mesh key={r} position={[0, 1.2, 0]} rotation={[0, r, 0]} scale={[2.4, 2.3, 0.04]} geometry={BOX_GEO} material={mats.inner} />)}
+      </group>
+      <mesh position={[0, 2.5, 0]} scale={[2.8, 0.2, 2.8]} geometry={BOX_GEO} material={mats.slab} />
+    </group>
+  );
+};
+
+// ---------- animated bits: elevators + LED blink + night glow ----------
+const Elevators: React.FC<{ mats: Mats }> = ({ mats }) => {
+  const a = useRef<THREE.Mesh>(null!), b = useRef<THREE.Mesh>(null!);
+  useFrame(({ clock }) => {
+    const sel = cityStore.get().selectedFloor;
+    const maxF = sel === null ? TOWER_FLOORS - 1 : Math.min(sel, TOWER_FLOORS - 1);
+    const minF = -1;
+    const run = (m: THREE.Mesh | null, sp: number, ph: number) => {
+      if (!m) return;
+      const tri = Math.abs((((clock.elapsedTime * sp + ph) % 2) + 2) % 2 - 1);
+      const s = tri * tri * (3 - 2 * tri);
+      const fl = minF + (maxF - minF) * s;
+      m.position.y = FT + fl * FLOOR_H + 1.25;
+    };
+    run(a.current, 0.05, 0); run(b.current, 0.037, 0.8);
+  });
+  return (
+    <>
+      <mesh ref={a} position={[-3.75, 1.5, 0]} scale={[2, 2.5, 2.2]} geometry={BOX_GEO} material={mats.cabin} />
+      <mesh ref={b} position={[-1.25, 1.5, 0]} scale={[2, 2.5, 2.2]} geometry={BOX_GEO} material={mats.cabin} />
+    </>
+  );
+};
+
+// ---------- people ----------
+const Walk: React.FC<{ w: Walker; y: number }> = ({ w, y }) => {
+  const g = useRef<THREE.Group>(null!);
+  const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+  const ph = useMemo(() => mulberry32(w.id.length * 31 + w.id.charCodeAt(w.id.length - 1))() * 2, [w.id]);
+  const look = useMemo(() => appearanceFor(w.id), [w.id]);
+  useFrame(({ clock }) => {
+    if (!g.current) return;
+    const t = (((clock.elapsedTime * w.speed) / len + ph) % 2 + 2) % 2;
+    const fwd = t < 1, u = fwd ? t : 2 - t;
+    const x = w.a[0] + (w.b[0] - w.a[0]) * u, z = w.a[1] + (w.b[1] - w.a[1]) * u;
+    g.current.position.set(x, y, z);
+    g.current.rotation.y = Math.atan2(w.b[0] - w.a[0], w.b[1] - w.a[1]) + (fwd ? 0 : Math.PI);
+  });
+  return <group ref={g}><Character3D appearance={look} pose="walk" /></group>;
+};
+const Npc: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit' | 'idle' | 'wave' }> = memo(({ id, x, y, z, rot, pose }) => {
+  const look = useMemo(() => appearanceFor(id), [id]);
+  return <Character3D appearance={look} pose={pose} position={[x, y, z]} rotationY={rot} />;
+});
+
+const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> = ({ f, sel, quality }) => {
+  const data = useMemo(() => getFloor(f), [f]);
+  const y = f * FLOOR_H + FT;
+  const show = sel === f || (quality === 'high' && (sel === null || sel >= f));
+  const items = useMemo(() => {
+    const r = mulberry32(f * 7 + 3);
+    const pick = <T,>(arr: T[], n: number) => arr.map((v) => [r(), v] as const).sort((p, q) => p[0] - q[0]).slice(0, n).map((p) => p[1]);
+    return { type: pick(data.seats, data.npcSeated), sit: pick(data.sitSeats, 4) };
+  }, [data, f]);
+  if (!show) return null;
+  return (
+    <>
+      {items.type.map((s, i) => <Npc key={`t${i}`} id={`npc-f${f}-t${i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
+      {items.sit.map((s, i) => <Npc key={`s${i}`} id={`npc-f${f}-s${i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="sit" />)}
+      {data.stands.map((s) => <Npc key={s.id} id={s.id} x={s.x} y={y} z={s.z} rot={s.rot} pose={s.pose ?? 'idle'} />)}
+      {data.walkers.map((w) => <Walk key={w.id} w={w} y={y} />)}
+    </>
+  );
+};
+
+const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality }) => {
+  const statuses = useSyncExternalStore(
+    officeSimulationEngine.subscribe,
+    () => officeSimulationEngine.getSnapshot().employees.map((e) => `${e.id}:${e.status}`).join('|'),
+  );
+  const status = useMemo(() => Object.fromEntries(statuses.split('|').map((s) => s.split(':'))) as Record<string, string>, [statuses]);
+  const data = useMemo(() => getFloor(TEAM_FLOOR), []);
+  const y = TEAM_FLOOR * FLOOR_H + FT;
+  const floorVisible = sel === null || sel >= TEAM_FLOOR;
+  const show = floorVisible && (quality === 'low' ? sel === TEAM_FLOOR : true);
+  if (!show) return null;
+  const chips = sel === TEAM_FLOOR;
+  return (
+    <>
+      {data.team.map((t) => {
+        const emp = EMPLOYEE_BY_ID[t.emp]; const st = status[t.emp] ?? emp?.status ?? 'IDLE';
+        return <TeamMember key={t.emp} id={t.emp} x={t.x} y={y} z={t.z} rot={t.rot} pose={st === 'IDLE' ? 'sit' : 'type'} chip={chips ? { name: emp?.displayName ?? t.emp, role: emp?.role ?? '', status: st, color: emp?.badgeColor ?? '#2e8f8a' } : null} />;
+      })}
+      {quality === 'high' && sel !== null && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
+      {quality === 'high' && sel === null && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
+    </>
+  );
+};
+const STATUS_COLOR: Record<string, string> = { WORKING: '#22c55e', IDLE: '#9ca3af', REVIEWING: '#3b82f6', WALKING: '#f59e0b' };
+const TeamMember: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit'; chip: { name: string; role: string; status: string; color: string } | null }> = ({ id, x, y, z, rot, pose, chip }) => {
+  const look = useMemo(() => appearanceFor(id, EMPLOYEE_BY_ID[id]?.role), [id]);
+  return (
+    <group>
+      <Character3D appearance={look} pose={pose} position={[x, y, z]} rotationY={rot} />
+      {chip && (
+        <Html position={[x, y + 1.95, z]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.82)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${chip.color}` }}>
+            <span style={{ width: 6, height: 6, borderRadius: 3, background: STATUS_COLOR[chip.status] ?? '#f59e0b' }} />
+            {chip.name}<span style={{ opacity: 0.65, fontWeight: 400 }}>{chip.role}</span>
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
+// ---------- root ----------
+export const FrtTower: React.FC = () => {
+  const sel = useCity((s) => s.selectedFloor);
+  const quality = useCity((s) => s.quality);
+  const mats = useMats();
+
+  useFrame(({ clock }) => {
+    const nf = live.nightFactor;
+    mats.glassFull.emissiveIntensity = nf * 0.55;
+    const base = quality === 'high' ? 0.2 : quality === 'medium' ? 0.3 : 0.55;
+    mats.glassFull.opacity = base + nf * 0.08;
+    mats.slab.emissiveIntensity = 0;
+    mats.led.opacity = 0.55 + 0.45 * Math.abs(Math.sin(clock.elapsedTime * 7));
+    mats.cabin.emissiveIntensity = 0.3 + nf * 0.9;
+  });
+
+  const floors = useMemo(() => Array.from({ length: TOWER_FLOORS + 2 }, (_, i) => i - 1), []); // -1..7
+  const visible = (f: number) => (f === -1 ? sel === -1 : f === ROOF ? sel === null : sel === null ? true : f <= sel);
+  const label = FLOOR_DEPARTMENTS.find((d) => d.floor === sel);
+  return (
+    <group>
+      {floors.map((f) => (
+        <Floor key={f} f={f} visible={visible(f)} cut={sel === f} quality={quality} mats={mats}
+          interior={quality !== 'low' || sel === f} />
+      ))}
+      <Elevators mats={mats} />
+      <Team sel={sel} quality={quality} />
+      {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
+      <group position={[0, 0, 0]}>{null}</group>
+      {sel !== null && label && (
+        <Html position={[-HALF, sel * FLOOR_H + 3, HALF]} center distanceFactor={30} style={{ pointerEvents: 'none' }}>
+          <div style={{ padding: '3px 10px', borderRadius: 10, background: 'rgba(15,122,115,0.92)', color: '#fff', font: '700 13px system-ui', whiteSpace: 'nowrap' }}>{label.label} • {label.name}</div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
+export default FrtTower;
+void CORE;

@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   OfficeSimulationProvider,
   useOfficeSimulation,
 } from './engine/simulationStore';
 import { OfficeCanvas2D } from './components/OfficeCanvas2D';
+
+const CityApp = lazy(() => import('./city3d/CityApp'));
 import { JiraControlPanel } from './components/JiraControlPanel';
 import { LiveActivityFeed } from './components/LiveActivityFeed';
 import { AssigneeHistoryOverlay } from './components/AssigneeHistoryOverlay';
@@ -105,6 +107,17 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
   // Mặc định ẩn chế độ Advance nhiều hub tùy chỉnh (`isHudHidden = true`)
   const [isHudHidden, setIsHudHidden] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  // Chế độ 3D City (GTA-style) — phím tắt `G`
+  const [is3D, setIs3D] = useState<boolean>(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      if (e.key === 'g' || e.key === 'G') setIs3D((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const toggleHud = useCallback(() => {
     setIsHudHidden((prev) => !prev);
@@ -197,6 +210,19 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
   return (
     <div className="relative w-screen h-screen bg-[#f4f6fa] text-slate-900 overflow-hidden select-none">
       <AssigneeHistoryOverlay />
+      <button
+        type="button"
+        onClick={() => setIs3D(true)}
+        title="Chế độ 3D F-Town 3 (phím G)"
+        className="fixed bottom-4 left-4 z-40 px-4 py-2 rounded-full bg-slate-900/85 text-white text-xs font-extrabold tracking-wide border border-emerald-400/60 shadow-lg hover:bg-emerald-600 transition"
+      >
+        🏙️ 3D F-TOWN 3
+      </button>
+      {is3D && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-black text-white flex items-center justify-center text-sm">Đang tải thành phố 3D…</div>}>
+          <CityApp onExit={() => setIs3D(false)} />
+        </Suspense>
+      )}
       {/* ====================================================================
           1. FULL-BLEED 2.5D ISOMETRIC OFFICE CANVAS STAGE (100VW x 100VH)
       ==================================================================== */}

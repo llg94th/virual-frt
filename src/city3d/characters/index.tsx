@@ -4,12 +4,15 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { useFrame, useThree } from '@react-three/fiber';
+import { createPortal, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import {
   CITY_EXTENT, ROAD_LINES, ROAD_W, SIDEWALK_W, live, mulberry32, useCity,
 } from '../shared';
 import type { CharacterAppearance, CharacterPose } from '../shared';
+import { J, HIP_Y, tgt, computeTarget } from './pose';
+import { FarHost, farEntries, joinFar, useFarLeader, makeFarColors, FAR_IN } from './far';
+import type { FarEntry } from './far';
 import { OfficeCharacter, RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
 import type { RigEntry } from './rigged';
 
@@ -103,59 +106,6 @@ function resolve(a: CharacterAppearance): Cfg {
     case 'chopper': return { ...base, skin: '#a56a3a', hair: '#a56a3a', hairStyle: 'bald', top: '#a56a3a', bottom: '#2f6fb3', shoes: '#a56a3a', headScale: 1.55, fat: 1.2, hairHidden: true, height: a.height ?? 1.0 };
     case 'usopp': return { ...base, skin: '#b87a4b', hair: '#1c1c1c', hairStyle: 'short', top: '#e8e8e8', bottom: '#f59e0b', shoes: '#5b3a1e', height: a.height ?? 1.8 };
     default: return base;
-  }
-}
-
-// ---------------------------------------------------------------- pose model
-const J = { HY: 0, SPX: 1, HDX: 2, HDY: 3, LTH: 4, RTH: 5, LKN: 6, RKN: 7, LAX: 8, RAX: 9, LEL: 10, REL: 11, LAZ: 12, RAZ: 13, BRE: 14, HZ: 15, N: 16 };
-const HIP_Y = 0.9;
-const tgt = new Float32Array(J.N);
-
-function computeTarget(pose: CharacterPose, ph: number, t: number, off: number) {
-  tgt.fill(0);
-  tgt[J.HY] = HIP_Y; tgt[J.LAZ] = 0.08; tgt[J.RAZ] = -0.08; tgt[J.LEL] = -0.15; tgt[J.REL] = -0.15;
-  tgt[J.BRE] = Math.sin(t * 1.8 + off) * 0.012;
-  switch (pose) {
-    case 'idle':
-      tgt[J.HDY] = Math.sin(t * 0.5 + off) * 0.5 * Math.max(0, Math.sin(t * 0.17 + off * 2));
-      tgt[J.HDX] = Math.sin(t * 0.3 + off) * 0.06;
-      tgt[J.LAX] = Math.sin(t * 1.8 + off) * 0.03; tgt[J.RAX] = -tgt[J.LAX];
-      break;
-    case 'walk': case 'run': {
-      const run = pose === 'run';
-      const A = run ? 0.95 : 0.55, K = run ? 1.5 : 0.85, s = Math.sin(ph), c = Math.cos(ph);
-      tgt[J.LTH] = -s * A; tgt[J.RTH] = s * A;
-      tgt[J.LKN] = Math.max(0, c) * K + 0.05; tgt[J.RKN] = Math.max(0, -c) * K + 0.05;
-      tgt[J.LAX] = s * A * 0.9; tgt[J.RAX] = -s * A * 0.9;
-      tgt[J.LEL] = run ? -1.2 : -0.3; tgt[J.REL] = run ? -1.2 : -0.3;
-      tgt[J.SPX] = run ? 0.22 : 0.05; tgt[J.HDX] = run ? -0.15 : 0;
-      tgt[J.HY] = HIP_Y - (run ? 0.05 : 0.02) + Math.abs(Math.cos(ph)) * (run ? 0.07 : 0.035);
-      tgt[J.HZ] = s * (run ? 0.08 : 0.05);
-      break;
-    }
-    case 'sit': case 'type': case 'drive': {
-      tgt[J.HY] = 0.5;
-      tgt[J.LTH] = tgt[J.RTH] = -Math.PI / 2 + 0.03; tgt[J.LKN] = tgt[J.RKN] = Math.PI / 2 - 0.05;
-      tgt[J.SPX] = 0.05;
-      if (pose === 'sit') {
-        tgt[J.LAX] = tgt[J.RAX] = -0.5; tgt[J.LEL] = tgt[J.REL] = -0.9;
-        tgt[J.HDY] = Math.sin(t * 0.4 + off) * 0.25;
-      } else if (pose === 'type') {
-        tgt[J.SPX] = 0.12; tgt[J.HDX] = 0.12;
-        tgt[J.LAX] = -0.85; tgt[J.RAX] = -0.85;
-        tgt[J.LEL] = -1.35 + Math.sin(t * 17 + off) * 0.12; tgt[J.REL] = -1.35 + Math.sin(t * 14 + off + 2) * 0.12;
-        tgt[J.LAZ] = 0.1; tgt[J.RAZ] = -0.1;
-      } else {
-        tgt[J.LAX] = tgt[J.RAX] = -1.15; tgt[J.LEL] = tgt[J.REL] = -0.45;
-        tgt[J.LAZ] = 0.15; tgt[J.RAZ] = -0.15; tgt[J.SPX] = 0;
-        tgt[J.HDY] = Math.sin(t * 0.6 + off) * 0.08;
-      }
-      break;
-    }
-    case 'wave':
-      tgt[J.RAX] = -0.2; tgt[J.RAZ] = -2.5 + Math.sin(t * 9) * 0.3; tgt[J.REL] = -0.6;
-      tgt[J.HDY] = 0.2; tgt[J.LAX] = Math.sin(t * 1.8) * 0.03;
-      break;
   }
 }
 
@@ -298,22 +248,43 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
   const [failed, setFailed] = useState(false);
   useEffect(() => (want ? registerRig(entry) : undefined), [want, entry]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  // far LOD (shared instanced rendering, see far.tsx)
+  const farOk = eligible; // mascots stay procedural
+  const token = useMemo(() => ({}), []);
+  const fe = useMemo<FarEntry>(() => ({ active: false, pose, dist: 0, k: 1, m: new Float32Array(16), cols: new Float32Array(15) }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const { scene } = useThree();
+  const leader = useFarLeader(token);
+  const [isFar, setFar] = useState(false);
+  const farRef = useRef(false);
+  useEffect(() => { if (!farOk) return; farEntries.add(fe); const un = joinFar(token); return () => { farEntries.delete(fe); un(); }; }, [farOk, fe, token]);
+  useEffect(() => { makeFarColors(appearance, fe.cols); }, [appearance, fe]);
+  fe.pose = pose; fe.k = (appearance.height ?? 1.75) / 1.75;
+  const rigShown = useRef(false);
   useFrame((state) => {
-    if (!want || rigStatus !== 'ready') return;
     const g = outer.current; if (!g) return;
     g.getWorldPosition(tmp);
-    entry.dist = priority ? 0 : Math.hypot(state.camera.position.x - tmp.x, state.camera.position.z - tmp.z);
+    const dist = Math.hypot(state.camera.position.x - tmp.x, state.camera.position.z - tmp.z);
+    if (farOk) {
+      const wf = !priority && (farRef.current ? dist > FAR_IN - 3 : dist > FAR_IN);
+      if (wf !== farRef.current) { farRef.current = wf; setFar(wf); }
+      fe.dist = dist; fe.m.set(g.matrixWorld.elements);
+      fe.active = wf && !rigShown.current;
+    }
+    if (!want || rigStatus !== 'ready') return;
+    entry.dist = priority ? 0 : dist;
     rigTick(state.camera, state.gl.info.render.frame, performance.now());
     if (entry.allowed !== on) setOn(entry.allowed);
   });
   const useRig = want && rigStatus === 'ready' && on && !failed;
   useEffect(() => { if (!useRig) setReady(false); }, [useRig]);
   const showRig = useRig && ready;
+  rigShown.current = showRig;
   const height = appearance.height ?? 1.75;
   const procProps = { appearance, pose, label, position: undefined, rotationY: 0, scale: 1 };
   return (
     <group ref={outer} position={position} rotation-y={rotationY} scale={scale}>
-      {!showRig && <ProceduralCharacter {...procProps} />}
+      {leader && farOk && createPortal(<FarHost />, scene)}
+      {!showRig && !(isFar && farOk) && <ProceduralCharacter {...procProps} />}
       {useRig && (
         <RigBoundary fallback={
           <RigBoundary fatal onError={() => setFailed(true)}>

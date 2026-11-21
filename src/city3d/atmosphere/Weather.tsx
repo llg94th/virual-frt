@@ -5,7 +5,7 @@ import { live, useCity, mulberry32, Quality } from '../shared';
 import { wx } from './weatherState';
 
 const RAIN_COUNT: Record<Quality, number> = { low: 1200, medium: 3500, high: 8000 };
-const CLOUD_CLUSTERS: Record<Quality, number> = { low: 8, medium: 16, high: 26 };
+const CLOUD_CLUSTERS: Record<Quality, number> = { low: 6, medium: 10, high: 16 };
 
 const rainVert = /* glsl */ `
 uniform float uTime; uniform vec3 uCam; uniform vec3 uBox; uniform vec2 uWind; uniform float uLen;
@@ -131,58 +131,82 @@ function puffTexture(): THREE.CanvasTexture {
   c.width = c.height = 256;
   const g = c.getContext('2d')!;
   const rnd = mulberry32(4242);
-  for (let i = 0; i < 16; i++) {
-    const r = 30 + rnd() * 50;
-    const x = 128 + (rnd() - 0.5) * 100, y = 128 + (rnd() - 0.5) * 50;
-    const gr = g.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, 'rgba(255,255,255,0.5)');
-    gr.addColorStop(0.6, 'rgba(255,255,255,0.18)');
-    gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gr;
-    g.fillRect(0, 0, 256, 256);
+  const blobs: [number, number, number][] = [];
+  for (let i = 0; i < 18; i++) blobs.push([128 + (rnd() - 0.5) * 120, 132 + (rnd() - 0.5) * 44, 28 + rnd() * 44]);
+  // shaded base first, then lit tops offset upward => cheap volumetric look
+  for (const [x, y, r] of blobs) {
+    const gr = g.createRadialGradient(x, y + 6, 0, x, y + 6, r);
+    gr.addColorStop(0, 'rgba(150,160,185,0.45)'); gr.addColorStop(0.65, 'rgba(150,160,185,0.16)'); gr.addColorStop(1, 'rgba(150,160,185,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  }
+  for (const [x, y, r] of blobs) {
+    const gr = g.createRadialGradient(x, y - r * 0.28, 0, x, y - r * 0.28, r * 0.85);
+    gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.2)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
+const LAYERS = [
+  { y: 210, spread: 70, speed: 0.004, scale: 1 },
+  { y: 300, spread: 90, speed: 0.0025, scale: 1.4 },
+  { y: 430, spread: 110, speed: 0.0014, scale: 1.9 },
+];
+
 export const CloudLayer: React.FC = () => {
   const quality = useCity((s) => s.quality);
-  const group = useRef<THREE.Group>(null);
+  const groups = useRef<(THREE.Group | null)[]>([]);
   const tex = useMemo(puffTexture, []);
   const mat = useMemo(() => new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.2, toneMapped: false,
+    map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.6, toneMapped: false,
   }), [tex]);
-  const sprites = useMemo(() => {
+  const lastCover = useRef(-1);
+  const data = useMemo(() => {
+    lastCover.current = -1;
     const rnd = mulberry32(31337);
-    const out: { p: [number, number, number]; s: number }[] = [];
-    const clusters = CLOUD_CLUSTERS[quality];
-    for (let i = 0; i < clusters; i++) {
-      const a = rnd() * Math.PI * 2, rr = 200 + rnd() * 900;
-      const cx = Math.cos(a) * rr, cz = Math.sin(a) * rr, cy = 190 + rnd() * 80;
-      const n = 4 + Math.floor(rnd() * 3);
-      for (let k = 0; k < n; k++) {
-        out.push({ p: [cx + (rnd() - 0.5) * 180, cy + (rnd() - 0.5) * 24, cz + (rnd() - 0.5) * 180], s: 180 + rnd() * 200 });
+    const per = CLOUD_CLUSTERS[quality];
+    return LAYERS.map((L, li) => {
+      const out: { p: [number, number, number]; s: number; th: number }[] = [];
+      for (let i = 0; i < per; i++) {
+        const a = rnd() * Math.PI * 2, rr = 150 + rnd() * 1000;
+        const cx = Math.cos(a) * rr, cz = Math.sin(a) * rr, cy = L.y + (rnd() - 0.5) * L.spread;
+        const th = rnd(); // cluster appears once cover exceeds this threshold
+        const n = 4 + Math.floor(rnd() * 3);
+        for (let k = 0; k < n; k++) {
+          out.push({ p: [cx + (rnd() - 0.5) * 200 * L.scale, cy + (rnd() - 0.5) * 20, cz + (rnd() - 0.5) * 200 * L.scale], s: (170 + rnd() * 200) * L.scale, th });
+        }
       }
-    }
-    return out;
+      return out;
+    });
   }, [quality]);
 
   useEffect(() => () => { tex.dispose(); mat.dispose(); }, [tex, mat]);
 
   useFrame(({ camera }, dt) => {
-    const g = group.current;
-    if (g) {
-      g.rotation.y += Math.min(dt, 0.1) * 0.004;
-      g.position.set(camera.position.x * 0.92, 0, camera.position.z * 0.92);
-    }
+    const d = Math.min(dt, 0.1);
+    groups.current.forEach((g, i) => {
+      if (!g) return;
+      g.rotation.y += d * LAYERS[i].speed;
+      g.position.set(camera.position.x * (0.9 + 0.03 * i), 0, camera.position.z * (0.9 + 0.03 * i));
+    });
     mat.color.copy(wx.tint);
-    mat.opacity = 0.12 + 0.8 * wx.cover;
+    mat.opacity = 0.5 + 0.45 * wx.cover;
+    if (Math.abs(wx.cover - lastCover.current) > 0.02) {
+      lastCover.current = wx.cover;
+      const lim = 0.12 + 0.88 * wx.cover; // clear: few clouds, cloudy: nearly all
+      groups.current.forEach((g) => g?.children.forEach((c, j) => { c.visible = (c.userData.th ?? 0) < lim; void j; }));
+    }
   });
 
   return (
-    <group ref={group} renderOrder={-1}>
-      {sprites.map((s, i) => <sprite key={i} material={mat} position={s.p} scale={[s.s, s.s * 0.5, 1]} />)}
-    </group>
+    <>
+      {data.map((layer, li) => (
+        <group key={li + quality} ref={(g) => { groups.current[li] = g; }}>
+          {layer.map((s, i) => <sprite key={i} material={mat} position={s.p} scale={[s.s, s.s * 0.45, 1]} userData={{ th: s.th }} />)}
+        </group>
+      ))}
+    </>
   );
 };

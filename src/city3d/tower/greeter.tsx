@@ -73,5 +73,5 @@ export const LongChauGreeter: React.FC = () => {
     g.current.rotation.y = -0.45 + Math.sin(t * 0.5) * 0.35;
   });
   void FLOOR_H;
-  return <group ref={g} position={[17 * K, FT, 16 * K]}><LongChauModel height={1.8} /></group>;
+  return <group ref={g} position={[8.5, FT, 17.6]}><LongChauModel height={1.8} /></group>;
 };

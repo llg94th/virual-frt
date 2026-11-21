@@ -17,7 +17,7 @@ export type V3 = [number, number, number];
 export interface Prop { m: string; p: V3; r: number; s: V3; c?: string; t?: string }
 export interface Box { p: V3; s: V3; c: string; r: number; rx: number }
 export interface Ball { p: V3; r: number; c: string }
-export interface Label { t: string; x: number; y: number; z: number; w: number; h: number; rot: number; flat?: boolean; fg?: string; bg?: string }
+export interface Label { art?: 'compass'; t: string; x: number; y: number; z: number; w: number; h: number; rot: number; flat?: boolean; fg?: string; bg?: string }
 export interface Seat { x: number; z: number; rot: number; id?: string }
 export interface Walker { a: [number, number]; b: [number, number]; speed: number; id: string }
 export interface Stand { x: number; z: number; rot: number; id: string; pose?: 'idle' | 'wave' }
@@ -213,7 +213,8 @@ export class Furn {
     const n = Math.max(2, Math.round((w * 0.55) / 0.9));
     for (let i = 0; i < n; i++) {
       const px = cx - (w * 0.55) / 2 + ((i + 0.5) * (w * 0.55)) / n;
-      this.chair(px, cz - d * 0.15 - 0.45, Math.PI); this.chair(px, cz + d * 0.15 + 0.45, 0);
+      this.chair(px, cz - d * 0.15 - 0.45, 0); this.chair(px, cz + d * 0.15 + 0.45, Math.PI);
+      this.sitSeats.push({ x: px, z: cz - d * 0.15 - 0.45, rot: 0 }, { x: px, z: cz + d * 0.15 + 0.45, rot: Math.PI });
     }
     this.scr(cx, 1.0, cz - d / 2 + 0.2, 2.2, 1.2, 0.05, '#2a7fb8');
   }
@@ -243,12 +244,25 @@ export class Furn {
     this.boxes.push({ p: [x + Math.sin(r) * ca * (L / 2), FT + y - Math.sin(a) * (L / 2), z + Math.cos(r) * ca * (L / 2)], s: [w, 0.04, L], c, r, rx: a });
   }
   palm(x: number, z: number, h = 6) {
-    this.b(x, 0, z, 0.26, h, 0.26, '#a28b6a');
-    for (let i = 0; i < 8; i++) this.frond(x, h, z, (i * Math.PI * 2) / 8 + x, 0.25 + (i % 2) * 0.35, 2.6, 0.5, i % 2 ? '#3f9a4f' : '#2e8a45');
-    this.ball(x, h + 0.1, z, 0.3, '#4a8a3a');
+    this.alt(() => {
+      this.b(x, 0, z, 0.26, h, 0.26, '#a28b6a');
+      for (let i = 0; i < 8; i++) this.frond(x, h, z, (i * Math.PI * 2) / 8 + x, 0.25 + (i % 2) * 0.35, 2.6, 0.5, i % 2 ? '#3f9a4f' : '#2e8a45');
+      this.ball(x, h + 0.1, z, 0.3, '#4a8a3a');
+    });
+    const k = Math.abs(Math.sin(x * 3.1 + z * 5.7) * 1000) % 1;
+    const m = k < 0.3 ? 'n:tree_palmDetailedTall' : k < 0.6 ? 'n:tree_palmTall' : k < 0.8 ? 'n:tree_palmBend' : 'n:tree_palm';
+    const base = m === 'n:tree_palmDetailedTall' ? 1.42 : m === 'n:tree_palmTall' ? 1.36 : m === 'n:tree_palmBend' ? 1.38 : 1.51;
+    this.prop(m, x, 0, z, k * 6.28, [h / base * 0.75, h / base, h / base * 0.75]);
   }
   banana(x: number, z: number) {
-    for (let i = 0; i < 5; i++) this.frond(x, 0.25, z, i * 1.26 + x, -0.9 + (i % 2) * 0.3, 1.7, 0.65, i % 2 ? '#4fb05a' : '#3c9c4c');
+    this.alt(() => { for (let i = 0; i < 5; i++) this.frond(x, 0.25, z, i * 1.26 + x, -0.9 + (i % 2) * 0.3, 1.7, 0.65, i % 2 ? '#4fb05a' : '#3c9c4c'); });
+    for (let i = 0; i < 3; i++) this.prop('n:plant_flatTall', x + Math.cos(i * 2.1 + x) * 0.35, 0, z + Math.sin(i * 2.1 + x) * 0.35, i * 2.1 + z, 4 + (i % 2));
+  }
+  /** ground cover (bush / grass / flower) from the Nature Kit; procedural green ball as fallback */
+  cover(x: number, y: number, z: number, k: number, s = 1) {
+    this.alt(() => this.ball(x, y + 0.4, z, 0.45 + (k % 0.4), k < 0.2 ? '#e87aa0' : '#5ab86a'));
+    const names = ['n:plant_bush', 'n:plant_bushLarge', 'n:grass_large', 'n:plant_bushDetailed', 'n:flower_redA', 'n:flower_purpleB', 'n:flower_yellowA', 'n:plant_flatShort'];
+    this.prop(names[Math.floor(k * names.length) % names.length], x, y, z, k * 40, (k > 0.62 ? 3 : 3.8) * s);
   }
 }
 
@@ -274,7 +288,7 @@ function shell(F: Furn, f: number) {
     for (let i = 0; i < 9; i++) {
       const side = Math.floor(rnd() * 4), u = (rnd() - 0.5) * (c.w - 2 * rc);
       const px = side < 2 ? c.x + u : side === 2 ? x0 : x1, pz = side < 2 ? (side === 0 ? z0 : z1) : c.z + u;
-      F.ball(px, 1.05, pz, 0.32 + rnd() * 0.15, rnd() < 0.5 ? '#3e9b55' : '#6cc07a');
+      F.cover(px, 0.95, pz, rnd(), 0.8);
     }
     // concrete stair flight cascading down the atrium side (connects this floor to the one below)
     if (f >= 1) {
@@ -321,14 +335,21 @@ function garden(F: Furn) {
   COURTYARDS.forEach((c, k) => {
     const sx = k === 0 ? -1 : 1, sz = k === 0 ? 1 : -1; // pond sits at a different corner of each atrium
     const px = c.x + sx * (c.w / 2 - 3), pz = c.z + sz * (c.d / 2 - 3);
-    F.b(c.x, -FT - 0.1, c.z, c.w - 0.2, 0.15, c.d - 0.2, '#4c9a4f');
+    F.b(c.x, -FT - 0.1, c.z, c.w - 0.2, 0.15, c.d - 0.2, '#4f8a52');
     F.b(px, -FT - 0.04, pz, 5.2, 0.05, 5.2, '#4aa7b5'); // lily pond
     for (let i = 0; i < 16; i++) {
-      F.b(px + (rnd() - 0.5) * 4.4, -FT + 0.02, pz + (rnd() - 0.5) * 4.4, 0.5 + rnd() * 0.3, 0.02, 0.5 + rnd() * 0.3, '#3f8f4a', rnd() * 3);
+      const lx = px + (rnd() - 0.5) * 4.4, lz = pz + (rnd() - 0.5) * 4.4, lw = 0.5 + rnd() * 0.3, ly = rnd() * 6;
+      F.altBoxes.push({ p: [lx, 0.03, lz], s: [lw, 0.02, lw], c: '#3f8f4a', r: ly, rx: 0 });
+      F.prop(i % 3 === 0 ? 'n:lily_small' : 'n:lily_large', lx, -FT + 0.02, lz, ly, 2.6 + rnd());
     }
     for (let i = 0; i < 4; i++) F.ball(px + (rnd() - 0.5) * 3.6, -FT + 0.1, pz + (rnd() - 0.5) * 3.6, 0.14, '#f08ab0');
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + k; F.prop(i % 2 ? 'n:rock_smallA' : 'n:rock_smallC', px + Math.cos(a) * 2.9, -FT, pz + Math.sin(a) * 2.9, a, 3 + rnd()); }
     // stepping path + broadleaf trees
-    for (let i = 0; i < 9; i++) F.b(c.x - c.w / 2 + 1.5 + i * 1.2, -FT - 0.05, c.z + (k ? -1 : 1) * 0.2, 0.9, 0.08, 0.9, '#c9c3b5');
+    for (let i = 0; i < 9; i++) {
+      const sx2 = c.x - c.w / 2 + 1.5 + i * 1.2, sz2 = c.z + (k ? -1 : 1) * 0.2;
+      F.altBoxes.push({ p: [sx2, 0.03, sz2], s: [0.9, 0.08, 0.9], c: '#c9c3b5', r: 0, rx: 0 });
+      F.prop('n:path_stone', sx2, -FT, sz2, Math.PI / 2, 1.1);
+    }
     for (let i = 0; i < 5; i++) F.tree(c.x + (rnd() - 0.5) * (c.w - 3), c.z + (rnd() - 0.5) * (c.d - 3), 4 + rnd() * 7, 1.8 + rnd() * 1.5, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
     for (let i = 0; i < 7; i++) {
       const tx = c.x + (rnd() - 0.5) * (c.w - 2.5), tz = c.z + (rnd() - 0.5) * (c.d - 2.5);
@@ -340,35 +361,74 @@ function garden(F: Furn) {
       if (Math.hypot(tx - px, tz - pz) < 3) continue;
       F.banana(tx, tz);
     }
-    for (let i = 0; i < 14; i++) F.ball(c.x + (rnd() - 0.5) * (c.w - 1), -FT + 0.4, c.z + (rnd() - 0.5) * (c.d - 1), 0.45 + rnd() * 0.4, rnd() < 0.2 ? '#e87aa0' : '#5ab86a');
+    for (let i = 0; i < 26; i++) F.cover(c.x + (rnd() - 0.5) * (c.w - 1), -FT, c.z + (rnd() - 0.5) * (c.d - 1), rnd());
   });
 }
 
 // ---------- floors ----------
 export const TEAM_SEATS: { emp: string; x: number; z: number; rot: number }[] = [];
 
-function lobby(F: Furn) {
-  F.counter(12, 13, 8, 1.2, '#f4f4f0', '#2e8f8a');
-  F.b(12, 1.05, 12.8, 3, 0.35, 0.05, '#222');
-  F.label({ t: 'F-TOWN 3 • FPT SOFTWARE', x: 12, y: 2.6, z: 10.3, w: 8, h: 1.2, rot: 0, fg: '#ffffff', bg: '#2e8f8a' });
-  F.stands.push({ x: 12, z: 11.8, rot: 0, id: 'f1-reception' });
-  F.stands.push({ x: 15, z: 16, rot: Math.PI, id: 'f1-visitor1', pose: 'wave' });
-  // turnstiles
-  for (let i = 0; i < 3; i++) { F.b(2.6 + i * 1.5, 0, 7, 0.1, 1.0, 0.9, '#b8c2c6'); F.scr(2.6 + i * 1.5, 1.0, 7, 0.1, 0.06, 0.2, '#38d96a'); }
-  F.b(7.1, 0, 7, 0.1, 1.0, 0.9, '#b8c2c6');
-  // lounge
-  F.sofa(-3, 16, Math.PI, 2.6); F.sofa(-3, 20, 0, 2.6); F.table(-3, 18, 1.4, 0.7, '#e9e2d3', 0.4);
-  F.sofa(2, 18, -Math.PI / 2, 2.2, '#e0a64b');
-  for (const [px, pz] of [[-7, 24], [-7, 9], [6, 9], [-1, 24]]) F.plant(px, pz, 1.4);
-  // cafe
-  F.counter(24, 17, 1.2, 9, '#2e8f8a', '#e9e2d3');
-  F.b(24, 1.05, 14, 0.5, 0.45, 0.6, '#b9c1c5'); F.b(24, 1.05, 17, 0.5, 0.35, 0.6, '#222'); F.scr(24, 1.4, 17, 0.2, 0.1, 0.2, '#ff8a3a');
-  F.label({ t: 'CAFÉ', x: 25.8, y: 2.6, z: 17, w: 3, h: 0.9, rot: -Math.PI / 2, fg: '#ffffff', bg: '#6b4a2f' });
-  F.stands.push({ x: 25.2, z: 17, rot: -Math.PI / 2, id: 'f1-barista' });
-  for (const z of [12, 16.5, 21]) { F.table(19, z, 0.9, 0.9, '#e9e2d3', 1.0); F.stool(18.1, z); F.stool(19.9, z); }
-  F.walkers.push({ a: [-6, 22.5], b: [8, 22.5], speed: 1.1, id: 'f1-walk1' });
-  F.walkers.push({ a: [3, 9], b: [3, 21], speed: 1.0, id: 'f1-walk2' });
-  F.tree(-8, 18, 3.5, 1.2);
+function lobby(F: Furn, S: Furn) {
+  // Authored in world metres on S (unsquashed); people go on F (layout group, scaled by K) so convert with pw().
+  const pw = (x: number, z: number): [number, number] => [x / K, z / K];
+  const stand = (id: string, x: number, z: number, rot: number, pose?: 'idle' | 'wave') => { const [a, b] = pw(x, z); F.stands.push({ x: a, z: b, rot, id, pose }); };
+  const walk = (id: string, ax: number, az: number, bx: number, bz: number, speed = 1.0) => F.walkers.push({ a: pw(ax, az), b: pw(bx, bz), speed, id });
+  const sit = (x: number, z: number, rot: number) => { const [a, b] = pw(x, z); F.sitSeats.push({ x: a, z: b, rot }); };
+  const X0 = -6.5, X1 = HX - 1.8, Z0 = -HZ + 1.8, Z1 = HZ - 1.8;
+  // inlaid border + compass motif on the marble floor
+  const bc = '#6f8f86';
+  S.b((X0 + X1) / 2, 0.012, Z0, X1 - X0, 0.01, 0.3, bc); S.b((X0 + X1) / 2, 0.012, Z1, X1 - X0, 0.01, 0.3, bc);
+  S.b(X0, 0.012, 0, 0.3, 0.01, Z1 - Z0, bc); S.b(X1, 0.012, 0, 0.3, 0.01, Z1 - Z0, bc);
+  S.label({ art: 'compass', t: 'compass', x: 7, y: 0.02, z: -1, w: 11, h: 11, rot: 0, flat: true });
+  // reception with big backlit wall
+  S.counter(14.5, 16.2, 9, 1.2, '#f4f4f0', '#2e8f8a');
+  S.scr(14.5, 1.0, 16.2 - 0.2, 6, 0.05, 0.03, '#7de0d0');
+  S.b(14.5, 0, 13.4, 11, CLEAR - 0.3, 0.3, '#f4f4f0');
+  S.scr(14.5, 0.35, 13.58, 10.4, 2.6, 0.05, '#2d8f88');
+  S.label({ t: 'FPT SOFTWARE', x: 14.5, y: 2.35, z: 13.63, w: 8, h: 1.2, rot: 0, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'F-TOWN 3', x: 14.5, y: 1.2, z: 13.63, w: 5, h: 0.9, rot: 0, fg: '#bff5ea', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'LỄ TÂN • RECEPTION', x: 14.5, y: 1.5, z: 16.85, w: 3.6, h: 0.45, rot: 0, fg: '#fff', bg: '#2e8f8a' });
+  stand('f1-reception1', 12.5, 15.0, 0); stand('f1-reception2', 16.5, 15.0, 0);
+  // security turnstile gate line
+  for (let i = 0; i < 7; i++) { S.b(-1 + i * 1.7, 0, 10.5, 0.12, 1.05, 1.0, '#b8c2c6'); S.scr(-1 + i * 1.7, 1.05, 10.5, 0.12, 0.06, 0.25, i % 3 === 0 ? '#ff5a4a' : '#38d96a'); }
+  S.label({ t: 'KIỂM SOÁT RA VÀO', x: 4.5, y: 2.6, z: 9.9, w: 5, h: 0.6, rot: 0, fg: '#fff', bg: '#34495e' });
+  stand('f1-guard', -1.8, 11.6, 0);
+  // Long Chau standee area (greeter model stands here)
+  S.b(8.5, 0.012, 17.6, 3.6, 0.01, 3.6, '#f08a3a'); S.b(8.5, 0.02, 17.6, 3.0, 0.01, 3.0, '#ffd9b0');
+  S.label({ t: 'NHÀ THUỐC LONG CHÂU', x: 8.5, y: 0.03, z: 19.7, w: 3.6, h: 0.5, rot: 0, flat: true, fg: '#c0392b', bg: 'rgba(0,0,0,0)' });
+  // LED screen wall
+  S.scr(10, 0.4, Z0 - 0.5, 18, 2.8, 0.1, '#245f93');
+  for (let i = 0; i < 3; i++) S.scr(2.5 + i * 7.5, 0.7, Z0 - 0.42, 5.4, 2.2, 0.04, ['#2e9bd6', '#2fc09a', '#e0913a'][i]);
+  S.label({ t: 'BUILDING IN THE PARK', x: 10, y: 3.0, z: Z0 - 0.4, w: 11, h: 0.8, rot: 0, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
+  stand('f1-led1', 4.5, Z0 + 1.6, Math.PI); stand('f1-led2', 5.7, Z0 + 1.9, Math.PI);
+  // café: counter + stools + menu board + high tables
+  S.counter(HX - 1.6, 3, 1.2, 12, '#2e8f8a', '#e9e2d3', -Math.PI / 2);
+  S.prop('kitchenCoffeeMachine', HX - 1.6, 1.0, 1, -Math.PI / 2, 2); S.prop('kitchenCoffeeMachine', HX - 1.6, 1.0, 5, -Math.PI / 2, 2);
+  for (let i = 0; i < 6; i++) S.stool(HX - 3.4, -1.5 + i * 2.1);
+  S.scr(HX - 1.0, 1.8, 3, 0.08, 1.1, 4.2, '#2b2118');
+  S.label({ t: 'CAFÉ • MENU', x: HX - 1.2, y: 2.95, z: 3, w: 3.4, h: 0.55, rot: -Math.PI / 2, fg: '#fff', bg: '#6b4a2f' });
+  stand('f1-barista', HX - 0.7, 2, -Math.PI / 2); stand('f1-cust1', HX - 4.4, 0.5, Math.PI / 2); stand('f1-cust2', HX - 4.4, 4.5, Math.PI / 2);
+  for (const z of [-5, 0, 5, 10]) { S.table(16.2, z, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(15.4, z); S.stool(17.0, z); }
+  // lounge groups on rugs (Kenney sofas) + seated people
+  const group = (cx: number, cz: number, rug: string, tag: string) => {
+    S.b(cx, 0.012, cz, 5.4, 0.01, 4.4, rug);
+    S.sofa(cx, cz - 1.5, 0, 2.8); S.sofa(cx, cz + 1.5, Math.PI, 2.8); S.table(cx, cz, 1.4, 0.7, '#e9e2d3', 0.4);
+    S.prop('loungeChair', cx + 2.3, 0, cz, -Math.PI / 2, 2); S.plant(cx - 2.4, cz - 1.8, 1.3);
+    sit(cx - 0.6, cz - 1.5, 0); sit(cx + 0.6, cz - 1.5, 0); sit(cx - 0.6, cz + 1.5, Math.PI); sit(cx + 0.6, cz + 1.5, Math.PI);
+    void tag;
+  };
+  group(-3.4, 15.5, '#7fb3a6', 'a'); group(-3.4, -13, '#e0b27a', 'b'); group(7, -11, '#9bb8d9', 'c'); group(16.5, -14, '#c9a6c9', 'd');
+  // big plants, wayfinding totems, pillars with light strips
+  for (let z = -18; z <= 18; z += 6) S.plant(-6.6, z, 1.9);
+  for (const [px, pz] of [[1.2, 19.8], [11, 19.8], [HX - 2.4, 11.5], [HX - 2.4, -8]]) S.plant(px, pz, 1.8);
+  const totem = (x: number, z: number, t: string, rot = 0) => { S.b(x, 0, z, 0.55, 2.3, 0.16, '#2e3f46', rot); S.label({ t, x: x + Math.sin(rot) * 0.1, y: 1.7, z: z + Math.cos(rot) * 0.1, w: 0.5, h: 0.5, rot, fg: '#ffffff', bg: '#2e8f8a' }); S.label({ t: t === 'THANG MÁY' ? 'LIFT ▲' : 'WAY ▶', x: x + Math.sin(rot) * 0.1, y: 1.1, z: z + Math.cos(rot) * 0.1, w: 0.5, h: 0.4, rot, fg: '#ffd9a0', bg: '#2e3f46' }); };
+  totem(1.5, 8.5, 'THANG MÁY'); totem(12, 8.2, 'CAFÉ'); totem(-1.5, -6, 'F2-F7');
+  for (const [px, pz] of [[2, -7], [12, -7], [12, 5], [2, 5]]) { S.b(px, 0, pz, 0.7, CLEAR, 0.7, '#f1f1ec'); for (const d of [-1, 1]) S.scr(px + d * 0.36, 0.3, pz, 0.04, 2.6, 0.3, '#cfc6aa'); }
+  // walking people
+  walk('f1-walk1', -5, 18.5, 20, 19, 1.1); walk('f1-walk2', 4.5, 19, 4.5, 11.5, 0.9); walk('f1-walk3', 0, 8.5, 12, 8.5, 1.0); walk('f1-walk4', -4, -3, 18, -3, 1.2);
+  walk('f1-walk5', 15, -18, 0, -18, 1.0); walk('f1-walk6', 2, -9, 2, 7, 0.9); walk('f1-walk7', 13, 6.5, 13, -9, 1.0); walk('f1-walk8', -6, 4, -6, -9, 0.8);
+  stand('f1-visitor1', 4.5, 15.6, Math.PI, 'wave'); stand('f1-visitor2', 5.7, 15.4, Math.PI);
+  F.npcSit = 10;
 }
 function training(F: Furn) {
   // training room
@@ -379,6 +439,10 @@ function training(F: Furn) {
     for (let i = 0; i < 4; i++) F.chair(rx - 1.9 + i * 1.25, rz + 0.75, Math.PI);
   }
   F.stands.push({ x: 16, z: 11.8, rot: 0, id: 'f2-trainer' });
+  // glass partition around the training room (door gap in the middle of the north side)
+  F.g(10.5, 0, 11.6, 4, CLEAR - 0.4, 0.05); F.g(21.5, 0, 11.6, 6, CLEAR - 0.4, 0.05); F.g(8, 0, 17, 0.05, CLEAR - 0.4, 11);
+  for (const rz of [13, 15.5, 18, 20.5]) for (const rx of [12, 19]) for (let i = 0; i < 4; i++) F.sitSeats.push({ x: rx - 1.9 + i * 1.25, z: rz + 0.75, rot: Math.PI });
+  F.npcSit = 16; F.bookcase(25, 17, -Math.PI / 2); F.bookcase(25, 20, -Math.PI / 2);
   // meeting rooms
   [4, 13, 22].forEach((x) => F.room(x, -21, 7, 6));
   // pantry
@@ -406,7 +470,10 @@ function teamFloor(F: Furn, S: Furn) {
   S.g(x0, (-bd / 2 - 1.2) / 2 * 0, (zN + -1.2) / 2, 0.05, 1.4, -1.2 - zN); S.g(x0, 0, (1.2 + zS) / 2, 0.05, 1.4, zS - 1.2);
   S.b(CX, 1.4, zS, bw, 0.05, 0.08, '#2e8f8a');
   S.label({ t: 'CỬA RA VÀO', x: doorX, y: 0.05, z: zN + 1.0, w: 3.2, h: 0.55, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(255,255,255,0.0)' });
-  S.label({ t: 'NHÀ THUỐC', x: CX, y: 0.03, z: mz(418), w: 10, h: 1.8, rot: 0, flat: true, fg: '#2c6b4f', bg: 'rgba(0,0,0,0)' });
+  // embossed floor title: dark drop shadow, mid body, bright highlight on top
+  S.label({ t: 'NHÀ THUỐC', x: CX + 0.07, y: 0.03, z: mz(418) + 0.07, w: 10, h: 1.8, rot: 0, flat: true, fg: '#1c4a38', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'NHÀ THUỐC', x: CX, y: 0.045, z: mz(418), w: 10, h: 1.8, rot: 0, flat: true, fg: '#d9f5c8', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'NHÀ THUỐC', x: CX - 0.04, y: 0.06, z: mz(418) - 0.04, w: 10, h: 1.8, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
   const islands = new Map<string, typeof NHA_THUOC_SEAT_SLOTS>();
   for (const q of NHA_THUOC_SEAT_SLOTS) { const a = islands.get(q.islandId) ?? []; a.push(q); islands.set(q.islandId, a); }
   const cols = new Set<number>(), rows = new Set<number>();
@@ -415,14 +482,14 @@ function teamFloor(F: Furn, S: Furn) {
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
     const d = Math.max(...zs) - Math.min(...zs) + 1.4;
     cols.add(Math.round(cx * 100) / 100); rows.add(Math.round(cz * 100) / 100);
-    S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#8aa982'); // island rug
+    S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#5f7d62'); // island rug
     S.g(cx, 0.75, cz, 0.04, 0.45, d);
     S.b(cx, 1.2, cz, 0.05, 0.03, d, '#2b3338'); // cable tray / partition top rail
   });
   // lighter aisle strips between island columns / rows
   const cs = [...cols].sort((a, b) => a - b), rs = [...rows].sort((a, b) => a - b);
-  for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.8, 0.01, bd - 0.4, '#cfddc6');
-  for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 0.4, 0.01, 1.8, '#cfddc6');
+  for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.4, 0.01, bd - 1.0, '#859e83');
+  for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 1.0, 0.01, 1.4, '#859e83');
   for (const q of NHA_THUOC_SEAT_SLOTS) {
     const x = mx(q.wx), z = mz(q.wy);
     if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); continue; }
@@ -467,8 +534,15 @@ function teamFloor(F: Furn, S: Furn) {
   S.label({ t: 'PANTRY', x: 18.4, y: 2.7, z: HZ - 1.2 - 0.5, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
   for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
   for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
+  // glass meeting room + clearer lounge / pantry zones
+  S.room(-3.4, -16, 6, 5, '#d9c7a8');
+  S.label({ t: 'PHÒNG HỌP', x: -3.4, y: 2.7, z: -13.45, w: 3.4, h: 0.6, rot: 0, fg: '#fff', bg: '#2e8f8a' });
+  S.prop('rugRectangle', 2.8, 0.012, 18.7, 0, [3.2, 1, 4.3]);
+  S.label({ t: 'LOUNGE', x: 2.8, y: 0.03, z: 21.2, w: 3.4, h: 0.7, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'PANTRY • CÀ PHÊ', x: 18.4, y: 0.03, z: 15.2, w: 5, h: 0.8, rot: 0, flat: true, fg: '#9a4a14', bg: 'rgba(0,0,0,0)' });
+  S.b(18.4, 0.012, 17.4, 6, 0.01, 4.2, '#d9c9a8');
   // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
-  for (let px = 3; px <= 21; px += 4.5) for (let pz = -19.5; pz <= 20; pz += 4.5) S.scr(px, CLEAR - 0.05, pz, 1.6, 0.04, 0.6, '#cfc6aa');
+  for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) S.scr(px, CLEAR - 0.05, pz, 1.1, 0.04, 0.4, '#8f927e');
 }
 function openPlan(F: Furn, f: number, tag: string) {
   const rnd = mulberry32(f * 977);
@@ -481,7 +555,14 @@ function openPlan(F: Furn, f: number, tag: string) {
   F.room(22, -3, 4, 5);
   for (const [px, pz] of [[7, 0], [15, 0], [24, -7], [-7, 0]]) F.plant(px, pz, 1.3);
   F.label({ t: `${tag} • OPEN WORKSPACE`, x: 13, y: 0.05, z: 0, w: 9, h: 1.2, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
-  F.npcSeated = 6;
+  // phone booths + print corner + breakout
+  for (const [bx, bz] of [[24, 6], [24, 9], [-7, 8], [-7, 12]]) { F.g(bx, 0, bz, 1.5, CLEAR - 0.8, 0.04); F.g(bx, 0, bz + 1.4, 1.5, CLEAR - 0.8, 0.04); F.g(bx + 0.75, 0, bz + 0.7, 0.04, CLEAR - 0.8, 1.4); F.table(bx - 0.1, bz + 0.5, 0.9, 0.5, '#e9e2d3', 0.75); F.chair(bx - 0.1, bz + 1.05, Math.PI); F.b(bx, 2.4, bz + 0.7, 1.6, 0.06, 1.5, '#2e8f8a'); }
+  for (const px of [-7, -5.5]) { F.table(px, -4, 0.9, 0.6, '#e9e2d3', 0.75); F.b(px, 0.75, -4, 0.7, 0.35, 0.5, '#f2f2f2'); F.scr(px, 0.95, -3.76, 0.15, 0.05, 0.02, '#38d96a'); }
+  F.label({ t: 'IN ẤN • PRINT', x: -6.2, y: 2.3, z: -4.6, w: 2.2, h: 0.4, rot: 0, fg: '#fff', bg: '#34495e' });
+  F.counter(24, -14, 1.2, 4, '#f1ede4', '#2e8f8a'); F.stands.push({ x: 22.5, z: -13, rot: Math.PI / 2, id: `f${f}-pantry` }, { x: 22.5, z: -15, rot: Math.PI / 2, id: `f${f}-pantry2` });
+  F.stands.push({ x: 7, z: -3.5, rot: 0, id: `f${f}-chat1` }, { x: 8.2, z: -3.2, rot: Math.PI, id: `f${f}-chat2` });
+  F.walkers.push({ a: [-5, 0], b: [20, 0], speed: 1.0, id: `f${f}-walk1` }, { a: [7, -15], b: [7, 15], speed: 0.9, id: `f${f}-walk2` });
+  F.npcSeated = 16;
 }
 function rnd(F: Furn) {
   F.label({ t: 'R&D CENTER', x: 12, y: 0.05, z: -2, w: 8, h: 1.3, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
@@ -492,7 +573,13 @@ function rnd(F: Furn) {
   }
   F.b(22, 0, -22, 2.2, 1.6, 1.4, '#4a5a64'); F.b(22, 1.6, -22, 0.5, 1.0, 0.5, '#e07a3a'); // robot arm
   F.island(-5, -11); F.island(3, -9);
-  F.npcSeated = 3;
+  F.npcSeated = 6;
+  for (let i = 0; i < 3; i++) { F.b(2 + i * 1.3, 0, -8.5, 0.9, 0.9, 0.9, '#e8e8e8'); F.scr(2 + i * 1.3, 0.95, -8.5 + 0.46, 0.5, 0.35, 0.03, '#ffb03a'); } // 3D printers
+  F.label({ t: '3D PRINT & ROBOTICS', x: 3.6, y: 2.3, z: -9.4, w: 4, h: 0.5, rot: 0, fg: '#fff', bg: '#34495e' });
+  F.b(24.3, 0.8, -12, 0.08, 2.2, 6, '#ffffff'); F.scr(24.2, 1.0, -12, 0.04, 1.6, 4.5, '#2a7fb8'); // wall whiteboard / screen
+  F.stands.push({ x: 20, z: -17, rot: Math.PI / 2, id: 'f6-lab1' }, { x: 21.2, z: -17.2, rot: -Math.PI / 2, id: 'f6-lab2' }, { x: 15, z: 7, rot: Math.PI, id: 'f6-lab3' });
+  F.walkers.push({ a: [3, -3], b: [22, -3], speed: 1.0, id: 'f6-walk1' });
+  F.plant(-7, 0, 1.3); F.plant(24, 2, 1.3);
   // Jenkins server room
   const cx = 13, cz = 15;
   F.g(cx, 0, 10, 18, CLEAR - 0.3, 0.05); F.g(cx, 0, 20, 18, CLEAR - 0.3, 0.05); F.g(4, 0, cz, 0.05, CLEAR - 0.3, 10); F.g(22, 0, cz, 0.05, CLEAR - 0.3, 10);
@@ -521,11 +608,17 @@ function canteen(F: Furn) {
   }
   // sky garden (indoor/terrace)
   const r = mulberry32(99);
-  F.b(8, 0, 17, 30, 0.12, 14, '#59a85c');
+  F.b(8, 0, 17, 30, 0.12, 14, '#5f9362');
   F.label({ t: 'SKY GARDEN', x: 8, y: 0.2, z: 10.4, w: 6, h: 1, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
   for (let i = 0; i < 14; i++) F.tree(-6 + r() * 28, 11 + r() * 12, 2.5 + r() * 1.5, 0.9 + r() * 0.6, r() < 0.5 ? '#2f8a4a' : '#59b36a');
   for (let i = 0; i < 4; i++) F.b(-2 + i * 7, 0.12, 20, 2.2, 0.4, 0.6, '#c49a6c');
-  F.walkers.push({ a: [0, 9], b: [24, 9], speed: 1.0, id: 'f7-walk1' });
+  F.walkers.push({ a: [0, 9], b: [24, 9], speed: 1.0, id: 'f7-walk1' }, { a: [3, 20], b: [20, 20], speed: 0.8, id: 'f7-walk2' }, { a: [-5, -20], b: [24, -20], speed: 0.7, id: 'f7-walk3' });
+  // serving line: trays, food wells and a queue; garden path + planter beds
+  for (let i = 0; i < 8; i++) { F.b(5 + i * 2.3, 1.05, -22.2, 0.5, 0.04, 0.35, '#cfd6d4'); F.b(5 + i * 2.3, 1.05, -22.7, 0.45, 0.14, 0.4, ['#e0a64b', '#c0392b', '#59b36a', '#f1d98a'][i % 4]); }
+  F.stands.push({ x: 7, z: -20.8, rot: Math.PI, id: 'f7-q1' }, { x: 9.2, z: -20.8, rot: Math.PI, id: 'f7-q2' }, { x: 12, z: -20.8, rot: Math.PI, id: 'f7-q3' }, { x: 15.5, z: -20.8, rot: Math.PI, id: 'f7-q4' });
+  for (let i = 0; i < 10; i++) F.b(-5 + i * 2.8, 0.12, 14.5, 1.3, 0.04, 0.8, '#d8d2c4'); // stepping path
+  for (const z of [12, 22]) for (let i = 0; i < 6; i++) { F.b(-5 + i * 5, 0.12, z, 2.6, 0.45, 0.9, '#a8693c'); F.ball(-5 + i * 5, 0.9, z, 0.55, i % 2 ? '#3f9a55' : '#e87aa0'); }
+  F.npcSit = 14;
 }
 function basement(F: Furn) {
   F.solid = true;
@@ -577,7 +670,7 @@ export function roof(F: Furn, S: Furn) {
   F.b(-2.5, 0, 0, 6, 2.2, 8, '#d9cdb4'); F.b(-2.5, 2.2, 0, 6.3, 0.15, 8.3, '#efe8d8');
   F.b(10, 0, -4, 3, 1.4, 2, '#9aa6ad'); F.b(15, 0, -4, 3, 1.4, 2, '#9aa6ad'); F.b(20, 0, -4, 3, 1.4, 2, '#9aa6ad');
   // sky garden on roof
-  F.b(11, 0, 16, 28, 0.15, 14, '#5eb862');
+  F.b(11, 0, 16, 28, 0.15, 14, '#639a66');
   F.b(11, 0.15, 16, 3, 0.03, 13, '#d8d2c4');
   for (let i = 0; i < 16; i++) F.tree(-2 + rnd() * 26, 10 + rnd() * 12, 2.6 + rnd() * 2, 1 + rnd() * 0.7, rnd() < 0.5 ? '#2f8a4a' : '#5cbf6b');
   for (let i = 0; i < 5; i++) F.b(-1 + i * 6, 0.15, 21.5, 2.2, 0.4, 0.6, '#c49a6c');
@@ -598,7 +691,7 @@ export function getFloor(f: number): FloorData {
     shell(str, f);
     core(str);
     switch (dept?.role) {
-      case 'COMMON': if (f === commons[0]) lobby(lay); else training(lay); break;
+      case 'COMMON': if (f === commons[0]) lobby(lay, str); else training(lay); break;
       case 'TEAM': teamFloor(lay, str); break;
       case 'OTHER_BU': openPlan(lay, f, dept.label); break;
       case 'RND': rnd(lay); break;

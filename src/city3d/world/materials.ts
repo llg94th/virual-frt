@@ -22,13 +22,16 @@ float sd = floor(vInfo.x+0.5); float st = floor(vInfo.y+0.5);
 vec2 wg = vec2(vWuv.x/2.4, vWuv.y/${FLOOR_H.toFixed(2)});
 float wfw = max(fwidth(wg.x), fwidth(wg.y));
 float wMask = 0.0; float wLit = 0.0; vec3 wEm = vec3(0.0); float wGlass = 0.0;
-if (st > 0.5 && st < 3.5) {
-  vec2 cell = floor(wg); vec2 f = fract(wg);
+vec2 cell = floor(wg); vec2 f = fract(wg);
+if (st > 0.5 && st < 7.5 && (st < 3.5 || st > 4.5)) {
   vec2 lo = vec2(0.14,0.2); vec2 hi = vec2(0.86,0.78);
   if (st > 1.5 && st < 2.5) { lo = vec2(0.3,0.34); hi = vec2(0.7,0.76); }
-  else if (st > 2.5) { lo = vec2(0.33,0.3); hi = vec2(0.67,0.76); }
+  else if (st > 2.5 && st < 3.5) { lo = vec2(0.33,0.3); hi = vec2(0.67,0.76); }
+  else if (st > 4.5 && st < 5.5) { lo = vec2(0.22,0.32); hi = vec2(0.78,0.8); }
+  else if (st > 5.5 && st < 6.5) { lo = vec2(0.3,0.18); hi = vec2(0.76,0.88); }
+  else if (st > 6.5) { lo = vec2(0.0,0.24); hi = vec2(1.0,0.74); }
   float ground = 1.0 - step(0.5, cell.y);
-  if (ground > 0.5 && st < 1.5) { lo.y = 0.04; }
+  if (ground > 0.5 && (st < 1.5 || (st > 4.5 && st < 5.5))) { lo = vec2(0.08,0.04); hi = vec2(0.92,0.82); }
   vec2 s2 = step(lo, f) * step(f, hi);
   float m = s2.x * s2.y;
   float h1 = wHash(vec3(cell, sd)); float h2 = wHash(vec3(cell + 31.7, sd + 3.0)); float h3 = wHash(vec3(cell + 7.3, sd + 9.0));
@@ -38,19 +41,29 @@ if (st > 0.5 && st < 3.5) {
   float fade = smoothstep(0.4, 1.0, wfw);
   wMask = mix(m, (hi.x-lo.x)*(hi.y-lo.y), fade);
   wLit = mix(lit, bProb, fade);
-  wGlass = st < 1.5 ? 1.0 : 0.6;
+  wGlass = (st < 1.5 || st > 6.5) ? 1.0 : 0.6;
   vec3 warm = mix(vec3(1.0,0.78,0.45), vec3(0.75,0.88,1.0), step(0.75, h3));
   wEm = warm * (0.3 + 0.9*h1*h1);
   vec3 dayC = mix(vec3(0.10,0.16,0.22), vec3(0.38,0.52,0.64), 0.5+0.5*h1) * (0.35 + 0.65*uDay);
+  if (st > 6.5) dayC = mix(vec3(0.06,0.22,0.28), vec3(0.30,0.62,0.68), 0.35+0.65*h1) * (0.35 + 0.65*uDay);
   vec3 nightC = vec3(0.02,0.03,0.05) * (0.5 + h1);
   diffuseColor.rgb = mix(diffuseColor.rgb, mix(nightC, dayC, uDay), wMask * 0.95);
+  if (st > 4.5 && st < 5.5) { // pastel mid-rise: balcony slab + railing, shutters
+    float slab = 1.0 - step(0.14, f.y); float rail = step(0.14, f.y) * (1.0 - step(0.3, f.y)) * step(0.12, f.x) * step(f.x, 0.88);
+    diffuseColor.rgb *= 1.0 - 0.35 * slab * (1.0 - ground) - 0.22 * rail * (1.0 - ground);
+  }
+  if (st > 5.5 && st < 6.5) { // white concrete with vertical fins
+    float fin = step(f.x, 0.14) + step(0.86, f.x);
+    diffuseColor.rgb *= 1.0 + 0.1 * fin; diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.82, step(0.14, f.x) * step(f.x, 0.86) * (1.0 - wMask));
+  }
+  if (st > 6.5) { diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.6 + vec3(0.02,0.08,0.09), 1.0 - wMask); } // dark spandrel bands
 }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 roughnessFactor = mix(roughnessFactor, 0.1, wMask * wGlass);`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
 metalnessFactor = mix(metalnessFactor, 0.5, wMask * wGlass);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += wEm * wLit * wMask * uNight * 0.7;
+totalEmissiveRadiance += wEm * wLit * wMask * uNight * (st > 6.5 ? 0.3 : 0.7);
 if (st > 3.5) totalEmissiveRadiance += diffuseColor.rgb * (0.4 + uNight * 1.8);`);
   };
   return m;
@@ -148,4 +161,32 @@ export function makeWaterNormal(): THREE.CanvasTexture {
   }
   x2.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+
+export const BANNER_TEXT: [string, string, string][] = [
+  ['F-TOWN', '#f26a10', '#ffffff'], ['LONG\nCHÂU', '#0a8f4a', '#ffffff'], ['FPT\nSHOP', '#f26a10', '#ffe0c0'],
+  ['PHỞ', '#7a1a1a', '#ffd34d'], ['CÀ\nPHÊ', '#3a2418', '#f5deb3'], ['SAIGON\nHI-TECH', '#0f3b6a', '#bfe3ff'],
+];
+export function makeBannerAtlas(): THREE.CanvasTexture {
+  const W = 128, H = 256, c = document.createElement('canvas'); c.width = W * 6; c.height = H;
+  const x = c.getContext('2d')!;
+  BANNER_TEXT.forEach(([txt, bg, fg], i) => {
+    const ox = i * W; x.fillStyle = bg; x.fillRect(ox, 0, W, H);
+    x.fillStyle = fg; x.fillRect(ox, 0, W, 14); x.fillRect(ox, H - 14, W, 14);
+    x.strokeStyle = fg; x.lineWidth = 4; x.strokeRect(ox + 10, 24, W - 20, H - 48);
+    x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = 'bold 34px sans-serif';
+    const lines = txt.split('\n'); lines.forEach((l, k) => x.fillText(l, ox + W / 2, H / 2 + (k - (lines.length - 1) / 2) * 44));
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+/** Subtle paving tiles for sidewalks (tile = 1.2 m when repeated BLOCK/1.2). */
+export function makePavingTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d')!; x.fillStyle = '#d4d4d0'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    const v = 200 + Math.random() * 18 | 0; x.fillStyle = `rgb(${v},${v},${v - 4})`; x.fillRect(i * 32 + 1, j * 32 + 1, 30, 30);
+  }
+  x.strokeStyle = 'rgba(80,80,80,0.55)'; x.lineWidth = 2;
+  for (let k = 0; k <= 128; k += 32) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k, 128); x.stroke(); x.beginPath(); x.moveTo(0, k); x.lineTo(128, k); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }

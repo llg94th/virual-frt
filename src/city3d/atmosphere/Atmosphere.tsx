@@ -7,7 +7,7 @@ import { Rain, CloudLayer } from './Weather';
 
 const SHADOW_RES: Record<Quality, number> = { low: 1024, medium: 2048, high: 4096 };
 const WEATHER_TARGET: Record<Weather, { rain: number; cover: number; dark: number; fog: number }> = {
-  clear: { rain: 0, cover: 0.05, dark: 0, fog: 0.0008 },
+  clear: { rain: 0, cover: 0.05, dark: 0, fog: 0.00065 },
   cloudy: { rain: 0, cover: 0.85, dark: 0.25, fog: 0.0014 },
   rain: { rain: 0.75, cover: 1, dark: 0.55, fog: 0.0024 },
   storm: { rain: 1, cover: 1, dark: 1, fog: 0.0034 },
@@ -17,11 +17,11 @@ const WEATHER_TARGET: Record<Weather, { rain: number; cover: number; dark: numbe
 const PAL = ([
   [-0.35, '#02040c', '#080e22'],
   [-0.12, '#060a1c', '#16204a'],
-  [-0.03, '#222a5e', '#ff5f38'],
-  [0.07, '#44579a', '#ff9450'],
-  [0.25, '#4d84c8', '#ffd09a'],
-  [0.6, '#2e7be0', '#bfe0ff'],
-  [1.0, '#2370da', '#cbe7ff'],
+  [-0.03, '#2a2a68', '#ff5a40'],
+  [0.07, '#3d4f9a', '#ff8e52'],
+  [0.25, '#3f78c8', '#f6cf9e'],
+  [0.6, '#1f68d6', '#b4d4f0'],
+  [1.0, '#1559c8', '#b0d0ee'],
 ] as [number, string, string][]).map(([e, t, h]) => ({ e, top: new THREE.Color(t), hor: new THREE.Color(h) }));
 const SUN_LOW = new THREE.Color('#ff7a3a');
 const SUN_MID = new THREE.Color('#ffd7a0');
@@ -32,7 +32,7 @@ const WHITE = new THREE.Color('#ffffff');
 const NIGHT_CLOUD = new THREE.Color('#0a0e1c');
 const HEMI_SKY_DAY = new THREE.Color('#bcd8ff');
 const HEMI_SKY_NIGHT = new THREE.Color('#1a2550');
-const HEMI_GROUND_DAY = new THREE.Color('#5a5446');
+const HEMI_GROUND_DAY = new THREE.Color('#2f2b25'); // dark ground bounce fakes AO under overhangs
 const HEMI_GROUND_NIGHT = new THREE.Color('#0b0d16');
 
 const sstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -59,7 +59,7 @@ varying vec3 vDir;
 void main(){
   vec3 d = normalize(vDir);
   float h = clamp(d.y, 0.0, 1.0);
-  vec3 col = mix(uHor, uTop, pow(h, 0.45));
+  vec3 col = mix(uHor, uTop, pow(h, 0.55));
   if (d.y < 0.0) col = mix(uHor, uHor * 0.55, clamp(-d.y * 4.0, 0.0, 1.0));
   float sd = max(dot(d, uSunDir), 0.0);
   float glow = pow(sd, 6.0) * 0.28 + pow(sd, 64.0) * 0.5 + smoothstep(0.9993, 0.9996, sd) * 3.0;
@@ -234,7 +234,7 @@ export const Atmosphere: React.FC = () => {
     wx.tint.multiplyScalar(0.55 + 0.45 * dayRaw).lerp(NIGHT_CLOUD, (1 - dayRaw) * 0.85).multiplyScalar(1 - 0.5 * s.dark);
 
     // fog
-    fog.color.copy(_tmpHor).lerp(_tmpTop, 0.15);
+    fog.color.copy(_tmpHor).lerp(_tmpTop, 0.12 + 0.3 * dayRaw * (1 - ov));
     if (flash > 0.01) fog.color.lerp(WHITE, flash * 0.35);
     fog.density = s.fog * (1 + 0.5 * (1 - dayRaw));
 
@@ -262,7 +262,7 @@ export const Atmosphere: React.FC = () => {
       if (Math.abs(cam.right - S2) > 0.05) { cam.left = -S2; cam.right = S2; cam.top = S2; cam.bottom = -S2; cam.near = 5; cam.far = 460; cam.updateProjectionMatrix(); }
       const overcast = 1 - 0.6 * s.cover;
       if (moonMode) { sun.color.copy(MOON_COL); sun.intensity = 0.45 * (1 - dayRaw) * overcast; }
-      else { sun.color.copy(u.uSunCol.value); sun.intensity = 3.2 * sstep(-0.02, 0.3, elev) * overcast * (1 - 0.4 * sstep(0.3, 0.75, s.rain)); }
+      else { sun.color.copy(u.uSunCol.value); sun.intensity = 3.4 * sstep(-0.02, 0.3, elev) * overcast * (1 - 0.4 * sstep(0.3, 0.75, s.rain)); }
       if (flash > 0.01) { sun.intensity += flash * 3; if (moonMode) sun.color.lerp(WHITE, flash); }
       sun.castShadow = sun.intensity > 0.05;
     }
@@ -270,7 +270,7 @@ export const Atmosphere: React.FC = () => {
     if (hemi) {
       hemi.color.copy(HEMI_SKY_NIGHT).lerp(HEMI_SKY_DAY, dayRaw).lerp(_tmpHor, 0.25 * (1 - Math.abs(elev)));
       hemi.groundColor.copy(HEMI_GROUND_NIGHT).lerp(HEMI_GROUND_DAY, dayRaw);
-      hemi.intensity = (0.28 + 0.75 * dayRaw) * (1 - 0.2 * s.dark) + flash * 4;
+      hemi.intensity = (0.26 + 0.62 * dayRaw) * (1 - 0.2 * s.dark) + flash * 4;
     }
   });
 
@@ -285,7 +285,7 @@ export const Atmosphere: React.FC = () => {
       <hemisphereLight ref={hemiRef} args={['#bcd8ff', '#5a5446', 1]} />
       <directionalLight
         key={quality} ref={sunRef} castShadow intensity={3} shadow-mapSize={[res, res]}
-        shadow-bias={-0.0004} shadow-normalBias={0.06}
+        shadow-bias={-0.0003} shadow-normalBias={quality === 'low' ? 0.12 : 0.07} shadow-radius={3}
       />
       <CloudLayer />
       <Rain />

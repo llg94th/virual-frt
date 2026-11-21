@@ -13,8 +13,8 @@ export interface Tier { cx: number; cz: number; w: number; d: number; y0: number
 export const DIRS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export interface CityBuilding {
   id: number; block: [number, number]; cx: number; cz: number; w: number; d: number;
-  floors: number; h: number; style: 1 | 2 | 3; color: [number, number, number];
-  tiers: Tier[]; seed: number; kind: 'normal' | 'pharmacy' | 'fpt'; face: number;
+  floors: number; h: number; style: 1 | 2 | 3 | 5 | 6 | 7; color: [number, number, number];
+  tiers: Tier[]; seed: number; kind: 'normal' | 'pharmacy' | 'fpt' | 'shop'; face: number;
 }
 export interface Footprint { cx: number; cz: number; w: number; d: number; h: number }
 
@@ -71,14 +71,20 @@ function makeTiers(r: () => number, cx: number, cz: number, w: number, d: number
           if (lotW < 18) floors = Math.min(floors, 26);
           floors = Math.max(rr < 2.2 ? 3 : 8, Math.min(60, floors));
           const sr = r();
-          let style: 1 | 2 | 3;
-          if (floors > 30) style = sr < 0.72 ? 1 : 2;
-          else if (floors > 16) style = sr < 0.4 ? 1 : sr < 0.8 ? 2 : 3;
-          else style = sr < 0.15 ? 1 : sr < 0.55 ? 2 : 3;
+          type St = CityBuilding['style'];
+          const pickStyle = (tbl: [number, St][]): St => { let acc = 0; for (const [p, st] of tbl) { acc += p; if (sr < acc) return st; } return tbl[tbl.length - 1][1]; };
+          let style: St;
+          if (floors > 30) style = pickStyle([[0.4, 7], [0.25, 1], [0.2, 6], [0.15, 2]]);
+          else if (floors > 16) style = pickStyle([[0.2, 7], [0.15, 1], [0.2, 6], [0.25, 5], [0.1, 2], [0.1, 3]]);
+          else style = pickStyle([[0.35, 5], [0.2, 2], [0.15, 6], [0.2, 3], [0.1, 1]]);
           const cr = r();
+          const PASTEL: [number, number, number][] = ([[0.95, 0.84, 0.42], [0.95, 0.6, 0.66], [0.6, 0.86, 0.7], [0.62, 0.76, 0.92], [0.96, 0.76, 0.56], [0.85, 0.7, 0.9]] as [number, number, number][]).map((c) => [c[0] * 0.5, c[1] * 0.5, c[2] * 0.5] as [number, number, number]);
           let color: [number, number, number];
           if (style === 1) color = [0.42 + cr * 0.15, 0.52 + cr * 0.15, 0.62 + cr * 0.12];
+          else if (style === 7) color = [0.18 + cr * 0.12, 0.42 + cr * 0.15, 0.5 + cr * 0.15];
           else if (style === 2) color = [0.55 + cr * 0.18, 0.53 + cr * 0.16, 0.5 + cr * 0.12];
+          else if (style === 6) color = [0.5 + cr * 0.06, 0.48 + cr * 0.06, 0.43 + cr * 0.06];
+          else if (style === 5) color = PASTEL[Math.floor(cr * PASTEL.length) % PASTEL.length];
           else color = [0.5 + cr * 0.15, 0.24 + cr * 0.08, 0.18 + cr * 0.06];
           // outward face from block edge
           const edges: number[] = [];
@@ -87,9 +93,23 @@ function makeTiers(r: () => number, cx: number, cz: number, w: number, d: number
           const face = edges.length ? edges[Math.floor(r() * edges.length)] : -1;
           let kind: CityBuilding['kind'] = 'normal';
           let cx = lcx + ox, cz = lcz + oz, bw = w, bd = d;
-          if (i === 1 && j === 0 && ix === 0 && iz === 0) { kind = 'pharmacy'; floors = 4; style = 2; color = [0.86, 0.9, 0.88]; cx = lcx; cz = lcz; bw = lotW; bd = lotD; }
-          else if (i === -1 && j === 0 && ix === 1 && iz === 0) { kind = 'fpt'; floors = 4; style = 2; color = [0.82, 0.78, 0.74]; cx = lcx; cz = lcz; bw = lotW; bd = lotD; }
+          if (i === 1 && j === 0 && ix === 0 && iz === 0) { kind = 'pharmacy'; floors = 4; style = 2; color = [0.6, 0.64, 0.62]; cx = lcx; cz = lcz; bw = lotW; bd = lotD; }
+          else if (i === -1 && j === 0 && ix === 1 && iz === 0) { kind = 'fpt'; floors = 4; style = 2; color = [0.58, 0.55, 0.52]; cx = lcx; cz = lcz; bw = lotW; bd = lotD; }
           else if (dist >= 2 && skipRoll < 0.05) continue;
+          else if (rr < 2.2 && (iz === 0 || iz === nz - 1)) { // colourful shophouse row facing the street
+            const n = Math.max(2, Math.round(lotW / 5)), sw = lotW / n, front = iz === 0 ? 3 : 2;
+            const bd2 = Math.max(12, lotD - 3 - r() * 3);
+            for (let k = 0; k < n; k++) {
+              const fl = 3 + Math.floor(r() * 3), pc = PASTEL[Math.floor(r() * PASTEL.length)];
+              const ccz = iz === 0 ? lcz - lotD / 2 + bd2 / 2 : lcz + lotD / 2 - bd2 / 2;
+              const seedS = id + 1, trS = mulberry32(CITY_SEED ^ Math.imul(seedS, 2654435761));
+              const wS = sw - 0.25, cxS = lcx - lotW / 2 + sw * (k + 0.5);
+              buildings.push({ id: id++, block: [i, j], cx: cxS, cz: ccz, w: wS, d: bd2, floors: fl, h: fl * FLOOR_H, style: r() < 0.8 ? 5 : 2,
+                color: pc, tiers: [{ cx: cxS, cz: ccz, w: wS, d: bd2, y0: 0, y1: fl * FLOOR_H }], seed: seedS, kind: 'shop', face: front });
+              void trS;
+            }
+            continue;
+          }
           const seed = id + 1;
           const tr = mulberry32(CITY_SEED ^ Math.imul(seed, 2654435761));
           buildings.push({
@@ -143,6 +163,16 @@ export const stones: Stone[] = [];
 /** Water features: round pools / canal in the tower ring, plus the park pond. */
 export const waterRects: { x: number; z: number; w: number; d: number }[] = [{ x: 0, z: -(TOWER_FOOTPRINT.d / 2 + 0.9), w: TOWER_FOOTPRINT.w * 0.55, d: 0.9 }];
 export const waterRounds: { x: number; z: number; r: number }[] = [{ x: -17.5, z: 25.6, r: 1.8 }, { x: 17.5, z: 25.6, r: 1.8 }];
+export interface Bike { x: number; z: number; rot: number; c: [number, number, number] }
+export interface CafeSet { x: number; z: number; c: [number, number, number] }
+export interface Cart { x: number; z: number; rot: number; c: [number, number, number] }
+export interface Banner { x: number; z: number; ox: number; oz: number; cell: number }
+export const bikes: Bike[] = [];
+export const cafes: CafeSet[] = [];
+export const carts: Cart[] = [];
+export const banners: Banner[] = [];
+/** Cable bundles between consecutive poles: [x1,z1,x2,z2]. */
+export const cableLinks: [number, number, number, number][] = [];
 export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8, r: 8 };
 
 (function furniture() {
@@ -159,6 +189,12 @@ export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8
       }
       DIRS.forEach(([ox, oz], s) => {
         lamps.push({ x: bx + ox * L, z: bz + oz * L, ox, oz });
+        {
+          const axx = s < 2 ? 0 : 1, azz = s < 2 ? 1 : 0;
+          const pt = (t: number): [number, number] => [bx + ox * L + axx * t, bz + oz * L + azz * t];
+          if (r() < 0.45) { const [a1, a2] = pt(-L), [b1, b2] = pt(0), [c1, c2] = pt(L); cableLinks.push([a1, a2, b1, b2], [b1, b2, c1, c2]); }
+          if (Math.hypot(bx, bz) < 170 && (i + j + s) % 2 === 0 && !(i === 0 && j === 0 && s === 2)) banners.push({ x: bx + ox * L, z: bz + oz * L, ox, oz, cell: (banners.length * 3 + s) % 6 });
+        }
         const ax = s < 2 ? 0 : 1, az = s < 2 ? 1 : 0;
         const isTower = i === 0 && j === 0;
         const ts = isTower ? [-24, -18, -12, 12, 18, 24, -6, 6] : [-8, 8, -17, 17];
@@ -171,6 +207,20 @@ export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8
       });
     }
   }
+  // street life: parked motorbikes in front of shophouses, cafe sets + vendor carts near the tower plaza
+  const bikeCol = (): [number, number, number] => { const c = [[0.1, 0.1, 0.12], [0.75, 0.1, 0.1], [0.9, 0.9, 0.92], [0.15, 0.3, 0.7], [0.8, 0.6, 0.1]][Math.floor(r() * 5)]; return c as [number, number, number]; };
+  for (const b of buildings) {
+    if (b.kind !== 'shop') continue;
+    const oz = b.face === 2 ? 1 : -1, n = 2 + Math.floor(r() * 3), bz = b.block[1] * PITCH, bx = b.block[0] * PITCH;
+    for (let k = 0; k < n; k++) {
+      const x = b.cx - b.w / 2 + 0.8 + ((b.w - 1.6) * (k + 0.5)) / n, z = bz + oz * 25.9;
+      if (trees.some((t) => t.s >= 0.5 && Math.abs(t.z - z) < 2 && Math.abs(t.x - x) < 1.6)) continue;
+      if (bx === 0 && bz === 0) continue;
+      bikes.push({ x, z, rot: Math.PI / 2 + (r() - 0.5) * 0.2, c: bikeCol() });
+    }
+  }
+  for (const [x, z] of [[-21, 27.2], [-24, 27.2], [21, 27.2], [24, 27.2], [27.2, -9], [27.2, 9], [-27.2, -9], [-27.2, 9]]) cafes.push({ x, z, c: [[0.9, 0.2, 0.2], [0.95, 0.75, 0.15], [0.2, 0.55, 0.85], [0.2, 0.7, 0.4]][Math.floor(r() * 4)] as [number, number, number] });
+  for (const [x, z, rot] of [[-27.4, -15, 0], [27.4, 15, Math.PI], [-12, 27.5, 0.2], [12, 27.5, -0.2], [PARK_BLOCK[0] * PITCH + 27.2, PARK_BLOCK[1] * PITCH - 12, Math.PI / 2], [PARK_BLOCK[0] * PITCH - 12, PARK_BLOCK[1] * PITCH + 27.2, 0]]) carts.push({ x, z, rot, c: [[0.9, 0.5, 0.1], [0.2, 0.6, 0.3], [0.8, 0.2, 0.25]][Math.floor(r() * 3)] as [number, number, number] });
   // tower ring: bushes between wall and path, benches, garden lights, stepping stones
   const hw = TOWER_FOOTPRINT.w / 2;
   for (let t = -hw + 3; t <= hw - 3; t += 4.5) for (const [ox, oz] of DIRS) {

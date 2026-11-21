@@ -16,7 +16,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 teal = vec3(-0.012, 0.012, 0.03);
   vec3 orange = vec3(0.07, 0.02, -0.04);
   c += (teal * sh + orange * hi * (1.0 - uNight * 0.5)) * uAmount;
-  c = mix(vec3(l), c, 1.0 + 0.14 * uAmount);
+  c = mix(vec3(l), c, 1.0 + 0.3 * uAmount);
+  c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.0 + 0.09 * uAmount));
   outputColor = vec4(max(c, 0.0), inputColor.a);
 }`;
 
@@ -46,7 +47,7 @@ const PostFxInner: React.FC = () => {
   const low = quality === 'low';
   const toneMode = useMemo(() => {
     const m = ToneMappingMode as unknown as Record<string, number>;
-    return (m.AGX ?? m.ACES_FILMIC) as ToneMappingMode;
+    return m.ACES_FILMIC as ToneMappingMode;
   }, []);
 
   useEffect(() => () => grade.dispose(), [grade]);

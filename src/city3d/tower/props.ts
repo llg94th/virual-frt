@@ -9,7 +9,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export interface PropGeo { main: THREE.BufferGeometry; glow: THREE.BufferGeometry | null }
-const BASE = `${(import.meta as any).env?.BASE_URL ?? '/'}models/kenney/furniture/`;
+const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/kenney/`;
+/** names prefixed 'n:' come from the Nature Kit, others from the Furniture Kit */
+const urlOf = (n: string) => (n.startsWith('n:') ? `${ROOT}nature/${n.slice(2)}.glb` : `${ROOT}furniture/${n}.glb`);
 const store = new Map<string, PropGeo | 'fail' | 'loading'>();
 const listeners = new Set<() => void>();
 let version = 0;
@@ -42,7 +44,7 @@ export function requestProps(names: string[]) {
     if (store.has(n)) continue;
     store.set(n, 'loading');
     loader ??= new GLTFLoader();
-    loader.load(`${BASE}${n}.glb`, (g) => { try { store.set(n, build(n, g.scene)); } catch { store.set(n, 'fail'); } bump(); }, undefined, () => { store.set(n, 'fail'); bump(); });
+    loader.load(urlOf(n), (g) => { try { store.set(n, build(n, g.scene)); } catch { store.set(n, 'fail'); } bump(); }, undefined, () => { store.set(n, 'fail'); bump(); });
   }
 }
 export function getProp(name: string): PropGeo | null { const v = store.get(name); return v && v !== 'fail' && v !== 'loading' ? v : null; }

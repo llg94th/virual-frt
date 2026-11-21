@@ -26,7 +26,7 @@ function useMats() {
     const glassFull = new THREE.MeshStandardMaterial({ color: '#1d2d33', transparent: true, opacity: 0.55, roughness: 0.15, metalness: 0.5, depthWrite: false, side: THREE.DoubleSide, emissive: '#ffd9a0', emissiveIntensity: 0 });
     const glassCut = new THREE.MeshStandardMaterial({ color: '#9fd8d4', transparent: true, opacity: 0.05, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
     const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 });
-    const inner = new THREE.MeshStandardMaterial({ color: '#bfe8ea', transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
+    const inner = new THREE.MeshStandardMaterial({ color: '#dfe9e6', transparent: true, opacity: 0.08, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
     const screen = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
     const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
@@ -40,11 +40,31 @@ function useMats() {
     })();
     const fascia = new THREE.MeshStandardMaterial({ color: '#ffffff', map: dots, roughness: 0.7, side: THREE.DoubleSide });
     const corten = new THREE.MeshStandardMaterial({ color: '#8a3b22', roughness: 0.8, side: THREE.DoubleSide });
-    const carpet = new THREE.MeshStandardMaterial({ color: '#a7bf9d', roughness: 1 });
+    const tex = (draw: (g: CanvasRenderingContext2D, n: number) => void, repeat: number) => {
+      if (typeof document === 'undefined') return null;
+      const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d')!; draw(g, 512);
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+    };
+    // sage carpet tiles (0.5 m tiles) with a faint weave
+    const carpetMap = tex((g, n) => {
+      g.fillStyle = '#738c72'; g.fillRect(0, 0, n, n);
+      const r = mulberry32(5); for (let i = 0; i < 1400; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,40,0,0.06)'; g.fillRect(r() * n, r() * n, 2, 2 + r() * 4); }
+      g.strokeStyle = 'rgba(40,80,40,0.35)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, n - 3, n - 3);
+    }, 2);
+    // marble lobby: 2 m tiles, alternate tone, light veins
+    const marbleMap = tex((g, n) => {
+      const h = n / 2, r = mulberry32(9);
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { g.fillStyle = (x + y) % 2 ? '#e4e3dd' : '#f1f0ea'; g.fillRect(x * h, y * h, h, h); }
+      g.strokeStyle = 'rgba(150,150,145,0.35)'; g.lineWidth = 1;
+      for (let i = 0; i < 26; i++) { g.beginPath(); let px = r() * n, py = r() * n; g.moveTo(px, py); for (let k = 0; k < 5; k++) { px += (r() - 0.5) * 90; py += (r() - 0.3) * 90; g.lineTo(px, py); } g.stroke(); }
+      g.strokeStyle = '#a9a79c'; g.lineWidth = 4; g.strokeRect(2, 2, n - 4, n - 4); g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
+    }, 0.25);
+    const carpet = new THREE.MeshStandardMaterial({ color: '#ffffff', map: carpetMap, roughness: 1 });
+    const marble = new THREE.MeshStandardMaterial({ color: '#ffffff', map: marbleMap, roughness: 0.35, metalness: 0.05 });
     const plate = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     const prop = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.75, metalness: 0.05 });
     const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });
-    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten, carpet, plate, prop };
+    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten, carpet, plate, prop, marble };
   }, []);
 }
 type Mats = ReturnType<typeof useMats>;
@@ -79,11 +99,18 @@ const InstBalls: React.FC<{ balls: Furn['balls']; material: THREE.Material; shad
 // ---------- text labels (canvas textures, no network) ----------
 const texCache = new Map<string, THREE.CanvasTexture>();
 function labelTex(l: Label): THREE.CanvasTexture {
-  const key = `${l.t}|${l.fg}|${l.bg}|${l.w / l.h}`;
+  const key = `${l.art ?? ''}|${l.t}|${l.fg}|${l.bg}|${l.w / l.h}`;
   let t = texCache.get(key); if (t) return t;
   const cw = 1024, ch = Math.max(64, Math.round((cw * l.h) / l.w));
   const c = document.createElement('canvas'); c.width = cw; c.height = ch;
   const g = c.getContext('2d')!;
+  if (l.art === 'compass') {
+    const m = cw / 2; g.translate(m, ch / 2);
+    for (const [r, col, lw] of [[m * 0.96, '#6f8f86', 14], [m * 0.84, '#c9a24a', 6], [m * 0.62, '#6f8f86', 10]] as const) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.arc(0, 0, r, 0, 7); g.stroke(); }
+    for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4, long = i % 2 === 0, R = m * (long ? 0.9 : 0.66); g.fillStyle = long ? '#2e6f66' : '#c9a24a'; g.beginPath(); g.moveTo(Math.cos(a) * R, Math.sin(a) * R); g.lineTo(Math.cos(a + 0.17) * m * 0.14, Math.sin(a + 0.17) * m * 0.14); g.lineTo(Math.cos(a - 0.17) * m * 0.14, Math.sin(a - 0.17) * m * 0.14); g.fill(); }
+    g.fillStyle = '#f08a3a'; g.beginPath(); g.arc(0, 0, m * 0.09, 0, 7); g.fill();
+    const t0 = new THREE.CanvasTexture(c); t0.colorSpace = THREE.SRGBColorSpace; texCache.set(key, t0); return t0;
+  }
   if (l.bg) { g.fillStyle = l.bg; g.fillRect(0, 0, cw, ch); }
   g.fillStyle = l.fg ?? '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
   let size = ch * 0.62; g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`;
@@ -134,6 +161,7 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
         : <mesh geometry={slabGeo()} material={mats.slab} castShadow receiveShadow />}
       {fascia && <mesh geometry={fascia} material={mats.fascia} castShadow />}
       {FLOOR_DEPARTMENTS.find((d) => d.floor === f)?.role === 'TEAM' && <mesh geometry={carpetGeo()} material={mats.carpet} position={[0, FT + 0.004, 0]} receiveShadow />}
+      {f === 0 && <mesh geometry={carpetGeo()} material={mats.marble} position={[0, FT + 0.004, 0]} receiveShadow />}
       {f === 0 && <mesh geometry={cortenGeo()} material={mats.corten} castShadow />}
       <InstBoxes list={walls} material={cut ? mats.glassCut : mats.glassFull} />
       <FloorStuff furn={data.str} mats={mats} shadow={quality === 'high'} on={interiorOn} props={quality !== 'low'} />
@@ -313,7 +341,7 @@ const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> 
   const items = useMemo(() => {
     const r = mulberry32(f * 7 + 3);
     const pick = <T,>(arr: T[], n: number) => arr.map((v) => [r(), v] as const).sort((p, q) => p[0] - q[0]).slice(0, n).map((p) => p[1]);
-    return { type: pick(data.seats, data.npcSeated), sit: pick(data.sitSeats, 4) };
+    return { type: pick(data.seats, data.npcSeated), sit: pick(data.sitSeats, data.npcSit || 4) };
   }, [data, f]);
   if (!show) return null;
   return (
@@ -366,10 +394,15 @@ const StatusDots: React.FC<{ team: { emp: string; x: number; z: number }[]; stat
   if (!team.length) return null;
   return <instancedMesh ref={ref} args={[DOT_GEO, DOT_MAT, team.length]} frustumCulled={false} />;
 };
-const DOT_GEO = new THREE.IcosahedronGeometry(0.07, 0);
+const DOT_GEO = new THREE.IcosahedronGeometry(0.11, 0);
 const DOT_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
 const TeamMember: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit'; interactive: boolean; onHover: (id: string | null) => void; chip: { name: string; role: string; status: string; color: string } | null }> = ({ id, x, y, z, rot, pose, interactive, onHover, chip }) => {
-  const look = useMemo(() => appearanceFor(id, EMPLOYEE_BY_ID[id]?.role), [id]);
+  // lighten tops/hair-free colours so seated people stay readable from far away
+  const look = useMemo(() => {
+    const a = appearanceFor(id, EMPLOYEE_BY_ID[id]?.role);
+    const lift = (c: string, t: number) => '#' + new THREE.Color(c).lerp(new THREE.Color('#ffffff'), t).getHexString();
+    return { ...a, top: lift(a.top, 0.42), bottom: lift(a.bottom, 0.25) };
+  }, [id]);
   const handlers = interactive ? {
     onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); onHover(id); setCursor('pointer'); },
     onPointerOut: () => { onHover(null); setCursor('auto'); },

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { cityStore, live, useCity, CameraMode, CITY_EXTENT, FLOOR_H, TOWER_FLOORS, TOWER_FOOTPRINT } from '../shared';
+import { cityStore, live, useCity, CameraMode, CITY_EXTENT, FLOOR_H, TOWER_FLOORS, TOWER_FOOTPRINT, TEAM_FLOOR } from '../shared';
+import { getFloor } from '../tower/furn';
 import { buildingFootprints } from '../world/layout';
 
 const MODES: CameraMode[] = ['orbit', 'follow', 'cutaway', 'cinematic', 'drive'];
@@ -18,9 +19,21 @@ const CINE_POINTS: [number, number, number][] = [
 ];
 
 const TW = Math.max(TOWER_FOOTPRINT.w, TOWER_FOOTPRINT.d);
+let teamCentre: [number, number] | null = null;
+function teamBay(): [number, number] {
+  if (teamCentre) return teamCentre;
+  let x = 0, z = 0;
+  try {
+    const t = getFloor(TEAM_FLOOR).str.team;
+    if (t.length) { x = t.reduce((a, q) => a + q.x, 0) / t.length; z = t.reduce((a, q) => a + q.z, 0) / t.length; }
+  } catch { /* fall back to tower centre */ }
+  return (teamCentre = [x, z]);
+}
+const CUT_POLAR = 0.99; // ~57 deg from vertical
 function cutawayTarget(floor: number | null): { target: THREE.Vector3; dist: number } {
-  if (floor == null) return { target: new V3(0, (TOWER_FLOORS * FLOOR_H) / 2, 0), dist: TW * 3.1 };
-  return { target: new V3(0, (floor + 0.5) * FLOOR_H, 0), dist: TW * 1.9 };
+  if (floor == null) return { target: new V3(0, 20, 0), dist: Math.max(150, TW * 3.1) };
+  const [bx, bz] = floor === TEAM_FLOOR ? teamBay() : [0, 0];
+  return { target: new V3(bx, floor * FLOOR_H + FLOOR_H * 0.5, bz), dist: 50 };
 }
 
 const CLEAR = 6;
@@ -77,9 +90,12 @@ export const CameraRig: React.FC = () => {
       if (dir.lengthSq() < 1) dir.set(1, 0.6, 1);
       dir.normalize();
       const hl = Math.hypot(dir.x, dir.z) || 1;
-      if (dir.y < 0.18 * hl) { dir.y = 0.18 * hl; dir.normalize(); }
+      if (mode === 'cutaway' && selectedFloor != null) {
+        // look down into the cut floor at ~57deg from vertical, keep current yaw
+        dir.set((dir.x / hl) * Math.sin(CUT_POLAR), Math.cos(CUT_POLAR), (dir.z / hl) * Math.sin(CUT_POLAR));
+      } else if (dir.y < 0.18 * hl) { dir.y = 0.18 * hl; dir.normalize(); }
       s.trans.pos.copy(target).addScaledVector(dir, dist);
-      s.trans.pos.y = Math.max(s.trans.pos.y, 8);
+      s.trans.pos.y = Math.max(s.trans.pos.y, selectedFloor != null && mode === 'cutaway' ? 1 : 8);
       s.trans.target.copy(target);
       s.trans.active = true; s.trans.t = 0;
     } else {
@@ -97,10 +113,19 @@ export const CameraRig: React.FC = () => {
   // ---- C key cycles cameras ----
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'c' && e.key !== 'C') return;
+      const isC = e.key === 'c' || e.key === 'C';
+      const dFloor = e.key === ']' || e.key === 'PageUp' ? 1 : e.key === '[' || e.key === 'PageDown' ? -1 : 0;
+      if (!isC && !dFloor) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (dFloor) {
+        const sf = cityStore.get().selectedFloor;
+        if (sf == null) return;
+        e.preventDefault();
+        cityStore.set({ selectedFloor: Math.max(-1, Math.min(TOWER_FLOORS - 1, sf + dFloor)) });
+        return;
+      }
       const cur = cityStore.get().cameraMode;
       cityStore.set({ cameraMode: MODES[(MODES.indexOf(cur) + 1) % MODES.length] });
     };
@@ -150,8 +175,8 @@ export const CameraRig: React.FC = () => {
         c.enabled = true;
         c.target.x = THREE.MathUtils.clamp(c.target.x, -CITY_EXTENT, CITY_EXTENT);
         c.target.z = THREE.MathUtils.clamp(c.target.z, -CITY_EXTENT, CITY_EXTENT);
-        c.target.y = THREE.MathUtils.clamp(c.target.y, 0, 200);
-        if (cam.position.y < 1.5) cam.position.y = 1.5;
+        c.target.y = THREE.MathUtils.clamp(c.target.y, -6, 200);
+        if (cam.position.y < 1.5 && !(m === 'cutaway' && cityStore.get().selectedFloor === -1)) cam.position.y = 1.5;
         s.look.copy(c.target);
       }
     } else {
@@ -199,7 +224,7 @@ export const CameraRig: React.FC = () => {
       ref={controls}
       enableDamping dampingFactor={0.08} rotateSpeed={0.6} zoomSpeed={0.9} panSpeed={0.8}
       screenSpacePanning={false}
-      minDistance={mode === 'cutaway' ? TW * 0.9 : 25} maxDistance={mode === 'cutaway' ? 260 : 650}
+      minDistance={mode === 'cutaway' ? 8 : 25} maxDistance={mode === 'cutaway' ? 260 : 650}
       minPolarAngle={0.12} maxPolarAngle={Math.PI / 2 - 0.04}
     />
   );

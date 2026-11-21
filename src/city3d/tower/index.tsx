@@ -10,8 +10,9 @@ import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCit
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
-import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker } from './furn';
-import { fasciaGeo, slabGeo, cortenGeo } from './facade';
+import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
+import { getProp, usePropsState } from './props';
+import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
 import { LongChauGreeter } from './greeter';
 export { LongChauModel } from './greeter';
 
@@ -39,8 +40,11 @@ function useMats() {
     })();
     const fascia = new THREE.MeshStandardMaterial({ color: '#ffffff', map: dots, roughness: 0.7, side: THREE.DoubleSide });
     const corten = new THREE.MeshStandardMaterial({ color: '#8a3b22', roughness: 0.8, side: THREE.DoubleSide });
+    const carpet = new THREE.MeshStandardMaterial({ color: '#a7bf9d', roughness: 1 });
+    const plate = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+    const prop = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.75, metalness: 0.05 });
     const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });
-    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten };
+    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten, carpet, plate, prop };
   }, []);
 }
 type Mats = ReturnType<typeof useMats>;
@@ -60,16 +64,16 @@ const InstBoxes: React.FC<{ list: Box[]; material: THREE.Material; shadow?: bool
   if (!list.length) return null;
   return <instancedMesh ref={ref} args={[BOX_GEO, material, list.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />;
 };
-const InstBalls: React.FC<{ furn: Furn; material: THREE.Material; shadow?: boolean }> = ({ furn, material, shadow }) => {
+const InstBalls: React.FC<{ balls: Furn['balls']; material: THREE.Material; shadow?: boolean }> = ({ balls, material, shadow }) => {
   const ref = useRef<THREE.InstancedMesh>(null!);
   useLayoutEffect(() => {
     const m = ref.current; if (!m) return;
     const o = new THREE.Object3D(); const col = new THREE.Color();
-    furn.balls.forEach((b, i) => { o.position.set(...b.p); o.rotation.set(0, i, 0); o.scale.setScalar(b.r); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, col.set(b.c)); });
+    balls.forEach((b, i) => { o.position.set(...b.p); o.rotation.set(0, i, 0); o.scale.setScalar(b.r); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, col.set(b.c)); });
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
-  }, [furn]);
-  if (!furn.balls.length) return null;
-  return <instancedMesh ref={ref} args={[BALL_GEO, material, furn.balls.length]} frustumCulled={false} castShadow={shadow} />;
+  }, [balls]);
+  if (!balls.length) return null;
+  return <instancedMesh ref={ref} args={[BALL_GEO, material, balls.length]} frustumCulled={false} castShadow={shadow} />;
 };
 
 // ---------- text labels (canvas textures, no network) ----------
@@ -129,11 +133,12 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
         ? <mesh position={[0, FT / 2, 0]} scale={[2 * HX, FT, 2 * HZ]} geometry={BOX_GEO} material={mats.solid} castShadow receiveShadow><meshStandardMaterial attach="material" color="#5c646a" roughness={0.95} /></mesh>
         : <mesh geometry={slabGeo()} material={mats.slab} castShadow receiveShadow />}
       {fascia && <mesh geometry={fascia} material={mats.fascia} castShadow />}
+      {FLOOR_DEPARTMENTS.find((d) => d.floor === f)?.role === 'TEAM' && <mesh geometry={carpetGeo()} material={mats.carpet} position={[0, FT + 0.004, 0]} receiveShadow />}
       {f === 0 && <mesh geometry={cortenGeo()} material={mats.corten} castShadow />}
       <InstBoxes list={walls} material={cut ? mats.glassCut : mats.glassFull} />
-      <FloorStuff furn={data.str} mats={mats} shadow={quality === 'high'} on={interiorOn} />
+      <FloorStuff furn={data.str} mats={mats} shadow={quality === 'high'} on={interiorOn} props={quality !== 'low'} />
       <group scale={[K, 1, K]}>
-        <FloorStuff furn={data.lay} mats={mats} shadow={quality === 'high'} on={interiorOn} />
+        <FloorStuff furn={data.lay} mats={mats} shadow={quality === 'high'} on={interiorOn} props={quality !== 'low'} />
       </group>
       {cut && quality !== 'low' && <FloorLights quality={quality} />}
       {f === 0 && <RevolvingDoor mats={mats} />}
@@ -144,25 +149,84 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
 type V3t = [number, number, number];
 
 /** Instanced content of one Furn. When `on` is false (low quality, uncut) only structural uprights are drawn. */
-const FloorStuff: React.FC<{ furn: Furn; mats: Mats; shadow: boolean; on: boolean }> = ({ furn, mats, shadow, on }) => {
+const FloorStuff: React.FC<{ furn: Furn; mats: Mats; shadow: boolean; on: boolean; props: boolean }> = ({ furn, mats, shadow, on, props }) => {
   const struct = useMemo(() => furn.boxes.filter((b) => b.s[1] > 2.5 || b.c === '#dfe7e6' || b.c === '#e9eeed' || b.c === '#f4f6f5'), [furn]);
+  const names = useMemo(() => [...new Set(furn.props.map((p) => p.m))], [furn]);
+  const state = usePropsState(names, props && on);
+  const usingProps = state === 'ready';
+  const boxes = useMemo(() => (usingProps ? furn.boxes : [...furn.boxes, ...furn.altBoxes]), [furn, usingProps]);
+  const screens = useMemo(() => (usingProps ? furn.screens : [...furn.screens, ...furn.altScreens]), [furn, usingProps]);
+  const balls = useMemo(() => (usingProps ? furn.balls : [...furn.balls, ...furn.altBalls]), [furn, usingProps]);
   return (
     <>
-      <InstBoxes list={on ? furn.boxes : struct} material={mats.solid} shadow={shadow} />
+      <InstBoxes list={on ? boxes : struct} material={mats.solid} shadow={shadow} />
       {on && <InstBoxes list={furn.glass} material={mats.inner} />}
-      {on && <InstBoxes list={furn.screens} material={mats.screen} />}
+      {on && <InstBoxes list={screens} material={mats.screen} />}
       {on && <InstBoxes list={furn.leds} material={mats.led} />}
-      <InstBalls furn={furn} material={mats.leaf} shadow={shadow} />
+      {on && furn.plates.length > 0 && <Plates furn={furn} mat={mats.plate} />}
+      {on && usingProps && <PropInstances list={furn.props} mats={mats} shadow={shadow} />}
+      <InstBalls balls={on ? balls : furn.balls} material={mats.leaf} shadow={shadow} />
       {on && furn.labels.map((l, i) => <LabelMesh key={i} l={l} />)}
     </>
   );
 };
 
+/** One InstancedMesh per model (plus one emissive mesh for screens). */
+const PropInstances: React.FC<{ list: Prop[]; mats: Mats; shadow: boolean }> = ({ list, mats, shadow }) => {
+  const groups = useMemo(() => { const m = new Map<string, Prop[]>(); list.forEach((p) => { const a = m.get(p.m) ?? []; a.push(p); m.set(p.m, a); }); return [...m.entries()]; }, [list]);
+  return <>{groups.map(([name, items]) => <PropMesh key={name} name={name} items={items} mats={mats} shadow={shadow} />)}</>;
+};
+const PropMesh: React.FC<{ name: string; items: Prop[]; mats: Mats; shadow: boolean }> = ({ name, items, mats, shadow }) => {
+  const geo = getProp(name);
+  const a = useRef<THREE.InstancedMesh>(null!), g = useRef<THREE.InstancedMesh>(null!);
+  useLayoutEffect(() => {
+    const o = new THREE.Object3D(), col = new THREE.Color();
+    items.forEach((p, i) => {
+      o.position.set(...p.p); o.rotation.set(0, p.r, 0); o.scale.set(...p.s); o.updateMatrix();
+      if (a.current) { a.current.setMatrixAt(i, o.matrix); a.current.setColorAt(i, col.set(p.t ?? '#ffffff')); }
+      if (g.current) { g.current.setMatrixAt(i, o.matrix); g.current.setColorAt(i, col.set(p.c ?? '#4fd1ff')); }
+    });
+    for (const m of [a.current, g.current]) if (m) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+  }, [items, geo]);
+  if (!geo) return null;
+  return (
+    <>
+      <instancedMesh ref={a} args={[geo.main, mats.prop, items.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />
+      {geo.glow && <instancedMesh ref={g} args={[geo.glow, mats.screen, items.length]} frustumCulled={false} />}
+    </>
+  );
+};
+
+/** All desk name plates merged into one mesh (canvas atlas, one draw call). */
+const Plates: React.FC<{ furn: Furn; mat: THREE.MeshBasicMaterial }> = ({ furn, mat }) => {
+  const { geo, tex } = useMemo(() => {
+    const items = furn.plates, cols = 4, cw = 256, ch = 64, rowsN = Math.ceil(items.length / cols);
+    const c = document.createElement('canvas'); c.width = cols * cw; c.height = rowsN * ch;
+    const g = c.getContext('2d')!; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    items.forEach((it, i) => {
+      const cx = (i % cols) * cw, cy = Math.floor(i / cols) * ch;
+      g.fillStyle = '#fbfbf6'; g.fillRect(cx, cy, cw, ch); g.fillStyle = '#1d3a33'; g.font = 'bold 34px system-ui, Arial'; g.fillText(it.text, cx + cw / 2, cy + ch / 2 + 2);
+      const cs = Math.cos(it.rot), sn = Math.sin(it.rot), w = 0.3, h = 0.075, base = pos.length / 3;
+      for (const [lx, ly] of [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]) pos.push(it.x + lx * cs, it.y + ly + 0.045, it.z - lx * sn);
+      const u0 = cx / c.width, u1 = (cx + cw) / c.width, v1 = 1 - cy / c.height, v0 = 1 - (cy + ch) / c.height;
+      uv.push(u0, v0, u1, v0, u1, v1, u0, v1); idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    return { geo, tex };
+  }, [furn]);
+  useLayoutEffect(() => { mat.map = tex; mat.side = THREE.DoubleSide; mat.needsUpdate = true; }, [mat, tex]);
+  return <mesh geometry={geo} material={mat} frustumCulled={false} />;
+};
+
 const FloorLights: React.FC<{ quality: Quality }> = ({ quality }) => {
   const refs = useRef<THREE.PointLight[]>([]);
-  useFrame(() => { const nf = live.nightFactor; refs.current.forEach((l) => { if (l) l.intensity = 12 + nf * 55; }); });
-  const pts: [number, number][] = quality === 'high' ? [[-13, -13], [13, -13], [-13, 13], [13, 13], [0, 0]] : [[10, -10], [10, 10]];
-  return <>{pts.map(([x, z], i) => <pointLight key={i} ref={(r) => { if (r) refs.current[i] = r; }} position={[x, 2.9, z]} distance={30} decay={2} color="#fff1d6" intensity={20} />)}</>;
+  // low, wide, dim fill (no hot-spot): the visible light comes from the ceiling panels
+  useFrame(() => { const nf = live.nightFactor; refs.current.forEach((l) => { if (l) l.intensity = 3 + nf * 9; }); });
+  const pts: [number, number][] = quality === 'high' ? [[4, -12], [16, -12], [4, 0], [16, 0], [4, 12], [16, 12]] : [[10, -9], [10, 9]];
+  return <>{pts.map(([x, z], i) => <pointLight key={i} ref={(r) => { if (r) refs.current[i] = r; }} position={[x, 3.3, z]} distance={22} decay={2} color="#ffe6bf" intensity={4} />)}</>;
 };
 
 const RevolvingDoor: React.FC<{ mats: Mats }> = ({ mats }) => {
@@ -263,38 +327,60 @@ const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> 
 };
 
 const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality }) => {
-  const statuses = useSyncExternalStore(
+  const key = useSyncExternalStore(
     officeSimulationEngine.subscribe,
-    () => officeSimulationEngine.getSnapshot().employees.map((e) => `${e.id}:${e.status}`).join('|'),
+    () => { const sn = officeSimulationEngine.getSnapshot(); return `${sn.selectedEmployeeId ?? ''}#${sn.employees.map((e) => `${e.id}:${e.status}`).join('|')}`; },
   );
+  const [selectedId, statuses] = useMemo(() => { const i = key.indexOf('#'); return [key.slice(0, i), key.slice(i + 1)] as const; }, [key]);
   const status = useMemo(() => Object.fromEntries(statuses.split('|').map((s) => s.split(':'))) as Record<string, string>, [statuses]);
   const data = useMemo(() => getFloor(TEAM_FLOOR).str, []);
+  const [hover, setHover] = React.useState<string | null>(null);
   const y = TEAM_FLOOR * FLOOR_H + FT;
   const floorVisible = sel === null || sel >= TEAM_FLOOR;
   const near = useNearTower();
   const show = floorVisible && (sel !== null || near) && (quality === 'low' ? sel === TEAM_FLOOR : true);
+  const interactive = sel === TEAM_FLOOR;
   if (!show) return null;
-  const chips = sel === TEAM_FLOOR;
   return (
     <>
+      <StatusDots team={data.team} status={status} y={y + 1.72} />
       {data.team.map((t) => {
         const emp = EMPLOYEE_BY_ID[t.emp]; const st = status[t.emp] ?? emp?.status ?? 'IDLE';
-        return <TeamMember key={t.emp} id={t.emp} x={t.x} y={y} z={t.z} rot={t.rot} pose={st === 'IDLE' ? 'sit' : 'type'} chip={chips ? { name: emp?.displayName ?? t.emp, role: emp?.role ?? '', status: st, color: emp?.badgeColor ?? '#2e8f8a' } : null} />;
+        const chipOn = interactive && (hover === t.emp || t.emp === 'EMP-01' || selectedId === t.emp);
+        return <TeamMember key={t.emp} id={t.emp} x={t.x} y={y} z={t.z} rot={t.rot} pose={st === 'IDLE' ? 'sit' : 'type'} interactive={interactive}
+          onHover={setHover} chip={chipOn ? { name: emp?.displayName ?? t.emp, role: emp?.role ?? '', status: st, color: emp?.badgeColor ?? '#2e8f8a' } : null} />;
       })}
-      {quality === 'high' && sel !== null && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
-      {quality === 'high' && sel === null && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
+      {quality === 'high' && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
     </>
   );
 };
-const STATUS_COLOR: Record<string, string> = { WORKING: '#22c55e', IDLE: '#9ca3af', REVIEWING: '#3b82f6', WALKING: '#f59e0b' };
-const TeamMember: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit'; chip: { name: string; role: string; status: string; color: string } | null }> = ({ id, x, y, z, rot, pose, chip }) => {
+const STATUS_COLOR: Record<string, string> = { WORKING: '#22c55e', IDLE: '#9ca3af', REVIEWING: '#3b82f6', WALKING: '#f59e0b', CARRYING_DOCS: '#f59e0b', HANDOFF: '#a855f7', WALKING_BACK: '#f59e0b' };
+/** one instanced mesh: tiny coloured status dot above each seated person */
+const StatusDots: React.FC<{ team: { emp: string; x: number; z: number }[]; status: Record<string, string>; y: number }> = ({ team, status, y }) => {
+  const ref = useRef<THREE.InstancedMesh>(null!);
+  useLayoutEffect(() => {
+    const m = ref.current; if (!m) return; const o = new THREE.Object3D(); const c = new THREE.Color();
+    team.forEach((t, i) => { o.position.set(t.x, y, t.z); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, c.set(STATUS_COLOR[status[t.emp] ?? 'IDLE'] ?? '#f59e0b')); });
+    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [team, status, y]);
+  if (!team.length) return null;
+  return <instancedMesh ref={ref} args={[DOT_GEO, DOT_MAT, team.length]} frustumCulled={false} />;
+};
+const DOT_GEO = new THREE.IcosahedronGeometry(0.07, 0);
+const DOT_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+const TeamMember: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit'; interactive: boolean; onHover: (id: string | null) => void; chip: { name: string; role: string; status: string; color: string } | null }> = ({ id, x, y, z, rot, pose, interactive, onHover, chip }) => {
   const look = useMemo(() => appearanceFor(id, EMPLOYEE_BY_ID[id]?.role), [id]);
+  const handlers = interactive ? {
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); onHover(id); setCursor('pointer'); },
+    onPointerOut: () => { onHover(null); setCursor('auto'); },
+    onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); officeSimulationEngine.selectEmployee(id); },
+  } : {};
   return (
-    <group>
+    <group {...handlers}>
       <Character3D appearance={look} pose={pose} position={[x, y, z]} rotationY={rot} />
       {chip && (
         <Html position={[x, y + 1.95, z]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.82)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${chip.color}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.88)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${chip.color}` }}>
             <span style={{ width: 6, height: 6, borderRadius: 3, background: STATUS_COLOR[chip.status] ?? '#f59e0b' }} />
             {chip.name}<span style={{ opacity: 0.65, fontWeight: 400 }}>{chip.role}</span>
           </div>

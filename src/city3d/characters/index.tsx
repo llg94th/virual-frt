@@ -10,7 +10,7 @@ import {
   CITY_EXTENT, ROAD_LINES, ROAD_W, SIDEWALK_W, live, mulberry32, useCity,
 } from '../shared';
 import type { CharacterAppearance, CharacterPose } from '../shared';
-import { RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
+import { OfficeCharacter, RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
 import type { RigEntry } from './rigged';
 
 export interface Character3DProps {
@@ -315,10 +315,18 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
     <group ref={outer} position={position} rotation-y={rotationY} scale={scale}>
       {!showRig && <ProceduralCharacter {...procProps} />}
       {useRig && (
-        <RigBoundary onError={() => setFailed(true)}>
+        <RigBoundary fallback={
+          <RigBoundary fatal onError={() => setFailed(true)}>
+            <React.Suspense fallback={null}>
+              <group visible={ready}>
+                <RiggedCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
+                  onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
+              </group>
+            </React.Suspense>
+          </RigBoundary>}>
           <React.Suspense fallback={null}>
             <group visible={ready}>
-              <RiggedCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
+              <OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
                 onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
             </group>
           </React.Suspense>

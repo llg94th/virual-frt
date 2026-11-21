@@ -14,6 +14,7 @@ export const HALF = Math.max(HX, HZ);
 /** Layout items were authored for a 52 m plate; the layout group is squashed horizontally by K (axis-aligned only, so no shear). */
 export const K = Math.min(TOWER_FOOTPRINT.w, TOWER_FOOTPRINT.d) / 52;
 export type V3 = [number, number, number];
+export interface Prop { m: string; p: V3; r: number; s: V3; c?: string; t?: string }
 export interface Box { p: V3; s: V3; c: string; r: number; rx: number }
 export interface Ball { p: V3; r: number; c: string }
 export interface Label { t: string; x: number; y: number; z: number; w: number; h: number; rot: number; flat?: boolean; fg?: string; bg?: string }
@@ -48,6 +49,7 @@ export class Furn {
   leds: Box[] = [];
   balls: Ball[] = [];
   labels: Label[] = [];
+  plates: { x: number; y: number; z: number; rot: number; text: string }[] = [];
   seats: Seat[] = []; // generic 'type' desks available to NPC workers
   sitSeats: Seat[] = []; // bench / lounge seats ('sit')
   stands: Stand[] = [];
@@ -60,7 +62,21 @@ export class Furn {
   npcSit = 0;
   solid = false;
 
+  /** GLB props (Kenney furniture) replacing the procedural `alt*` pieces once loaded */
+  props: Prop[] = [];
+  altBoxes: Box[] = [];
+  altScreens: Box[] = [];
+  altBalls: Ball[] = [];
+  private altMode = false;
+  /** run procedural builders so their output lands in the fallback lists */
+  private alt(fn: () => void) { const prev = this.altMode; this.altMode = true; try { fn(); } finally { this.altMode = prev; } }
+  /** y = bottom above the walking surface; s = uniform scale or [sx,sy,sz] on top of the normalised model (bottom-centre origin, front +z) */
+  prop(m: string, x: number, y: number, z: number, rot: number, s: number | V3, c?: string, t?: string) {
+    this.props.push({ m, p: [x, FT + y, z], r: rot, s: typeof s === 'number' ? [s, s, s] : s, c, t });
+  }
+
   private mk(list: Box[], x: number, y: number, z: number, w: number, h: number, d: number, c: string, r = 0, rx = 0) {
+    if (this.altMode) { if (list === this.boxes) list = this.altBoxes; else if (list === this.screens) list = this.altScreens; }
     list.push({ p: [x, FT + y + h / 2, z], s: [w, h, d], c, r, rx });
   }
   /** y = bottom above the walking surface */
@@ -68,7 +84,7 @@ export class Furn {
   g(x: number, y: number, z: number, w: number, h: number, d: number, c = '#bfe8ea', r = 0) { this.mk(this.glass, x, y, z, w, h, d, c, r); }
   scr(x: number, y: number, z: number, w: number, h: number, d: number, c = '#4fd1ff', r = 0) { this.mk(this.screens, x, y, z, w, h, d, c, r); }
   led(x: number, y: number, z: number, c: string) { this.mk(this.leds, x, y, z, 0.05, 0.05, 0.02, c); }
-  ball(x: number, y: number, z: number, r: number, c: string) { this.balls.push({ p: [x, FT + y, z], r, c }); }
+  ball(x: number, y: number, z: number, r: number, c: string) { (this.altMode ? this.altBalls : this.balls).push({ p: [x, FT + y, z], r, c }); }
   label(l: Label) { this.labels.push(l); }
 
   /** local (lx,lz) in a frame rotated by th at (cx,cz) */
@@ -86,45 +102,103 @@ export class Furn {
     this.ball(x + r * 0.45, h * 0.6 + r * 0.2, z + r * 0.2, r * 0.7, '#4fae6a');
   }
   plant(x: number, z: number, s = 1) {
-    this.b(x, 0, z, 0.4 * s, 0.4 * s, 0.4 * s, '#e8e4dc');
-    this.ball(x, 0.4 * s + 0.35 * s, z, 0.4 * s, '#3e9b55');
+    this.alt(() => { this.b(x, 0, z, 0.4 * s, 0.4 * s, 0.4 * s, '#e8e4dc'); this.ball(x, 0.4 * s + 0.35 * s, z, 0.4 * s, '#3e9b55'); });
+    this.prop('pottedPlant', x, 0, z, (x * 7.3 + z) % 6.28, 1.2 * s);
   }
   chair(x: number, z: number, th: number, c = '#2f3b44') {
-    this.rb(x, z, th, 0, 0, 0, 0.06, 0.42, 0.06, '#333');
-    this.rb(x, z, th, 0, 0, 0.42, 0.46, 0.06, 0.46, c);
-    this.rb(x, z, th, 0, -0.23, 0.5, 0.46, 0.42, 0.05, c);
+    this.alt(() => {
+      this.rb(x, z, th, 0, 0, 0, 0.06, 0.42, 0.06, '#333');
+      this.rb(x, z, th, 0, 0, 0.42, 0.46, 0.06, 0.46, c);
+      this.rb(x, z, th, 0, -0.23, 0.5, 0.46, 0.42, 0.05, c);
+    });
+    this.prop('chairDesk', x, 0, z, th, 1.5);
   }
   /** Desk with monitor, keyboard and chair. Occupant sits at the chair looking along dir=(sin th,cos th). */
-  workstation(x: number, z: number, th: number, o: { dw?: number; dd?: number; on?: boolean; top?: string; chair?: string } = {}): Seat {
+  workstation(x: number, z: number, th: number, o: { dw?: number; dd?: number; on?: boolean; top?: string; chair?: string; rich?: boolean; plate?: string; tint?: string } = {}): Seat {
     const dw = o.dw ?? 1.4, dd = o.dd ?? 0.7;
-    this.rb(x, z, th, 0, 0, 0.7, dw, 0.05, dd, o.top ?? '#e9e2d3');
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.rb(x, z, th, sx * (dw / 2 - 0.04), sz * (dd / 2 - 0.04), 0, 0.04, 0.7, 0.04, '#8a949b');
-    this.rb(x, z, th, 0, 0.12, 0.75, 0.06, 0.16, 0.06, '#222');
-    const [mx, mz] = this.lp(x, z, th, 0, 0.12);
-    this.scr(mx, 0.9, mz, 0.55, 0.32, 0.03, o.on === false ? '#16262b' : '#4fd1ff', th);
-    this.rb(x, z, th, 0, -0.12, 0.75, 0.4, 0.02, 0.14, '#202428');
+    const h = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; // stable per-desk variety
+    const on = o.on !== false;
+    const face = th + Math.PI; // objects that face the user
+    this.alt(() => {
+      this.rb(x, z, th, 0, 0, 0.7, dw, 0.05, dd, o.top ?? '#e9e2d3');
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.rb(x, z, th, sx * (dw / 2 - 0.04), sz * (dd / 2 - 0.04), 0, 0.04, 0.7, 0.04, '#8a949b');
+      this.rb(x, z, th, 0, 0.12, 0.75, 0.06, 0.16, 0.06, '#222');
+      const [mx, mz] = this.lp(x, z, th, 0, 0.12);
+      this.scr(mx, 0.9, mz, 0.55, 0.32, 0.03, on ? '#4fd1ff' : '#16262b', th);
+      this.rb(x, z, th, 0, -0.12, 0.75, 0.4, 0.02, 0.14, '#202428');
+    });
+    this.prop('desk', x, 0, z, face, [dw / 0.73, 1.97, dd / 0.39], undefined, o.tint);
+    const single = !(o.rich && h < 0.45);
+    if (single) { const [mx, mz] = this.lp(x, z, th, 0, 0.14); this.prop('computerScreen', mx, 0.75, mz, face, 1.5, on ? '#4fd1ff' : '#16262b'); }
+    { const [kx, kz] = this.lp(x, z, th, 0, -0.14); this.prop('computerKeyboard', kx, 0.75, kz, face, 1.6); }
+    if (o.rich) {
+      if (!single) { // dual monitor
+        for (const sx of [-1, 1]) {
+          const [mx, mz] = this.lp(x, z, th + sx * 0.18, sx * 0.3, 0.14);
+          this.alt(() => this.scr(mx, 0.9, mz, 0.5, 0.3, 0.03, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b', th + sx * 0.18));
+          this.prop('computerScreen', mx, 0.75, mz, face + sx * 0.18, 1.35, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b');
+        }
+      }
+      { const [ox, oz] = this.lp(x, z, th, 0.34, -0.12); this.prop('computerMouse', ox, 0.75, oz, face, 2); this.alt(() => this.b(ox, 0.75, oz, 0.06, 0.025, 0.1, '#2a2d30', th)); }
+      if (h > 0.5 && h < 0.8) { // laptop
+        const [lx, lz] = this.lp(x, z, th, -dw / 2 + 0.28, -0.02);
+        this.alt(() => { this.b(lx, 0.75, lz, 0.32, 0.015, 0.22, '#b9c0c6', th); this.scr(lx, 0.8, lz, 0.32, 0.2, 0.012, on ? '#9ad7ff' : '#16262b', th); });
+        this.prop('laptop', lx, 0.75, lz, face, 1.4);
+      }
+      this.rb(x, z, th, dw / 2 - 0.12, 0.2, 0.75, 0.08, 0.1, 0.08, ['#e0a64b', '#e8e8e8', '#2e8f8a', '#c0392b'][Math.floor(h * 4) % 4]); // mug
+      if (h > 0.8) { // desk lamp
+        const [lx, lz] = this.lp(x, z, th, -dw / 2 + 0.12, 0.25);
+        this.alt(() => { this.b(lx, 0.75, lz, 0.14, 0.02, 0.14, '#333'); this.b(lx, 0.77, lz, 0.02, 0.38, 0.02, '#333'); this.b(lx, 1.13, lz, 0.16, 0.04, 0.1, '#e0a64b', th); });
+        this.prop(h > 0.9 ? 'lampSquareTable' : 'lampRoundTable', lx, 0.75, lz, face, 1.1);
+      } else if (h < 0.18) {
+        const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2);
+        this.alt(() => { this.b(px, 0.75, pz, 0.1, 0.1, 0.1, '#e8e4dc', th); this.ball(px, 0.93, pz, 0.1, '#3e9b55'); });
+        this.prop('plantSmall1', px, 0.75, pz, h * 40, 1.8);
+      }
+      if (o.plate) { const [px, pz] = this.lp(x, z, th, 0, -dd / 2 + 0.06); this.plates.push({ x: px, y: FT + 0.8, z: pz, rot: th + Math.PI, text: o.plate }); this.b(px, 0.75, pz, 0.3, 0.02, 0.05, '#555'); }
+    }
     const cd = dd / 2 + 0.25;
     const [cx, cz] = this.lp(x, z, th, 0, -cd);
     this.chair(cx, cz, th, o.chair);
-    const seat = { x: cx, z: cz, rot: th };
-    return seat;
+    return { x: cx, z: cz, rot: th };
   }
   table(x: number, z: number, w: number, d: number, c = '#d9c7a8', h = 0.74) {
-    this.b(x, h - 0.05, z, w, 0.05, d, c);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.b(x + sx * (w / 2 - 0.1), 0, z + sz * (d / 2 - 0.1), 0.06, h - 0.05, 0.06, '#7a838a');
+    this.alt(() => {
+      this.b(x, h - 0.05, z, w, 0.05, d, c);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.b(x + sx * (w / 2 - 0.1), 0, z + sz * (d / 2 - 0.1), 0.06, h - 0.05, 0.06, '#7a838a');
+    });
+    if (h < 0.55) this.prop('tableCoffee', x, 0, z, 0, [w / 0.66, h / 0.23, d / 0.4]);
+    else this.prop('table', x, 0, z, 0, [w / 0.84, h / 0.33, d / 0.45]);
   }
   sofa(x: number, z: number, th: number, len = 2.2, c = '#2e8f8a') {
-    this.rb(x, z, th, 0, 0, 0, len, 0.42, 0.85, c);
-    this.rb(x, z, th, 0, -0.38, 0.42, len, 0.45, 0.14, c);
-    this.rb(x, z, th, -len / 2 + 0.07, 0, 0.42, 0.14, 0.25, 0.8, c);
-    this.rb(x, z, th, len / 2 - 0.07, 0, 0.42, 0.14, 0.25, 0.8, c);
+    this.alt(() => {
+      this.rb(x, z, th, 0, 0, 0, len, 0.42, 0.85, c);
+      this.rb(x, z, th, 0, -0.38, 0.42, len, 0.45, 0.14, c);
+      this.rb(x, z, th, -len / 2 + 0.07, 0, 0.42, 0.14, 0.25, 0.8, c);
+      this.rb(x, z, th, len / 2 - 0.07, 0, 0.42, 0.14, 0.25, 0.8, c);
+    });
+    this.prop('loungeSofa', x, 0, z, th, [len / 0.98, 2, 2]);
   }
-  counter(x: number, z: number, w: number, d: number, c = '#f1ede4', top = '#3a4a50') {
-    this.b(x, 0, z, w, 1.0, d, c);
-    this.b(x, 1.0, z, w + 0.06, 0.05, d + 0.06, top);
+  /** kitchen cabinet run; `face` = yaw of the cabinet fronts (default: front +z for x-long runs, -x for z-long runs) */
+  counter(x: number, z: number, w: number, d: number, c = '#f1ede4', top = '#3a4a50', face?: number) {
+    this.alt(() => { this.b(x, 0, z, w, 1.0, d, c); this.b(x, 1.0, z, w + 0.06, 0.05, d + 0.06, top); });
+    const alongX = w >= d, L = alongX ? w : d, n = Math.max(1, Math.round(L / 0.9)), yaw = face ?? (alongX ? 0 : -Math.PI / 2);
+    for (let i = 0; i < n; i++) {
+      const o = -L / 2 + ((i + 0.5) * L) / n;
+      this.prop('kitchenCabinet', alongX ? x + o : x, 0, alongX ? z : z + o, yaw, [(L / n) / 0.43, 2.2, (alongX ? d : w) / 0.45]);
+    }
+  }
+  fridge(x: number, z: number, th = 0) {
+    this.alt(() => this.rb(x, z, th, 0, 0, 0, 0.8, 1.9, 0.75, '#d7dcde'));
+    this.prop('kitchenFridge', x, 0, z, th, 2.1);
+  }
+  bookcase(x: number, z: number, th: number) {
+    this.alt(() => this.rb(x, z, th, 0, 0, 0, 0.8, 1.7, 0.45, '#cdb48a'));
+    this.prop('bookcaseClosed', x, 0, z, th, 2);
   }
   stool(x: number, z: number) {
-    this.b(x, 0, z, 0.06, 0.55, 0.06, '#555'); this.b(x, 0.55, z, 0.34, 0.05, 0.34, '#e07a3a');
+    this.alt(() => { this.b(x, 0, z, 0.06, 0.55, 0.06, '#555'); this.b(x, 0.55, z, 0.34, 0.05, 0.34, '#e07a3a'); });
+    this.prop('stoolBar', x, 0, z, 0, [1.4, 1.35, 1.4]);
   }
   /** Glass-walled room (door gap on south side) */
   room(cx: number, cz: number, w: number, d: number, tableTone = '#d9c7a8') {
@@ -309,7 +383,7 @@ function training(F: Furn) {
   [4, 13, 22].forEach((x) => F.room(x, -21, 7, 6));
   // pantry
   F.counter(-16, -3, 8, 0.8, '#f1ede4', '#2e8f8a'); F.b(-18.5, 1.05, -3, 0.5, 0.4, 0.5, '#b9c1c5');
-  F.b(-21.2, 0, -3, 1, 1.9, 0.8, '#d7dcde');
+  F.fridge(-21.2, -3, Math.PI / 2);
   F.label({ t: 'PANTRY', x: -16, y: 2.6, z: -3.6, w: 3.2, h: 0.8, rot: 0, fg: '#fff', bg: '#e07a3a' });
   for (const x of [-20, -16, -12]) { F.table(x, 2.5, 0.9, 0.9, '#e9e2d3', 1.0); F.stool(x - 0.7, 2.5); F.stool(x + 0.7, 2.5); }
   F.stands.push({ x: -17, z: -4.2, rot: Math.PI, id: 'f2-pantry1' }); F.stands.push({ x: -13.5, z: -1.8, rot: 0, id: 'f2-pantry2' });
@@ -319,48 +393,82 @@ function training(F: Furn) {
   F.walkers.push({ a: [3, 5], b: [22, 5], speed: 1.0, id: 'f2-walk1' });
 }
 function teamFloor(F: Furn, S: Furn) {
-  // Bay is authored directly in world metres (S = structure, unsquashed): ~20 x 17 m
-  const s2 = 20 / 735, CX = HX - 11, bw = 735 * s2, bd = 625 * s2;
-  const mx = (wx: number) => CX + (wx - 1177.5) * s2, mz = (wy: number) => (wy - 492.5) * s2;
+  void F;
+  // The bay fills the east block (x 1.6..21, z +-14), authored directly in world metres (S = unsquashed structure group).
+  const bw = 19.4, bd = 28, sx = bw / 735, sz = bd / 625, CX = HX - 11.6 + 0.2;
+  const mx = (wx: number) => CX + (wx - 1177.5) * sx, mz = (wy: number) => (wy - 492.5) * sz;
   const x0 = CX - bw / 2, x1 = CX + bw / 2, zN = -bd / 2, zS = bd / 2;
-  const doorX = mx(1115), doorW = 124 * s2;
-  S.b(CX, 0, 0, bw, 0.02, bd, '#b9cfae');
-  S.g(CX, 0, zS, bw, 1.4, 0.05); S.g(x0, 0, 0, 0.05, 1.4, bd); S.g(x1, 0, 0, 0.05, 1.4, bd);
+  const doorX = mx(1115), doorW = 124 * sx + 0.6;
   const gl = doorX - doorW / 2, gr = doorX + doorW / 2;
+  // low glass bay walls: door gap north, secondary opening west towards the lift core
   S.g((x0 + gl) / 2, 0, zN, gl - x0, 1.4, 0.05); S.g((gr + x1) / 2, 0, zN, x1 - gr, 1.4, 0.05);
+  S.g(CX, 0, zS, bw, 1.4, 0.05); S.g(x1, 0, 0, 0.05, 1.4, bd);
+  S.g(x0, (-bd / 2 - 1.2) / 2 * 0, (zN + -1.2) / 2, 0.05, 1.4, -1.2 - zN); S.g(x0, 0, (1.2 + zS) / 2, 0.05, 1.4, zS - 1.2);
   S.b(CX, 1.4, zS, bw, 0.05, 0.08, '#2e8f8a');
   S.label({ t: 'CỬA RA VÀO', x: doorX, y: 0.05, z: zN + 1.0, w: 3.2, h: 0.55, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(255,255,255,0.0)' });
-  S.label({ t: 'NHÀ THUỐC', x: CX, y: 0.06, z: mz(418), w: 8, h: 1.5, rot: 0, flat: true, fg: '#2c6b4f', bg: 'rgba(0,0,0,0)' });
+  S.label({ t: 'NHÀ THUỐC', x: CX, y: 0.03, z: mz(418), w: 10, h: 1.8, rot: 0, flat: true, fg: '#2c6b4f', bg: 'rgba(0,0,0,0)' });
   const islands = new Map<string, typeof NHA_THUOC_SEAT_SLOTS>();
-  for (const s of NHA_THUOC_SEAT_SLOTS) { const a = islands.get(s.islandId) ?? []; a.push(s); islands.set(s.islandId, a); }
+  for (const q of NHA_THUOC_SEAT_SLOTS) { const a = islands.get(q.islandId) ?? []; a.push(q); islands.set(q.islandId, a); }
+  const cols = new Set<number>(), rows = new Set<number>();
   islands.forEach((slots) => {
     const xs = slots.map((q) => mx(q.wx)), zs = slots.map((q) => mz(q.wy));
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-    const d = Math.max(...zs) - Math.min(...zs) + 1.1;
-    S.b(cx, 0.02, cz, 2.7, 0.01, d + 0.3, '#9fb994');
-    S.g(cx, 0.75, cz, 0.04, 0.4, d);
+    const d = Math.max(...zs) - Math.min(...zs) + 1.4;
+    cols.add(Math.round(cx * 100) / 100); rows.add(Math.round(cz * 100) / 100);
+    S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#8aa982'); // island rug
+    S.g(cx, 0.75, cz, 0.04, 0.45, d);
+    S.b(cx, 1.2, cz, 0.05, 0.03, d, '#2b3338'); // cable tray / partition top rail
   });
+  // lighter aisle strips between island columns / rows
+  const cs = [...cols].sort((a, b) => a - b), rs = [...rows].sort((a, b) => a - b);
+  for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.8, 0.01, bd - 0.4, '#cfddc6');
+  for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 0.4, 0.01, 1.8, '#cfddc6');
   for (const q of NHA_THUOC_SEAT_SLOTS) {
     const x = mx(q.wx), z = mz(q.wy);
-    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.6, CLEAR, 0.6, '#e6e8e6'); continue; }
+    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); continue; }
     const th = q.side === 'LEFT' ? Math.PI / 2 : -Math.PI / 2;
     const emp = q.assignedEmployeeId && EMPLOYEE_BY_ID[q.assignedEmployeeId] ? q.assignedEmployeeId : undefined;
     const occupied = q.kind === 'OCCUPIED';
     const seat = S.workstation(x, z, th, {
-      dw: 0.9, dd: 0.95, on: occupied,
+      dw: 1.25, dd: 0.85, on: occupied, rich: true, plate: q.account || undefined,
       top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
+      tint: q.highlight === 'red' ? '#ff7a7a' : q.highlight === 'yellow' ? '#ffd84a' : undefined,
     });
     if (emp) S.team.push({ emp, x: seat.x, z: seat.z, rot: th });
     else if (occupied) S.extraTeam.push({ ...seat, id: q.seatCode });
   }
   TEAM_SEATS.length = 0; TEAM_SEATS.push(...S.team);
-  // surroundings (layout group)
-  F.room(6, -21, 8, 6); F.room(18, -21, 8, 6);
-  F.counter(-16, -3, 8, 0.8, '#f1ede4', '#2e8f8a');
-  F.label({ t: 'PANTRY', x: -16, y: 2.6, z: -3.6, w: 3.2, h: 0.8, rot: 0, fg: '#fff', bg: '#e07a3a' });
-  F.sofa(8, 20, Math.PI, 2.6); F.sofa(14, 20, Math.PI, 2.6); F.table(11, 22, 1.4, 0.7, '#e9e2d3', 0.4);
-  for (const [px, pz] of [[-7, 8], [-7, -8], [25, 18], [25, -18]]) F.plant(px, pz, 1.4);
-  F.walkers.push({ a: [4, 16], b: [23, 16], speed: 1.0, id: 'team-walk1' });
+
+  // --- north strip: kanban wall, whiteboard, network cabinets, printer ---
+  const zk = -HZ + 1.1;
+  S.b(11, 0.8, zk, 9, 2.0, 0.08, '#f5f5f2');
+  S.label({ t: 'SPRINT BOARD', x: 11, y: 3.05, z: zk + 0.06, w: 4.2, h: 0.5, rot: 0, fg: '#ffffff', bg: '#2e8f8a' });
+  const stick = ['#f7d154', '#7ac7f0', '#b6e07a', '#f29bbb'], cnt = [5, 4, 3, 6], kr = mulberry32(88);
+  ['TO DO', 'DOING', 'REVIEW', 'DONE'].forEach((t, i) => {
+    const cx = 11 - 3.3 + i * 2.2;
+    S.b(cx, 0.8, zk + 0.045, 0.03, 2.0, 0.01, '#9aa6a3');
+    S.label({ t, x: cx, y: 2.65, z: zk + 0.06, w: 1.6, h: 0.3, rot: 0, fg: '#33403d', bg: 'rgba(255,255,255,0)' });
+    for (let k = 0; k < cnt[i]; k++) S.b(cx - 0.55 + (k % 2) * 1.0 + (kr() - 0.5) * 0.08, 1.0 + Math.floor(k / 2) * 0.5, zk + 0.05, 0.42, 0.32, 0.01, stick[i], (kr() - 0.5) * 0.15);
+  });
+  S.b(3.6, 0.9, zk, 3.4, 1.2, 0.06, '#ffffff'); S.b(3.6, 0.88, zk, 3.5, 0.03, 0.08, '#8a949b');
+  S.table(16.6, -HZ + 1.8, 1.2, 0.6, '#e9e2d3', 0.75);
+  S.b(16.6, 0.75, -HZ + 1.8, 0.75, 0.35, 0.5, '#f2f2f2'); S.b(16.6, 1.1, -HZ + 1.8, 0.6, 0.04, 0.4, '#d9d9d9'); S.scr(16.6, 0.95, -HZ + 1.56, 0.18, 0.05, 0.02, '#38d96a');
+  const lr = mulberry32(61);
+  for (const cx of [19.2, 20.2]) {
+    S.b(cx, 0, -HZ + 1.5, 0.8, 2.1, 0.9, '#1b2228');
+    for (let k = 0; k < 10; k++) S.led(cx - 0.28 + (k % 5) * 0.14, 0.4 + Math.floor(k / 5) * 0.6 + lr() * 0.5, -HZ + 1.5 + 0.46, lr() < 0.7 ? '#33ff88' : '#3aa0ff');
+  }
+  S.label({ t: 'NETWORK', x: 19.7, y: 2.4, z: -HZ + 1.0, w: 1.8, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
+  // --- south strip: lounge + pantry ---
+  S.sofa(2.8, 17.4, Math.PI, 2.6); S.sofa(2.8, 20, 0, 2.6); S.table(2.8, 18.7, 1.4, 0.7, '#e9e2d3', 0.4);
+  S.counter(18.4, HZ - 1.6, 5, 0.75, '#f1ede4', '#2e8f8a', Math.PI);
+  S.prop('kitchenCoffeeMachine', 16.4, 1.0, HZ - 1.6, Math.PI, 2); S.prop('kitchenMicrowave', 19.4, 1.0, HZ - 1.6, Math.PI, 2); S.bookcase(-6.7, -12, Math.PI / 2); S.bookcase(-6.7, 12, Math.PI / 2); S.bookcase(-4.5, -HZ + 0.6, 0); S.bookcase(-3.6, -HZ + 0.6, 0);
+  S.b(16.4, 1.05, HZ - 1.6, 0.5, 0.4, 0.5, '#b9c1c5'); S.fridge(21, HZ - 1.6, Math.PI);
+  S.label({ t: 'PANTRY', x: 18.4, y: 2.7, z: HZ - 1.2 - 0.5, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
+  for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
+  for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
+  // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
+  for (let px = 3; px <= 21; px += 4.5) for (let pz = -19.5; pz <= 20; pz += 4.5) S.scr(px, CLEAR - 0.05, pz, 1.6, 0.04, 0.6, '#cfc6aa');
 }
 function openPlan(F: Furn, f: number, tag: string) {
   const rnd = mulberry32(f * 977);

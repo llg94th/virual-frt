@@ -109,3 +109,18 @@ export function cortenGeo(): THREE.BufferGeometry {
   cortenG = sweep(lines, 0.02, 1.15, 0.35, 2.5);
   return cortenG;
 }
+
+let carpetG: THREE.BufferGeometry | null = null;
+/** Flat copy of the slab outline (with atrium holes) used as wall-to-wall carpet. */
+export function carpetGeo(): THREE.BufferGeometry {
+  if (carpetG) return carpetG;
+  const rr = (p: THREE.Path, cx: number, cz: number, hw: number, hd: number, r: number) => {
+    p.moveTo(cx - hw + r, cz - hd); p.lineTo(cx + hw - r, cz - hd); p.quadraticCurveTo(cx + hw, cz - hd, cx + hw, cz - hd + r);
+    p.lineTo(cx + hw, cz + hd - r); p.quadraticCurveTo(cx + hw, cz + hd, cx + hw - r, cz + hd);
+    p.lineTo(cx - hw + r, cz + hd); p.quadraticCurveTo(cx - hw, cz + hd, cx - hw, cz + hd - r);
+    p.lineTo(cx - hw, cz - hd + r); p.quadraticCurveTo(cx - hw, cz - hd, cx - hw + r, cz - hd);
+  };
+  const shape = new THREE.Shape(); rr(shape, 0, 0, HX - 0.9, HZ - 0.9, R_OUT);
+  for (const c of COURTYARDS) { const h = new THREE.Path(); rr(h, c.x, c.z, c.w / 2 + 0.6, c.d / 2 + 0.6, R_CT); shape.holes.push(h); }
+  const g = new THREE.ShapeGeometry(shape, 6); g.rotateX(-Math.PI / 2); carpetG = g; return g;
+}

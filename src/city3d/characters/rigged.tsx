@@ -8,6 +8,7 @@ import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CharacterAppearance, CharacterPose } from '../shared';
+import { safeTop } from './color';
 
 export const RIG_URL = '/models/quaternius/UAL1_Standard.glb';
 export const RIG_RADIUS = 35; // metres: rigged only inside this distance
@@ -110,42 +111,94 @@ export const inView = (x: number, y: number, z: number) => { sph.center.set(x, y
 
 
 // ---------------------------------------------------------------- region-coloured material (shared program)
-const REGION_KEY = 'city3d-office-regions-v2';
+// Regions are classified ONCE per geometry from the dominant skin-bone of each vertex (head/neck/hands = skin,
+// spine/clavicle/arms = top, pelvis/legs = bottom, feet = shoes) and stored in the 'aReg' one-hot attribute.
+// The shader colours from that attribute only; bind-pose position is used just for decorative accents.
+const REGION_KEY = 'city3d-office-regions-v3';
 interface Look { skin: string; top: string; bottom: string; shoes: string; tie?: string; badge?: string }
-function regionMaterial(src: THREE.Material, a: Look) {
+interface Ext { armEnd: number; waist: number; neck: number }
+const extCache = new WeakMap<THREE.BufferGeometry, Ext>();
+function boneRegion(name: string): number {
+  const n = name.toLowerCase();
+  if (/^(head|neck)/.test(n) || /^(hand|index|middle|ring|pinky|thumb)/.test(n)) return 2;
+  if (/^(foot|ball)/.test(n)) return 3;
+  if (/^(pelvis|thigh|calf|root)/.test(n)) return 1;
+  return 0; // spine_*, clavicle_*, upperarm_*, lowerarm_*
+}
+export function ensureRegions(mesh: THREE.SkinnedMesh): Ext {
+  const g = mesh.geometry;
+  const hit = extCache.get(g); if (hit) return hit;
+  const pos = g.getAttribute('position'), si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight');
+  const names = mesh.skeleton.bones.map((b) => boneRegion(b.name));
+  const reg = new Float32Array(pos.count * 4);
+  const ext: Ext = { armEnd: 0.7, waist: 0.95, neck: 1.5 };
+  let armEnd = 0, waist = -1e9, neck = 1e9;
+  const acc = [0, 0, 0, 0];
+  for (let v = 0; v < pos.count; v++) {
+    acc[0] = acc[1] = acc[2] = acc[3] = 0;
+    for (let k = 0; k < 4; k++) { const w = sw.getComponent(v, k); if (w > 0) acc[names[si.getComponent(v, k)] ?? 0] += w; }
+    let best = 0; for (let r = 1; r < 4; r++) if (acc[r] > acc[best]) best = r;
+    reg[v * 4 + best] = 1;
+    const y = pos.getY(v), ax = Math.abs(pos.getX(v));
+    if (best === 0 && ax > armEnd && y > 1.1) armEnd = ax;
+    if (best === 1 && y > waist && ax < 0.3) waist = y;
+    if (best === 2 && y > 1.3 && ax < 0.2 && y < neck) neck = y;
+  }
+  g.setAttribute('aReg', new THREE.BufferAttribute(reg, 4));
+  if (armEnd > 0.3) ext.armEnd = armEnd;
+  if (waist > 0) ext.waist = waist;
+  if (neck < 1e8) ext.neck = neck;
+  extCache.set(g, ext);
+  return ext;
+}
+function regionMaterial(src: THREE.Material, a: Look, ext: Ext) {
   const m = (src as THREE.MeshStandardMaterial).clone() as THREE.MeshStandardMaterial;
-  m.map = null; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null; m.color.set('#ffffff'); m.roughness = 0.8; m.metalness = 0.02;
+  m.map = null; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null; m.color.set('#ffffff'); m.roughness = 0.85; m.metalness = 0.0;
   const u = {
     uSkin: { value: new THREE.Color(a.skin) }, uTop: { value: new THREE.Color(a.top) },
     uBottom: { value: new THREE.Color(a.bottom) }, uShoes: { value: new THREE.Color(a.shoes) },
     uTie: { value: new THREE.Color(a.tie ?? '#000000') }, uTieOn: { value: a.tie ? 1 : 0 },
     uBadge: { value: new THREE.Color(a.badge ?? '#000000') }, uBadgeOn: { value: a.badge ? 1 : 0 },
+    uArmEnd: { value: ext.armEnd }, uWaist: { value: ext.waist }, uNeck: { value: ext.neck },
   };
   m.userData.regions = u;
   m.customProgramCacheKey = () => REGION_KEY;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vRegion;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRegion = position;');
+      .replace('#include <common>', '#include <common>\nattribute vec4 aReg; varying vec4 vReg; varying vec3 vRegion;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRegion = position; vReg = aReg;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vRegion;\nuniform vec3 uSkin; uniform vec3 uTop; uniform vec3 uBottom; uniform vec3 uShoes; uniform vec3 uTie; uniform vec3 uBadge; uniform float uTieOn; uniform float uBadgeOn;')
+      .replace('#include <common>', '#include <common>\nvarying vec4 vReg; varying vec3 vRegion;\nuniform vec3 uSkin; uniform vec3 uTop; uniform vec3 uBottom; uniform vec3 uShoes; uniform vec3 uTie; uniform vec3 uBadge; uniform float uTieOn; uniform float uBadgeOn; uniform float uArmEnd; uniform float uWaist; uniform float uNeck;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
-          float y = vRegion.y, x = vRegion.x, ax = abs(x), z = vRegion.z;
+          float y = vRegion.y, ax = abs(vRegion.x), z = vRegion.z;
+          float mx = max(max(vReg.x, vReg.y), max(vReg.z, vReg.w));
           vec3 c = uTop;
-          if (y > 1.55) c = uSkin;                       // head + neck
-          else if (ax > 0.74 && y > 1.2) c = uSkin;      // hands
-          else if (y < 0.93 && ax < 0.74) c = uBottom;   // legs
-          if (y < 0.085) c = uShoes;                     // feet
-          if (z > 0.04 && ax < 0.74) {
+          if (vReg.x >= mx) {
+            // shirt: long sleeves to the wrist, darker cuffs, lighter collar band, placket
+            if (ax > uArmEnd - 0.07) c *= 0.82;
+            if (y > uNeck - 0.05 && ax < 0.2) c = mix(c, vec3(1.0), 0.3);
+            if (z > 0.04 && ax < 0.008 && y < uNeck - 0.05 && y > uWaist) c *= 0.8;
+            if (y < uWaist + 0.04) c *= 0.88;
+          } else if (vReg.y >= mx) {
+            c = uBottom;
+            if (y > uWaist - 0.045) c = uBottom * 0.45 + vec3(0.02); // belt
+          } else if (vReg.z >= mx) {
+            c = uSkin;
+          } else {
+            c = uShoes;
+            if (y < 0.03) c *= 0.55; // soles
+          }
+          if (vReg.x >= mx && z > 0.04 && ax < 0.74) {
             if (uTieOn > 0.5) {
-              if (ax < 0.085 && y > 1.42 && y < 1.55) c = vec3(0.95);          // white collar / shirt
-              if (ax < 0.03 && y > 1.12 && y < 1.5) c = uTie;                  // tie
+              if (ax < 0.085 && y > uNeck - 0.1 && y < uNeck + 0.02) c = vec3(0.95);   // white collar
+              if (ax < 0.03 && y > uWaist + 0.1 && y < uNeck) c = uTie;                // tie
             }
-            if (uBadgeOn > 0.5 && y > 1.1 && y < 1.5) {
-              if (abs(ax - (y - 1.25) * 0.32) < 0.007 && y > 1.25) c = uBadge; // lanyard
-              if (ax < 0.04 && y > 1.15 && y < 1.25) c = (y > 1.22) ? uBadge : vec3(0.95); // card
+            if (uBadgeOn > 0.5 && y > uWaist + 0.15 && y < uNeck) {
+              float vy = uNeck - 0.25;
+              if (abs(ax - (y - vy) * 0.32) < 0.007 && y > vy) c = uBadge;             // lanyard
+              if (ax < 0.04 && y > vy - 0.1 && y < vy) c = (y > vy - 0.03) ? uBadge : vec3(0.95); // card
             }
           }
           diffuseColor.rgb = c;
@@ -200,7 +253,7 @@ export const RiggedCharacter: React.FC<RigProps> = ({ appearance, pose, height, 
     o.traverse((c) => {
       const m = c as THREE.SkinnedMesh;
       if (m.isMesh) {
-        const mm = regionMaterial(m.material as THREE.Material, appearance); mats.push(mm);
+        const mm = regionMaterial(m.material as THREE.Material, { ...appearance, top: safeTop(appearance.top, appearance.skin) }, ensureRegions(m)); mats.push(mm);
         m.material = mm; m.frustumCulled = false; m.castShadow = castShadow; m.receiveShadow = false;
       }
     });
@@ -208,7 +261,7 @@ export const RiggedCharacter: React.FC<RigProps> = ({ appearance, pose, height, 
     return { obj: o, scale: height / Math.max(0.5, bb.max.y - Math.max(0, bb.min.y)), mats };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gltf, height, castShadow]);
-  useLayoutEffect(() => { for (const m of mats) setUniforms(m, appearance); }, [mats, appearance]);
+  useLayoutEffect(() => { for (const m of mats) setUniforms(m, { ...appearance, top: safeTop(appearance.top, appearance.skin) }); }, [mats, appearance]);
   const group = useRigPlayback(obj, gltf.animations, pose, speed, onReady);
   return <group ref={group} scale={scale}><primitive object={obj} /></group>;
 };
@@ -221,13 +274,13 @@ function hashStr(s: string) {
 }
 const lum = (c: string) => { const k = new THREE.Color(c); return 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b; };
 
-function hairFile(a: CharacterAppearance, female: boolean): string | null {
+function hairFile(a: CharacterAppearance, female: boolean, seedBit: boolean): string | null {
   switch (a.hairStyle) {
     case 'long': return 'Hair_Long';
     case 'bun': return 'Hair_Buns';
-    case 'cap': return 'Hair_Buzzed';
-    case 'bald': return null;
-    default: return female ? 'Hair_BuzzedFemale' : 'Hair_SimpleParted';
+    case 'bald': return female ? 'Hair_Buns' : 'Hair_Buzzed';
+    case 'cap': return female ? 'Hair_Buns' : 'Hair_SimpleParted';
+    default: return female ? ((seedBit) ? 'Hair_Long' : 'Hair_Buns') : 'Hair_SimpleParted';
   }
 }
 // shared head accessory geometry/material (model space: head centre ~ (0, 1.70, 0.03), facing +z)
@@ -256,16 +309,16 @@ function buildAccessory(kind: 'glasses' | 'headset'): THREE.Group {
 export const OfficeCharacter: React.FC<RigProps> = ({ appearance, pose, height, castShadow, onReady, speed }) => {
   const seed = hashStr(`${appearance.skin}${appearance.hair}${appearance.top}${appearance.bottom}${appearance.hairStyle}`);
   const female = appearance.hairStyle === 'long' || appearance.hairStyle === 'bun' ? true : (seed & 1) === 1;
-  const beard = !female && appearance.hairStyle !== 'bald' && appearance.hairStyle !== 'cap' && (seed >>> 3) % 5 === 0;
-  const hf = hairFile(appearance, female);
+  const beard = !female && appearance.hairStyle !== 'cap' && (seed >>> 3) % 5 === 0;
+  const hf = hairFile(appearance, female, ((seed >>> 5) & 1) === 1);
   const base = readGltf(`${BASE_DIR}Superhero_${female ? 'Female' : 'Male'}_FullBody.gltf`);
   const hair = hf ? readGltf(`${BASE_DIR}hair/${hf}.gltf`) : null;
   const beardG = beard ? readGltf(`${BASE_DIR}hair/Hair_Beard.gltf`) : null;
   const anim = readGltf(RIG_URL);
   const h = Math.max(1.6, Math.min(1.82, height)) * (female ? 0.97 : 1);
-  const dark = lum(appearance.top) < 0.22;
+  const dark = lum(safeTop(appearance.top, appearance.skin)) < 0.22;
   const look: Look = {
-    skin: appearance.skin, top: appearance.top, bottom: appearance.bottom, shoes: appearance.shoes,
+    skin: appearance.skin, top: safeTop(appearance.top, appearance.skin), bottom: appearance.bottom, shoes: appearance.shoes,
     tie: appearance.accessory === 'badge' && dark ? '#b91c1c' : undefined,
     badge: appearance.accessory === 'badge' ? (dark ? '#2563eb' : '#f97316') : undefined,
   };
@@ -284,7 +337,7 @@ export const OfficeCharacter: React.FC<RigProps> = ({ appearance, pose, height, 
       } else if (n.includes('eye')) {
         const mm = (m.material as THREE.MeshStandardMaterial).clone(); mm.normalMap = null; m.material = mm; m.castShadow = false;
       } else {
-        body = m; const mm = regionMaterial(m.material as THREE.Material, look); mats.push(mm); m.material = mm; m.castShadow = castShadow;
+        body = m; const mm = regionMaterial(m.material as THREE.Material, look, ensureRegions(m)); mats.push(mm); m.material = mm; m.castShadow = castShadow;
       }
     }
     if (!body) throw new Error('no body mesh');

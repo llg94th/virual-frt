@@ -109,6 +109,12 @@ export const CityHud: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [kmh, setKmh] = useState(0);
   const [nearCar, setNearCar] = useState(false);
+  const [hint, setHint] = useState('');
+  useEffect(() => {
+    const on = (e: Event) => setHint(String((e as CustomEvent).detail?.text ?? ''));
+    window.addEventListener('city3d:hint', on);
+    return () => window.removeEventListener('city3d:hint', on);
+  }, []);
   const [district, setDistrict] = useState(DISTRICTS[0]);
   const [mission, setMission] = useState<string | null>(null);
 
@@ -256,6 +262,9 @@ export const CityHud: React.FC<{ onExit: () => void }> = ({ onExit }) => {
         <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-black/70 border border-amber-400/60 rounded px-4 py-1.5 text-sm font-bold uppercase tracking-widest">
           Nhấn <span className="px-1.5 py-0.5 bg-amber-400 text-black rounded mx-1">F</span> để lên xe
         </div>
+      )}
+      {hint && (
+        <div className="absolute bottom-40 left-1/2 -translate-x-1/2 bg-black/75 border border-emerald-400/60 rounded px-4 py-1.5 text-sm font-bold uppercase tracking-widest text-center">{hint}</div>
       )}
       {mode === 'drive' && (
         <div className="absolute bottom-28 left-1/2 -translate-x-1/2 text-[11px] uppercase tracking-widest text-white/70">Nhấn F để xuống xe</div>

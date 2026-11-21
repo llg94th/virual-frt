@@ -53,6 +53,8 @@ export class Furn {
   seats: Seat[] = []; // generic 'type' desks available to NPC workers
   sitSeats: Seat[] = []; // bench / lounge seats ('sit')
   stands: Stand[] = [];
+  /** points of interest agents walk to (world coords on S, layout coords on lay) */
+  poi: { x: number; z: number; rot: number; pose: 'idle' | 'sit' }[] = [];
   walkers: Walker[] = [];
   /** Real team seats on TEAM_FLOOR */
   team: { emp: string; x: number; z: number; rot: number }[] = [];
@@ -277,7 +279,9 @@ function shell(F: Furn, f: number) {
   }
   // railings + slim columns along the straight parts of the (rounded) slab edge
   const r = R_OUT, e = 0.15;
-  F.frame(-HX + r, -HZ + e, HX - r, -HZ + e); F.frame(-HX + r, HZ - e, HX - r, HZ - e);
+  F.frame(-HX + r, -HZ + e, HX - r, -HZ + e);
+  if (f === 0) { F.frame(-HX + r, HZ - e, 3.4, HZ - e); F.frame(6.6, HZ - e, HX - r, HZ - e); } // keep the main entrance (x 3.4..6.6) open
+  else F.frame(-HX + r, HZ - e, HX - r, HZ - e);
   F.frame(-HX + e, -HZ + r, -HX + e, HZ - r); F.frame(HX - e, -HZ + r, HX - e, HZ - r);
   const rc = R_CT;
   COURTYARDS.forEach((c, k) => {
@@ -534,6 +538,11 @@ function teamFloor(F: Furn, S: Furn) {
   S.label({ t: 'PANTRY', x: 18.4, y: 2.7, z: HZ - 1.2 - 0.5, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
   for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
   for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
+  // points of interest for the living office
+  S.poi.push({ x: 18.4, z: HZ - 2.9, rot: 0, pose: 'idle' }, { x: 20, z: HZ - 2.9, rot: 0, pose: 'idle' }, { x: 16.6, z: -HZ + 3.1, rot: Math.PI, pose: 'idle' },
+    { x: 11, z: -HZ + 3.0, rot: Math.PI, pose: 'idle' }, { x: 8.5, z: -HZ + 3.0, rot: Math.PI, pose: 'idle' }, { x: -3.4, z: -12.3, rot: Math.PI, pose: 'idle' },
+    { x: -2.5, z: 5.2, rot: Math.PI, pose: 'idle' }, { x: -6, z: 0, rot: -Math.PI / 2, pose: 'idle' }, { x: -4.5, z: 8, rot: 0, pose: 'idle' },
+    { x: 2.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 3.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 2.3, z: 20, rot: 0, pose: 'sit' }, { x: 3.3, z: 20, rot: 0, pose: 'sit' });
   // glass meeting room + clearer lounge / pantry zones
   S.room(-3.4, -16, 6, 5, '#d9c7a8');
   S.label({ t: 'PHÒNG HỌP', x: -3.4, y: 2.7, z: -13.45, w: 3.4, h: 0.6, rot: 0, fg: '#fff', bg: '#2e8f8a' });

@@ -2,15 +2,18 @@
  * FPT Software F-Town 3 ("Building in the Park"): 7 floors + B1, 2 courtyard atria, terrace gardens,
  * cutaway dollhouse, real team bay on TEAM_FLOOR. Procedural only.
  */
-import React, { memo, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import React, { memo, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import { interior } from '../shared';
 import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCity, live, mulberry32, type Quality } from '../shared';
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
 import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
+import { AgentView, FloorPeople, Effects, stepAgents, teamAgents, syncTransfers, lookOf, type Agent } from './agents';
+import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor } from './nav';
 import { getProp, usePropsState } from './props';
 import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
 import { LongChauGreeter } from './greeter';
@@ -142,13 +145,17 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
     const add = (cx: number, cz: number, w: number, d: number) => out.push({ p: [cx, FT + CLEAR / 2, cz], s: [w, CLEAR, d], c: '#ffffff', r: 0, rx: 0 });
     // glazing is recessed ~0.9 m behind the slab edge (open dark terraces, as in the real building)
     const i = 0.9, sh = 5;
-    add(0, -HZ + i, 2 * HX - 2 * sh, 0.06); add(0, HZ - i, 2 * HX - 2 * sh, 0.06); add(-HX + i, 0, 0.06, 2 * HZ - 2 * sh); add(HX - i, 0, 0.06, 2 * HZ - 2 * sh);
+    add(0, -HZ + i, 2 * HX - 2 * sh, 0.06);
+    if (f === 0) { // main entrance gap on the south facade
+      const x0 = -HX + sh, x1 = HX - sh, g0 = DOOR.x - DOOR.halfW, g1 = DOOR.x + DOOR.halfW;
+      add((x0 + g0) / 2, HZ - i, g0 - x0, 0.06); add((g1 + x1) / 2, HZ - i, x1 - g1, 0.06);
+    } else add(0, HZ - i, 2 * HX - 2 * sh, 0.06); add(-HX + i, 0, 0.06, 2 * HZ - 2 * sh); add(HX - i, 0, 0.06, 2 * HZ - 2 * sh);
     for (const c of COURTYARDS) {
       const o = 0.6, w = c.w - 2 * 3, d = c.d - 2 * 3;
       add(c.x, c.z - c.d / 2 - o, w, 0.06); add(c.x, c.z + c.d / 2 + o, w, 0.06); add(c.x - c.w / 2 - o, c.z, 0.06, d); add(c.x + c.w / 2 + o, c.z, 0.06, d);
     }
     return out;
-  }, [isRoof, data]);
+  }, [isRoof, data, f]);
   const fascia = useMemo(() => (f >= 0 && !isRoof ? fasciaGeo(f) : null), [f, isRoof]);
   const dark = f === -1;
   const onClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); cityStore.set({ selectedFloor: isRoof ? null : f }); };
@@ -257,42 +264,49 @@ const FloorLights: React.FC<{ quality: Quality }> = ({ quality }) => {
   return <>{pts.map(([x, z], i) => <pointLight key={i} ref={(r) => { if (r) refs.current[i] = r; }} position={[x, 3.3, z]} distance={22} decay={2} color="#ffe6bf" intensity={4} />)}</>;
 };
 
+/** Open main entrance: door frame, canopy, mat and a short ramp up to the lobby slab (no glazing / rotor in the way). */
 const RevolvingDoor: React.FC<{ mats: Mats }> = ({ mats }) => {
-  const g = useRef<THREE.Group>(null!);
-  useFrame((_, dt) => { if (g.current) g.current.rotation.y += dt * 0.8; });
   return (
-    <group position={[5, FT, HZ - 0.3]}>
-      <mesh position={[0, 1.2, 0]} scale={[0.1, 2.4, 0.1]} geometry={BOX_GEO} material={mats.solid} />
-      <group ref={g}>
-        {[0, Math.PI / 2].map((r) => <mesh key={r} position={[0, 1.2, 0]} rotation={[0, r, 0]} scale={[2.4, 2.3, 0.04]} geometry={BOX_GEO} material={mats.inner} />)}
-      </group>
-      <mesh position={[0, 2.5, 0]} scale={[2.8, 0.2, 2.8]} geometry={BOX_GEO} material={mats.slab} />
+    <group position={[DOOR.x, 0, HZ - GLAZE_INSET]}>
+      {[-DOOR.halfW - 0.08, DOOR.halfW + 0.08].map((x) => <mesh key={x} position={[x, FT + 1.25, 0]} scale={[0.16, 2.5, 0.2]} geometry={BOX_GEO} material={mats.solid} />)}
+      <mesh position={[0, FT + 2.55, 0]} scale={[2 * DOOR.halfW + 0.5, 0.2, 0.3]} geometry={BOX_GEO} material={mats.slab} />
+      <mesh position={[0, FT + 0.012, 0.3]} scale={[2.8, 0.025, 1.2]} geometry={BOX_GEO}><meshStandardMaterial color="#3a4a50" roughness={1} /></mesh>
+      <mesh position={[0, 0.07, 1.25]} rotation={[0.19, 0, 0]} scale={[2.8, 0.12, 1.75]} geometry={BOX_GEO}><meshStandardMaterial color="#c9ced0" roughness={0.9} /></mesh>
     </group>
   );
 };
 
 // ---------- animated bits: elevators + LED blink + night glow ----------
 const Elevators: React.FC<{ mats: Mats }> = ({ mats }) => {
-  const a = useRef<THREE.Mesh>(null!), b = useRef<THREE.Mesh>(null!);
-  useFrame(({ clock }) => {
+  const a = useRef<THREE.Group>(null!), b = useRef<THREE.Group>(null!);
+  const da = useRef<THREE.Group>(null!), db = useRef<THREE.Group>(null!);
+  const open = useRef(0);
+  useFrame(({ clock }, dt) => {
     const sel = cityStore.get().selectedFloor;
     const maxF = sel === null ? TOWER_FLOORS - 1 : Math.min(sel, TOWER_FLOORS - 1);
-    const minF = -1;
-    const run = (m: THREE.Mesh | null, sp: number, ph: number) => {
-      if (!m) return;
+    const pf = live.playerFloor;
+    const onPad = pf !== null && Math.hypot(live.player.x - LIFT_PAD.x, live.player.z - LIFT_PAD.z) < LIFT_PAD.r;
+    open.current += ((onPad ? 1 : 0) - open.current) * Math.min(1, dt * 4);
+    const run = (g: THREE.Group | null, d: THREE.Group | null, sp: number, ph: number, park: boolean) => {
+      if (!g) return;
       const tri = Math.abs((((clock.elapsedTime * sp + ph) % 2) + 2) % 2 - 1);
       const s = tri * tri * (3 - 2 * tri);
-      const fl = minF + (maxF - minF) * s;
-      m.position.y = FT + fl * FLOOR_H + 1.25;
+      const fl = park && pf !== null ? Math.min(pf, maxF) : -1 + (maxF + 1) * s;
+      const ty = FT + fl * FLOOR_H + 1.25;
+      g.position.y = park && pf !== null ? g.position.y + (ty - g.position.y) * Math.min(1, dt * 6) : ty; // parked cabin snaps to the player's floor
+      if (d) { const o = (park ? open.current : 0) * 0.55; d.children[0].position.x = -0.5 - o; d.children[1].position.x = 0.5 + o; }
     };
-    run(a.current, 0.05, 0); run(b.current, 0.037, 0.8);
+    run(a.current, da.current, 0.05, 0, onPad); run(b.current, db.current, 0.037, 0.8, false);
   });
-  return (
-    <>
-      <mesh ref={a} position={[-3.75, 1.5, 0]} scale={[2, 2.5, 2.2]} geometry={BOX_GEO} material={mats.cabin} />
-      <mesh ref={b} position={[-1.25, 1.5, 0]} scale={[2, 2.5, 2.2]} geometry={BOX_GEO} material={mats.cabin} />
-    </>
+  const cabin = (ref: React.RefObject<THREE.Group>, door: React.RefObject<THREE.Group>, x: number) => (
+    <group ref={ref} position={[x, 1.5, 0]}>
+      <mesh scale={[2, 2.5, 2.2]} geometry={BOX_GEO} material={mats.cabin} />
+      <group ref={door} position={[0, 0, 1.12]}>
+        {[-1, 1].map((sx) => <mesh key={sx} position={[sx * 0.5, -0.15, 0]} scale={[0.98, 2.2, 0.05]} geometry={BOX_GEO} material={mats.solid} />)}
+      </group>
+    </group>
   );
+  return <>{cabin(a, da, -3.75)}{cabin(b, db, -1.25)}</>;
 };
 
 // ---------- people ----------
@@ -334,24 +348,10 @@ function useNearTower(): boolean {
 }
 
 const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> = ({ f, sel, quality }) => {
-  const data = useMemo(() => getFloor(f).lay, [f]);
-  const y = f * FLOOR_H + FT;
   const near = useNearTower();
   const show = sel === f || (near && quality === 'high' && (sel === null || sel >= f));
-  const items = useMemo(() => {
-    const r = mulberry32(f * 7 + 3);
-    const pick = <T,>(arr: T[], n: number) => arr.map((v) => [r(), v] as const).sort((p, q) => p[0] - q[0]).slice(0, n).map((p) => p[1]);
-    return { type: pick(data.seats, data.npcSeated), sit: pick(data.sitSeats, data.npcSit || 4) };
-  }, [data, f]);
   if (!show) return null;
-  return (
-    <>
-      {items.type.map((s, i) => <Npc key={`t${i}`} id={`npc-f${f}-t${i}`} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose="type" />)}
-      {items.sit.map((s, i) => <Npc key={`s${i}`} id={`npc-f${f}-s${i}`} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose="sit" />)}
-      {data.stands.map((s) => <Npc key={s.id} id={s.id} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose={s.pose ?? 'idle'} />)}
-      {data.walkers.map((w) => <Walk key={w.id} w={w} y={y} />)}
-    </>
-  );
+  return <FloorPeople f={f} />;
 };
 
 const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality }) => {
@@ -362,66 +362,69 @@ const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality
   const [selectedId, statuses] = useMemo(() => { const i = key.indexOf('#'); return [key.slice(0, i), key.slice(i + 1)] as const; }, [key]);
   const status = useMemo(() => Object.fromEntries(statuses.split('|').map((s) => s.split(':'))) as Record<string, string>, [statuses]);
   const data = useMemo(() => getFloor(TEAM_FLOOR).str, []);
+  const agents = useMemo(() => teamAgents(), []);
   const [hover, setHover] = React.useState<string | null>(null);
-  const y = TEAM_FLOOR * FLOOR_H + FT;
   const floorVisible = sel === null || sel >= TEAM_FLOOR;
   const near = useNearTower();
   const show = floorVisible && (sel !== null || near) && (quality === 'low' ? sel === TEAM_FLOOR : true);
   const interactive = sel === TEAM_FLOOR;
+  const y = TEAM_FLOOR * FLOOR_H + FT;
+  // employee status -> seated pose (idle people lean back, others type)
+  useEffect(() => {
+    for (const a of agents) { const st = status[a.emp ?? ''] ?? 'IDLE'; a.home.pose = st === 'IDLE' ? 'sit' : 'type'; if (a.st === 'home' && a.pose !== a.home.pose) { a.pose = a.home.pose; a.setPose(a.home.pose); } }
+  }, [agents, status]);
+  // simulation-driven document handoffs
+  useEffect(() => {
+    const run = () => syncTransfers(officeSimulationEngine.getSnapshot().activeTransfers);
+    run(); return officeSimulationEngine.subscribe(run);
+  }, []);
   if (!show) return null;
   return (
     <>
-      <StatusDots team={data.team} status={status} y={y + 1.72} />
-      {data.team.map((t) => {
-        const emp = EMPLOYEE_BY_ID[t.emp]; const st = status[t.emp] ?? emp?.status ?? 'IDLE';
-        const chipOn = interactive && (hover === t.emp || t.emp === 'EMP-01' || selectedId === t.emp);
-        return <TeamMember key={t.emp} id={t.emp} x={t.x} y={y} z={t.z} rot={t.rot} pose={st === 'IDLE' ? 'sit' : 'type'} interactive={interactive}
-          onHover={setHover} chip={chipOn ? { name: emp?.displayName ?? t.emp, role: emp?.role ?? '', status: st, color: emp?.badgeColor ?? '#2e8f8a' } : null} />;
+      <StatusDots agents={agents} status={status} />
+      {agents.map((a) => {
+        const emp = EMPLOYEE_BY_ID[a.emp ?? ''];
+        const chipOn = interactive && (hover === a.emp || a.emp === 'EMP-01' || selectedId === a.emp);
+        const handlers = interactive ? {
+          onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHover(a.emp ?? null); setCursor('pointer'); },
+          onPointerOut: () => { setHover(null); setCursor('auto'); },
+          onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); officeSimulationEngine.selectEmployee(a.emp ?? null); },
+        } : undefined;
+        const st = status[a.emp ?? ''] ?? emp?.status ?? 'IDLE';
+        const chip = chipOn ? (
+          <Html position={[0, 1.95, 0]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.88)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${emp?.badgeColor ?? '#2e8f8a'}` }}>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: STATUS_COLOR[st] ?? '#f59e0b' }} />
+              {emp?.displayName ?? a.emp}<span style={{ opacity: 0.65, fontWeight: 400 }}>{emp?.role ?? ''}</span>
+            </div>
+          </Html>
+        ) : null;
+        return <AgentView key={a.id} a={a} look={lookOf(a.id, emp?.role)} handlers={handlers} chip={chip} />;
       })}
       {quality === 'high' && data.extraTeam.map((s, i) => <Npc key={s.id ?? i} id={`seat-${s.id ?? i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
     </>
   );
 };
 const STATUS_COLOR: Record<string, string> = { WORKING: '#22c55e', IDLE: '#9ca3af', REVIEWING: '#3b82f6', WALKING: '#f59e0b', CARRYING_DOCS: '#f59e0b', HANDOFF: '#a855f7', WALKING_BACK: '#f59e0b' };
-/** one instanced mesh: tiny coloured status dot above each seated person */
-const StatusDots: React.FC<{ team: { emp: string; x: number; z: number }[]; status: Record<string, string>; y: number }> = ({ team, status, y }) => {
+/** one instanced mesh: tiny coloured status dot above each person; follows people who get up and walk */
+const StatusDots: React.FC<{ agents: Agent[]; status: Record<string, string> }> = ({ agents, status }) => {
   const ref = useRef<THREE.InstancedMesh>(null!);
+  const col = useMemo(() => new THREE.Color(), []), o = useMemo(() => new THREE.Object3D(), []);
   useLayoutEffect(() => {
-    const m = ref.current; if (!m) return; const o = new THREE.Object3D(); const c = new THREE.Color();
-    team.forEach((t, i) => { o.position.set(t.x, y, t.z); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, c.set(STATUS_COLOR[status[t.emp] ?? 'IDLE'] ?? '#f59e0b')); });
-    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
-  }, [team, status, y]);
-  if (!team.length) return null;
-  return <instancedMesh ref={ref} args={[DOT_GEO, DOT_MAT, team.length]} frustumCulled={false} />;
+    const m = ref.current; if (!m) return;
+    agents.forEach((a, i) => m.setColorAt(i, col.set(STATUS_COLOR[status[a.emp ?? ''] ?? 'IDLE'] ?? '#f59e0b')));
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [agents, status, col]);
+  useFrame(() => {
+    const m = ref.current; if (!m) return;
+    for (let i = 0; i < agents.length; i++) { const a = agents[i]; o.position.set(a.x, TEAM_FLOOR * FLOOR_H + FT + (a.st === 'go' || a.st === 'back' ? 2.0 : 1.72), a.z); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }
+    m.instanceMatrix.needsUpdate = true;
+  });
+  if (!agents.length) return null;
+  return <instancedMesh ref={ref} args={[DOT_GEO, DOT_MAT, agents.length]} frustumCulled={false} />;
 };
 const DOT_GEO = new THREE.IcosahedronGeometry(0.11, 0);
 const DOT_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
-const TeamMember: React.FC<{ id: string; x: number; y: number; z: number; rot: number; pose: 'type' | 'sit'; interactive: boolean; onHover: (id: string | null) => void; chip: { name: string; role: string; status: string; color: string } | null }> = ({ id, x, y, z, rot, pose, interactive, onHover, chip }) => {
-  // lighten tops/hair-free colours so seated people stay readable from far away
-  const look = useMemo(() => {
-    const a = appearanceFor(id, EMPLOYEE_BY_ID[id]?.role);
-    const lift = (c: string, t: number) => '#' + new THREE.Color(c).lerp(new THREE.Color('#ffffff'), t).getHexString();
-    return { ...a, top: lift(a.top, 0.42), bottom: lift(a.bottom, 0.25) };
-  }, [id]);
-  const handlers = interactive ? {
-    onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); onHover(id); setCursor('pointer'); },
-    onPointerOut: () => { onHover(null); setCursor('auto'); },
-    onClick: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); officeSimulationEngine.selectEmployee(id); },
-  } : {};
-  return (
-    <group {...handlers}>
-      <Character3D appearance={look} pose={pose} position={[x, y, z]} rotationY={rot} />
-      {chip && (
-        <Html position={[x, y + 1.95, z]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: 'rgba(12,28,26,0.88)', color: '#fff', font: '600 10px system-ui', whiteSpace: 'nowrap', border: `1px solid ${chip.color}` }}>
-            <span style={{ width: 6, height: 6, borderRadius: 3, background: STATUS_COLOR[chip.status] ?? '#f59e0b' }} />
-            {chip.name}<span style={{ opacity: 0.65, fontWeight: 400 }}>{chip.role}</span>
-          </div>
-        </Html>
-      )}
-    </group>
-  );
-};
 
 // ---------- root ----------
 export const FrtTower: React.FC = () => {
@@ -429,7 +432,19 @@ export const FrtTower: React.FC = () => {
   const quality = useCity((s) => s.quality);
   const mats = useMats();
 
-  useFrame(({ clock }) => {
+  // interior registry for the Player (walk-in): floor heights, colliders, entrance, lift pad
+  useEffect(() => {
+    interior.floorY = (f) => f * FLOOR_H + FT;
+    interior.colliders = (f) => collidersFor(f);
+    interior.entrance = { outside: ENTRANCE.outside, inside: ENTRANCE.inside };
+    interior.lifts = [{ x: LIFT_PAD.x, z: LIFT_PAD.z, r: LIFT_PAD.r }];
+    interior.stairs = [];
+    interior.ready = true;
+    return () => { interior.ready = false; };
+  }, []);
+
+  useFrame(({ clock }, dt) => {
+    if (quality !== 'low') stepAgents(Math.min(dt, 0.1));
     const nf = live.nightFactor;
     mats.glassFull.emissiveIntensity = nf * 0.55;
     const base = quality === 'high' ? 0.42 : quality === 'medium' ? 0.52 : 0.7;
@@ -449,6 +464,7 @@ export const FrtTower: React.FC = () => {
           interior={quality !== 'low' || sel === f} />
       ))}
       <Elevators mats={mats} />
+      {quality !== 'low' && <Effects />}
       <Team sel={sel} quality={quality} />
       {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
       {quality !== 'low' && (sel === null || sel >= 0) && <LongChauGreeter />}

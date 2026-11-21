@@ -9,7 +9,11 @@ import { Billboard, Text } from '@react-three/drei';
 import {
   CITY_EXTENT, ROAD_LINES, ROAD_W, SIDEWALK_W, live, mulberry32, useCity,
 } from '../shared';
+import { cityStore, interior, TOWER_FLOORS, TOWER_FOOTPRINT } from '../shared';
 import type { CharacterAppearance, CharacterPose } from '../shared';
+import { safeTop } from './color';
+import { buildGrid, pushOut, resolveGrid } from './walk';
+import type { Grid } from './walk';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { FarHost, farEntries, joinFar, useFarLeader, makeFarColors, FAR_IN } from './far';
 import type { FarEntry } from './far';
@@ -56,7 +60,7 @@ const M: React.FC<MProps> = ({ g, c, p, s, r, sh, rough }) => (
 const SKINS = ['#f1c9a5', '#e0b090', '#c68a62', '#a8714a', '#8d5a3b', '#f7d8bd'];
 const HAIRS = ['#1a1a1a', '#2b1d12', '#4a3020', '#6b4423', '#9a6b3a', '#c9a35a', '#7a7a7a', '#3a2a6a'];
 const STYLES: CharacterAppearance['hairStyle'][] = ['short', 'short', 'long', 'bun', 'cap', 'bald', 'short', 'long'];
-const CASUAL = ['#e76f51', '#2a9d8f', '#e9c46a', '#8ab17d', '#9d4edd', '#4895ef', '#f28482', '#cdb4db', '#90be6d', '#adb5bd'];
+const CASUAL = ['#2a9d8f', '#4895ef', '#9d4edd', '#6c8ebf', '#3d7a5f', '#adb5bd', '#c0392b', '#2563eb', '#7c6fd6', '#d1d5db'];
 const BOTTOMS = ['#1f2937', '#374151', '#1e3a8a', '#44403c', '#0f172a', '#6b7280', '#7c5a3a'];
 const SHOES = ['#111111', '#f3f4f6', '#3b2a20', '#1f2937', '#b91c1c'];
 const MASCOTS = ['longchau', 'doraemon', 'luffy', 'zoro', 'nami', 'sanji', 'chopper', 'usopp'] as const;
@@ -87,6 +91,7 @@ export const appearanceFor = (id: string, role?: string): CharacterAppearance =>
   else if (R.includes('QA') || R.includes('DEVOPS')) { a.top = pick(['#f97316', '#facc15', '#fb923c']); a.accessory = 'badge'; }
   else if (R.includes('PM') || R.includes('BA')) { a.top = pick(['#1e3a5f', '#374151', '#4c1d3b']); a.bottom = '#111827'; a.shoes = '#111111'; a.accessory = 'badge'; }
   else if (R.includes('TECH') || R.includes('LEAD')) { a.top = pick(['#e5e7eb', '#bfdbfe', '#d1d5db']); a.accessory = 'glasses'; }
+  a.top = safeTop(a.top, a.skin);
   return a;
 };
 
@@ -651,7 +656,11 @@ const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown
 const PlayerInner: React.FC = () => {
   const group = useRef<THREE.Group>(null);
   const keys = useRef(new Set<string>());
-  const st = useRef({ vx: 0, vz: 0, vy: 0, y: live.player.y, heading: live.player.heading, ground: true });
+  const st = useRef({
+    vx: 0, vz: 0, vy: 0, y: live.player.y, heading: live.player.heading, ground: true,
+    gy: live.player.y, floor: 0, onPad: false, hint: '', setFloor: false, prevMode: null as null | string, loweredCam: false,
+    grids: new Map<number, Grid>(), gridReady: false, p: { x: 0, z: 0 },
+  });
   const [pose, setPose] = useState<CharacterPose>('idle');
   const poseRef = useRef<CharacterPose>('idle');
   const { camera, gl } = useThree();
@@ -663,6 +672,18 @@ const PlayerInner: React.FC = () => {
       if (GAME_KEYS.has(e.code)) { e.preventDefault(); keys.current.add(e.code); }
     };
     const ku = (e: KeyboardEvent) => { if (GAME_KEYS.has(e.code)) keys.current.delete(e.code); };
+    const liftKey = (e: KeyboardEvent) => {
+      const s = st.current;
+      if (!s.onPad || isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      let f: number | null = null;
+      if (/^Digit[0-7]$/.test(e.code)) f = e.code === 'Digit0' ? -1 : Number(e.code.slice(5)) - 1;
+      else if (e.code === 'KeyE' || e.code === 'PageUp') f = s.floor + 1;
+      else if (e.code === 'KeyQ' || e.code === 'PageDown') f = s.floor - 1;
+      if (f == null) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      s.floor = Math.max(-1, Math.min(TOWER_FLOORS - 1, f));
+    };
+    window.addEventListener('keydown', liftKey, true);
     const blur = () => keys.current.clear();
     let drag = false, lx = 0, ly = 0;
     const pd = (e: PointerEvent) => { if (e.button === 0 || e.button === 2) { drag = true; lx = e.clientX; ly = e.clientY; } };
@@ -677,10 +698,20 @@ const PlayerInner: React.FC = () => {
     const el = gl.domElement;
     el.addEventListener('pointerdown', pd); window.addEventListener('pointermove', pm); window.addEventListener('pointerup', pu);
     return () => {
+      window.removeEventListener('keydown', liftKey, true);
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('blur', blur);
       el.removeEventListener('pointerdown', pd); window.removeEventListener('pointermove', pm); window.removeEventListener('pointerup', pu);
     };
   }, [gl]);
+
+  useEffect(() => () => {
+    const s = st.current;
+    live.playerFloor = null;
+    if (s.setFloor) cityStore.set({ selectedFloor: null });
+    if (s.prevMode != null && cityStore.get().cameraMode === 'follow') cityStore.set({ cameraMode: s.prevMode as any });
+    if (s.loweredCam) playerLook.dist = 6;
+    if (s.hint) { try { window.dispatchEvent(new CustomEvent('city3d:hint', { detail: { text: '' } })); } catch { /* ignore */ } }
+  }, []);
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05), s = st.current, K = keys.current, P = live.player, g = group.current;
@@ -698,23 +729,54 @@ const PlayerInner: React.FC = () => {
     if (dl > 0.01) { dx /= dl; dz /= dl; tvx = dx * maxSp; tvz = dz * maxSp; }
     const a = 1 - Math.exp(-dt * (dl > 0.01 ? 10 : 14));
     s.vx += (tvx - s.vx) * a; s.vz += (tvz - s.vz) * a;
-    if (K.has('Space') && s.ground) { s.vy = 5.2; s.ground = false; }
-    s.vy -= 14 * dt; s.y += s.vy * dt;
-    if (s.y <= 0) { s.y = 0; s.vy = 0; s.ground = true; }
-    let nx = P.x + s.vx * dt, nz = P.z + s.vz * dt;
-    const R = 0.35;
-    for (let it = 0; it < 2; it++) for (const o of obstacles) {
-      if (s.y > 3 && false) continue;
-      const cx = Math.max(o.minX, Math.min(nx, o.maxX)), cz = Math.max(o.minZ, Math.min(nz, o.maxZ));
-      const ddx = nx - cx, ddz = nz - cz, d2 = ddx * ddx + ddz * ddz;
-      if (d2 < R * R) {
-        if (d2 > 1e-8) { const d = Math.sqrt(d2), push = R - d; nx += (ddx / d) * push; nz += (ddz / d) * push; }
-        else {
-          const l = nx - o.minX, r = o.maxX - nx, t = nz - o.minZ, b = o.maxZ - nz, m = Math.min(l, r, t, b);
-          if (m === l) nx = o.minX - R; else if (m === r) nx = o.maxX + R; else if (m === t) nz = o.minZ - R; else nz = o.maxZ + R;
-        }
+    // ---------------- interior / floor logic
+    const half = TOWER_FOOTPRINT.w / 2, halfD = TOWER_FOOTPRINT.d / 2;
+    const inZone = Math.abs(P.x) < half + 2 && Math.abs(P.z) < halfD + 2;
+    const inBuilding = Math.abs(P.x) < half && Math.abs(P.z) < halfD;
+    const I = interior;
+    let stairY: number | null = null;
+    s.onPad = false;
+    if (I.ready && inBuilding) {
+      for (const L of I.lifts) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r) { s.onPad = true; break; }
+      for (const S of I.stairs) {
+        if (s.floor !== S.floorA && s.floor !== S.floorB) continue;
+        const ax = S.a[0], az = S.a[1], bx = S.b[0], bz = S.b[1], ex = bx - ax, ez = bz - az, el = ex * ex + ez * ez || 1;
+        const t = ((P.x - ax) * ex + (P.z - az) * ez) / el;
+        if (t < -0.02 || t > 1.02) continue;
+        const lx = P.x - (ax + ex * t), lz = P.z - (az + ez * t);
+        if (Math.hypot(lx, lz) > S.width / 2) continue;
+        const tc = Math.max(0, Math.min(1, t));
+        stairY = I.floorY(S.floorA) + (I.floorY(S.floorB) - I.floorY(S.floorA)) * tc;
+        s.floor = tc < 0.5 ? S.floorA : S.floorB;
+        break;
       }
     }
+    const hint = s.onPad ? 'Thang máy: phím 0-7 chọn tầng (0 = B1), E/Q lên/xuống' : '';
+    if (hint !== s.hint) { s.hint = hint; try { window.dispatchEvent(new CustomEvent('city3d:hint', { detail: { text: hint } })); } catch { /* ignore */ } }
+    const flo = I.ready && inBuilding ? s.floor : 0;
+    const targetY = I.ready ? I.floorY(flo) : 0;
+    if (stairY != null) s.gy = stairY;
+    else if (Math.abs(targetY - s.gy) < 0.01) s.gy = targetY;
+    else s.gy += (targetY - s.gy) * (1 - Math.exp(-dt * 6));
+    if (!inBuilding && s.floor !== 0) s.floor = 0;
+    if (K.has('Space') && s.ground) { s.vy = 5.2; s.ground = false; }
+    if (s.ground) { s.y = s.gy; s.vy = 0; }
+    else { s.vy -= 14 * dt; s.y += s.vy * dt; if (s.y <= s.gy) { s.y = s.gy; s.vy = 0; s.ground = true; } }
+    let nx = P.x + s.vx * dt, nz = P.z + s.vz * dt;
+    const R = 0.35;
+    const pp = s.p; pp.x = nx; pp.z = nz;
+    for (let it = 0; it < 2; it++) for (const o of obstacles) pushOut(o, R, pp);
+    if (inZone || Math.abs(nx) < half + 2 && Math.abs(nz) < halfD + 2) {
+      if (I.ready) {
+        let g = s.grids.get(flo);
+        if (!g || !s.gridReady) { if (!s.gridReady) { s.grids.clear(); s.gridReady = true; } g = buildGrid(I.colliders(flo)); s.grids.set(flo, g); }
+        resolveGrid(g, R, pp);
+      } else {
+        pushOut({ minX: -half, maxX: half, minZ: -halfD, maxZ: halfD }, R, pp);
+      }
+    }
+    nx = pp.x; nz = pp.z;
+    if (!I.ready) s.gridReady = false;
     const lim = CITY_EXTENT + 20;
     nx = Math.max(-lim, Math.min(lim, nx)); nz = Math.max(-lim, Math.min(lim, nz));
     const sp = Math.hypot(s.vx, s.vz);
@@ -724,6 +786,23 @@ const PlayerInner: React.FC = () => {
       s.heading += d * Math.min(1, dt * 12);
     }
     P.x = nx; P.z = nz; P.y = s.y; P.heading = s.heading; P.speed = sp;
+    const inside = I.ready && Math.abs(nx) < half && Math.abs(nz) < halfD;
+    const pf = inside ? s.floor : null;
+    if (live.playerFloor !== pf) live.playerFloor = pf;
+    const cs = cityStore.get();
+    if (pf != null) {
+      if (cs.selectedFloor !== pf || (cs.cameraMode !== 'follow' && s.prevMode == null)) {
+        const patch: Partial<typeof cs> = {};
+        if (cs.selectedFloor !== pf) patch.selectedFloor = pf;
+        if (cs.cameraMode !== 'follow' && s.prevMode == null) { s.prevMode = cs.cameraMode; patch.cameraMode = 'follow'; }
+        s.setFloor = true; cityStore.set(patch);
+      }
+      if (!s.loweredCam) { s.loweredCam = true; playerLook.dist = 4; }
+    } else {
+      if (s.setFloor) { s.setFloor = false; if (cs.selectedFloor != null) cityStore.set({ selectedFloor: null }); }
+      if (s.prevMode != null) { if (cs.cameraMode === 'follow') cityStore.set({ cameraMode: s.prevMode as any }); s.prevMode = null; }
+      if (s.loweredCam) { s.loweredCam = false; playerLook.dist = 6; }
+    }
     g.position.set(nx, s.y, nz); g.rotation.y = s.heading;
     const np: CharacterPose = sp > 4 ? 'run' : sp > 0.4 ? 'walk' : 'idle';
     if (np !== poseRef.current) { poseRef.current = np; setPose(np); }

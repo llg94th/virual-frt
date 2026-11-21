@@ -14,6 +14,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CharacterPose } from '../shared';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { inView, rigTick } from './rigged';
+import { safeTop } from './color';
 
 export const FAR_IN = 20; // metres from camera: beyond -> far LOD (hysteresis handled by caller)
 export const SHADOW_DIST = 60; // beyond: no shadow casting
@@ -37,7 +38,7 @@ export const useFarLeader = (token: object) =>
 
 export function makeFarColors(a: { top: string; bottom: string; skin: string; hair: string; shoes: string; hairStyle: string }, out: Float32Array) {
   const c = new THREE.Color();
-  [a.top, a.bottom, a.skin, a.hairStyle === 'bald' ? a.skin : a.hair, a.shoes].forEach((col, i) => { c.set(col); out[i * 3] = c.r; out[i * 3 + 1] = c.g; out[i * 3 + 2] = c.b; });
+  [safeTop(a.top, a.skin), a.bottom, a.skin, a.hairStyle === 'bald' ? a.skin : a.hair, a.shoes].forEach((col, i) => { c.set(col); out[i * 3] = c.r; out[i * 3 + 1] = c.g; out[i * 3 + 2] = c.b; });
 }
 
 // ---------------------------------------------------------------- pre-posed merged geometry

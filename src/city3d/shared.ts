@@ -101,4 +101,31 @@ export const live = {
   nightFactor: 0,
   /** 0..1 rain intensity */
   rain: 0,
+  /** Floor index (-1..TOWER_FLOORS-1) the player is currently standing in inside F-Town 3, or null when outside. Written by Player. */
+  playerFloor: null as number | null,
+};
+
+// ---------- Tower interior registry (filled by tower/, read by characters/ Player) ----------
+export interface Rect2 { minX: number; maxX: number; minZ: number; maxZ: number }
+export interface InteriorApi {
+  /** set true by tower/ once the data below is valid */
+  ready: boolean;
+  /** standing height of a floor slab top (world y) */
+  floorY: (floor: number) => number;
+  /** blocking rectangles (world x/z) for a floor: exterior walls (with door gaps), atria, lift core, furniture, partitions */
+  colliders: (floor: number) => Rect2[];
+  /** main entrance: world position just outside and just inside the F1 door */
+  entrance: { outside: [number, number]; inside: [number, number] } | null;
+  /** lift pads: standing zone centre + radius; same x/z on every floor */
+  lifts: { x: number; z: number; r: number }[];
+  /** walkable stair flights joining two floors (optional) */
+  stairs: { floorA: number; floorB: number; a: [number, number]; b: [number, number]; width: number }[];
+}
+export const interior: InteriorApi = {
+  ready: false,
+  floorY: (f) => f * FLOOR_H,
+  colliders: () => [],
+  entrance: null,
+  lifts: [],
+  stairs: [],
 };

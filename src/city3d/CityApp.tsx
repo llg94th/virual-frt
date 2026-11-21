@@ -6,8 +6,9 @@ import { Crowd, Player, setObstacles } from './characters';
 import { Atmosphere, PostFx, CameraRig, onThunder } from './atmosphere';
 import { Traffic, CityAudio, setVehicleObstacles } from './vehicles';
 import { buildingFootprints } from './world/layout';
+import { officeSimulationEngine } from '../engine/simulationStore';
 import { CityHud } from './hud';
-import { useCity, cityStore } from './shared';
+import { useCity, cityStore, live, interior } from './shared';
 
 /** Exposes renderer stats on window.__city3d for profiling (cheap, 1 write/sec). */
 const PerfProbe: React.FC = () => {
@@ -32,8 +33,10 @@ const PerfProbe: React.FC = () => {
 export interface CityAppProps { onExit: () => void; }
 const CityApp: React.FC<CityAppProps> = ({ onExit }) => {
   const quality = useCity((s) => s.quality);
+  useEffect(() => { (window as unknown as { __city3dDebug?: unknown }).__city3dDebug = { live, interior, cityStore, engine: officeSimulationEngine }; }, []);
   useEffect(() => {
-    setObstacles(buildingFootprints.map((b) => ({ x: b.cx, z: b.cz, w: b.w, d: b.d })));
+    // The F-Town 3 tower is NOT an outer obstacle for walking: its walls/doors/furniture come from shared `interior`.
+    setObstacles(buildingFootprints.filter((b) => !(b.cx === 0 && b.cz === 0)).map((b) => ({ x: b.cx, z: b.cz, w: b.w, d: b.d })));
     setVehicleObstacles(buildingFootprints);
     return onThunder(() => window.dispatchEvent(new Event('city3d:thunder')));
   }, []);

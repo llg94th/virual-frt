@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { cityStore, live, useCity, CameraMode, CITY_EXTENT, FLOOR_H, TOWER_FLOORS } from '../shared';
+import { cityStore, live, useCity, CameraMode, CITY_EXTENT, FLOOR_H, TOWER_FLOORS, TOWER_FOOTPRINT } from '../shared';
+import { buildingFootprints } from '../world/layout';
 
 const MODES: CameraMode[] = ['orbit', 'follow', 'cutaway', 'cinematic', 'drive'];
 const V3 = THREE.Vector3;
@@ -16,9 +17,36 @@ const CINE_POINTS: [number, number, number][] = [
   [-230, 90, 60], [-200, 32, -105], [-90, 75, -190], [30, 26, -110], [130, 50, -170], [255, 95, -120],
 ];
 
+const TW = Math.max(TOWER_FOOTPRINT.w, TOWER_FOOTPRINT.d);
 function cutawayTarget(floor: number | null): { target: THREE.Vector3; dist: number } {
-  if (floor == null) return { target: new V3(0, (TOWER_FLOORS * FLOOR_H) / 2, 0), dist: 130 };
-  return { target: new V3(0, (floor + 0.5) * FLOOR_H, 0), dist: 72 };
+  if (floor == null) return { target: new V3(0, (TOWER_FLOORS * FLOOR_H) / 2, 0), dist: TW * 3.1 };
+  return { target: new V3(0, (floor + 0.5) * FLOOR_H, 0), dist: TW * 1.9 };
+}
+
+const CLEAR = 6;
+/** Minimum safe camera altitude at (x,z): above any building within CLEAR metres of its footprint. */
+function minAltitude(x: number, z: number): number {
+  let y = 3;
+  for (const f of buildingFootprints) {
+    if (Math.abs(x - f.cx) < f.w / 2 + CLEAR && Math.abs(z - f.cz) < f.d / 2 + CLEAR) y = Math.max(y, f.h + 10);
+  }
+  return y;
+}
+/** Resample the spline, lift it above rooftops where it crosses buildings, and keep it smooth/closed. */
+function buildSafeCurve(): THREE.CatmullRomCurve3 {
+  const raw = new THREE.CatmullRomCurve3(CINE_POINTS.map((p) => new V3(...p)), true, 'centripetal');
+  const N = 192;
+  const pts = Array.from({ length: N }, (_, i) => raw.getPointAt(i / N));
+  const req = pts.map((p) => minAltitude(p.x, p.z));
+  // also pad requirement along the path so the lift is anticipated early
+  const padded = req.map((_, i) => { let m = req[i]; for (let k = -6; k <= 6; k++) m = Math.max(m, req[(i + k + N) % N]); return m; });
+  let ys = pts.map((p, i) => Math.max(p.y, padded[i]));
+  for (let it = 0; it < 4; it++) {
+    ys = ys.map((_, i) => { let a = 0; for (let k = -4; k <= 4; k++) a += ys[(i + k + N) % N]; return Math.max(a / 9, padded[i]); });
+  }
+  const out: THREE.Vector3[] = [];
+  for (let i = 0; i < N; i += 4) out.push(new V3(pts[i].x, ys[i], pts[i].z));
+  return new THREE.CatmullRomCurve3(out, true, 'centripetal');
 }
 
 export const CameraRig: React.FC = () => {
@@ -26,7 +54,7 @@ export const CameraRig: React.FC = () => {
   const selectedFloor = useCity((s) => s.selectedFloor);
   const { camera, gl } = useThree();
   const controls = useRef<any>(null);
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(CINE_POINTS.map((p) => new V3(...p)), true, 'centripetal'), []);
+  const curve = useMemo(buildSafeCurve, []);
 
   const S = useRef({
     mode, look: new V3(0, 20, 0), enterT: 0,
@@ -152,6 +180,7 @@ export const CameraRig: React.FC = () => {
         const u = s.cin;
         curve.getPointAt(u, pos);
         pos.y += Math.sin(s.time * 0.7) * 0.8;
+        pos.y = Math.max(pos.y, minAltitude(pos.x, pos.z));
         curve.getPointAt((u + 0.035) % 1, a);
         look.set(0, 22, 0).lerp(a.setY(a.y * 0.3), 0.25 + 0.2 * Math.sin(u * Math.PI * 6));
         const lp = THREE.MathUtils.lerp(1.2, 3, blend);
@@ -170,7 +199,7 @@ export const CameraRig: React.FC = () => {
       ref={controls}
       enableDamping dampingFactor={0.08} rotateSpeed={0.6} zoomSpeed={0.9} panSpeed={0.8}
       screenSpacePanning={false}
-      minDistance={mode === 'cutaway' ? 22 : 25} maxDistance={mode === 'cutaway' ? 260 : 650}
+      minDistance={mode === 'cutaway' ? TW * 0.9 : 25} maxDistance={mode === 'cutaway' ? 260 : 650}
       minPolarAngle={0.12} maxPolarAngle={Math.PI / 2 - 0.04}
     />
   );

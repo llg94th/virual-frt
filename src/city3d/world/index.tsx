@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import {
   PITCH, BLOCK_SIZE, GRID_HALF, ROAD_W, CITY_EXTENT, ROAD_LINES, SIDEWALK_W, live, useCity, type Quality,
 } from '../shared';
 import {
-  buildings, blockKind, PARK_BLOCK, lamps, trees, POND, PLAZA, buildingFootprints, isOnRoad,
+  buildings, blockKind, lamps, trees, POND, PLAZA, buildingFootprints, isOnRoad, waterRects, waterRounds, gardenLights,
 } from './layout';
 import { buildBlockGeometry, buildProps } from './geometry';
-import { createWindowMaterial, winUniforms, makeAsphaltTexture, makeSignAtlas } from './materials';
+import { createWindowMaterial, winUniforms, makeAsphaltTexture, makeSignAtlas, patchWetRoad, roadUniforms, makeWaterNormal } from './materials';
 
 export { buildingFootprints, isOnRoad };
 export * from './layout';
@@ -57,10 +57,14 @@ function paintLists() {
 const mats = () => {
   const asphaltTex = makeAsphaltTexture(); asphaltTex.repeat.set(63, 63);
   const sign = makeSignAtlas();
+  const waterNormal = makeWaterNormal(); waterNormal.repeat.set(5, 5);
+  const asphalt = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92, metalness: 0 });
+  patchWetRoad(asphalt);
   return {
+    waterNormal, garden: new THREE.MeshStandardMaterial({ color: 0x333333, emissive: new THREE.Color(1, 0.85, 0.55), emissiveIntensity: 0.2 }),
     asphaltTex, signTex: sign,
     ground: new THREE.MeshStandardMaterial({ color: new THREE.Color(0.1, 0.15, 0.1), roughness: 1 }),
-    asphalt: new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92, metalness: 0 }),
+    asphalt,
     slab: new THREE.MeshStandardMaterial({ roughness: 0.9 }),
     paint: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
     yellow: new THREE.MeshStandardMaterial({ color: 0xf2c200, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
@@ -71,7 +75,7 @@ const mats = () => {
     pool: new THREE.MeshBasicMaterial({ map: null, color: new THREE.Color(1, 0.75, 0.4), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
     trunk: new THREE.MeshStandardMaterial({ color: 0x5a3d26, roughness: 1 }),
     leaf: new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }),
-    water: new THREE.MeshStandardMaterial({ color: 0x1d5f86, roughness: 0.05, metalness: 0.3 }),
+    water: new THREE.MeshStandardMaterial({ color: 0x14506f, roughness: 0.04, metalness: 0.55, normalMap: waterNormal, normalScale: new THREE.Vector2(0.35, 0.35), emissive: new THREE.Color(0.1, 0.5, 0.8), emissiveIntensity: 0 }),
   };
 };
 type Mats = ReturnType<typeof mats>;
@@ -111,6 +115,8 @@ const Ground: React.FC<{ m: Mats; quality: Quality }> = ({ m }) => {
     };
     out.push(mk(white, m.paint), mk(zebra, m.paint), mk(yellow, m.yellow));
     const pond = new THREE.Mesh(new THREE.CircleGeometry(POND.r, 32).rotateX(-Math.PI / 2), m.water); pond.position.set(POND.x, 0.32, POND.z); out.push(pond);
+    for (const w of waterRounds) { const me = new THREE.Mesh(new THREE.CircleGeometry(w.r, 20).rotateX(-Math.PI / 2), m.water); me.position.set(w.x, 0.3, w.z); out.push(me); }
+    for (const w of waterRects) { const me = new THREE.Mesh(new THREE.PlaneGeometry(w.w, w.d).rotateX(-Math.PI / 2), m.water); me.position.set(w.x, 0.3, w.z); out.push(me); }
     return out;
   }, [m]);
   useEffect(() => () => objs.forEach((o) => { (o as THREE.Mesh).geometry?.dispose(); }), [objs]);
@@ -118,24 +124,42 @@ const Ground: React.FC<{ m: Mats; quality: Quality }> = ({ m }) => {
 };
 
 const Buildings: React.FC<{ m: Mats; quality: Quality }> = ({ m, quality }) => {
-  const meshes = useMemo(() => {
+  const camera = useThree((st) => st.camera);
+  const data = useMemo(() => {
     const byBlock = new Map<string, typeof buildings>();
     for (const b of buildings) { const k = b.block.join(','); (byBlock.get(k) ?? byBlock.set(k, []).get(k)!).push(b); }
-    const out: THREE.Mesh[] = [];
-    byBlock.forEach((list) => {
-      const me = new THREE.Mesh(buildBlockGeometry(list, quality), m.win);
-      me.castShadow = quality !== 'low'; me.receiveShadow = true; out.push(me);
+    const out: THREE.Object3D[] = [];
+    const lod: { near: THREE.Mesh; far: THREE.Mesh; x: number; z: number }[] = [];
+    byBlock.forEach((list, k) => {
+      const mk = (detail: boolean) => {
+        const me = new THREE.Mesh(buildBlockGeometry(list, quality, detail), m.win);
+        me.castShadow = quality !== 'low'; me.receiveShadow = true; return me;
+      };
+      const near = mk(true), far = mk(false); far.visible = false;
+      const [i, j] = k.split(',').map(Number);
+      lod.push({ near, far, x: i * PITCH, z: j * PITCH }); out.push(near, far);
     });
     const { geo, signs } = buildProps(quality);
     const props = new THREE.Mesh(geo, m.win); props.castShadow = quality !== 'low'; props.receiveShadow = true; out.push(props);
-    const sg = new THREE.Mesh(signs, m.sign); out.push(sg);
-    return out;
+    out.push(new THREE.Mesh(signs, m.sign));
+    return { out, lod };
   }, [m, quality]);
-  useEffect(() => () => meshes.forEach((x) => x.geometry.dispose()), [meshes]);
-  return <>{meshes.map((o, i) => <primitive key={i} object={o} />)}</>;
+  const tick = React.useRef(0);
+  useFrame(() => {
+    if ((tick.current++ & 7) !== 0) return;
+    const p = camera.position;
+    for (const l of data.lod) {
+      const far = Math.hypot(p.x - l.x, p.z - l.z) > 250;
+      if (l.far.visible !== far) { l.far.visible = far; l.near.visible = !far; }
+    }
+  });
+  useEffect(() => () => data.out.forEach((x) => (x as THREE.Mesh).geometry.dispose()), [data]);
+  return <>{data.out.map((o, i) => <primitive key={i} object={o} />)}</>;
 };
 
 const Street: React.FC<{ m: Mats; quality: Quality }> = ({ m, quality }) => {
+  const camera = useThree((st) => st.camera);
+  const tick = React.useRef(0);
   const objs = useMemo(() => {
     const out: THREE.Object3D[] = [];
     const poolTex = poolTexture(); (m.pool as THREE.MeshBasicMaterial).map = poolTex; m.pool.needsUpdate = true;
@@ -153,15 +177,38 @@ const Street: React.FC<{ m: Mats; quality: Quality }> = ({ m, quality }) => {
     pools.name = 'pools'; pools.visible = false;
     out.push(poles, arms, heads, pools);
     const tl = trees.filter((t) => quality !== 'low' || t.lod === 0);
-    const trunk = instanced(new THREE.CylinderGeometry(0.15, 0.22, 3, 5).translate(0, 1.5, 0), m.trunk, tl.length, (i, o) => { o.position.set(tl[i].x, 0.18, tl[i].z); o.scale.setScalar(tl[i].s); });
+    const CH = 3, SPAN = (CITY_EXTENT + H_ROAD) * 2 / CH;
+    const groups: typeof tl[] = Array.from({ length: CH * CH }, () => []);
+    for (const t of tl) {
+      const cx = Math.max(0, Math.min(CH - 1, Math.floor((t.x + CITY_EXTENT + H_ROAD) / SPAN)));
+      const cz = Math.max(0, Math.min(CH - 1, Math.floor((t.z + CITY_EXTENT + H_ROAD) / SPAN)));
+      groups[cz * CH + cx].push(t);
+    }
+    const trunkG = new THREE.CylinderGeometry(0.15, 0.22, 3, 5).translate(0, 1.5, 0);
     const geoLeaf = new THREE.IcosahedronGeometry(1.7, quality === 'low' ? 0 : 1).translate(0, 4.2, 0);
-    const leaf = instanced(geoLeaf, m.leaf, tl.length, (i, o, c) => {
-      o.position.set(tl[i].x, 0.18, tl[i].z); o.scale.set(tl[i].s, tl[i].s * 1.1, tl[i].s); c.setRGB(...tl[i].c);
-    }, true);
-    leaf.castShadow = trunk.castShadow = quality !== 'low';
-    out.push(trunk, leaf);
+    groups.forEach((gl, gi) => {
+      if (!gl.length) return;
+      const trunk = instanced(trunkG, m.trunk, gl.length, (i, o) => { o.position.set(gl[i].x, 0.18, gl[i].z); o.scale.setScalar(gl[i].s); });
+      const leaf = instanced(geoLeaf, m.leaf, gl.length, (i, o, c) => {
+        o.position.set(gl[i].x, 0.18, gl[i].z); o.scale.set(gl[i].s, gl[i].s * 1.1, gl[i].s); c.setRGB(...gl[i].c);
+      }, true);
+      leaf.castShadow = trunk.castShadow = quality !== 'low';
+      const box = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(-CITY_EXTENT - H_ROAD + SPAN * ((gi % CH) + 0.5), 5, -CITY_EXTENT - H_ROAD + SPAN * (Math.floor(gi / CH) + 0.5)), new THREE.Vector3(SPAN, 12, SPAN));
+      for (const x of [trunk, leaf]) { x.frustumCulled = false; x.userData.box = box; x.userData.lod = true; }
+      out.push(trunk, leaf);
+    });
+    const gp = new THREE.CylinderGeometry(0.12, 0.14, 0.55, 6).translate(0, 0.45, 0);
+    out.push(instanced(gp, m.garden, gardenLights.length, (i, o) => o.position.set(gardenLights[i].x, 0.18, gardenLights[i].z)));
     return out;
   }, [m, quality]);
+  useFrame(() => {
+    if ((tick.current++ & 7) !== 0) return;
+    for (const o of objs) {
+      const b = o.userData.box as THREE.Box3 | undefined; if (!b) continue;
+      o.visible = b.distanceToPoint(camera.position) < 250;
+    }
+  });
   useEffect(() => () => objs.forEach((o) => (o as THREE.Mesh).geometry?.dispose()), [objs]);
   return <>{objs.map((o, i) => <primitive key={i} object={o} />)}</>;
 };
@@ -169,18 +216,21 @@ const Street: React.FC<{ m: Mats; quality: Quality }> = ({ m, quality }) => {
 const Dynamics: React.FC<{ m: Mats }> = ({ m }) => {
   const st = useMemo(() => ({ wet: 0, night: -1 }), []);
   const base = useMemo(() => new THREE.Color(1, 1, 1), []);
-  useFrame((_, dt) => {
+  useFrame((st2, dt) => {
     const n = live.nightFactor;
+    roadUniforms.uNight.value = n; roadUniforms.uDay.value = 1 - n; roadUniforms.uTime.value = st2.clock.elapsedTime;
+    m.waterNormal.offset.x += dt * 0.012; m.waterNormal.offset.y += dt * 0.008;
     winUniforms.uNight.value = n; winUniforms.uDay.value = 1 - n;
     if (Math.abs(n - st.night) > 0.002) {
       st.night = n;
       m.head.emissiveIntensity = n * 4;
       m.pool.opacity = n * 0.5;
       m.sign.emissiveIntensity = 0.12 + n * 1.7;
+      m.water.emissiveIntensity = n * 0.5; m.garden.emissiveIntensity = 0.2 + n * 2.2;
     }
     const target = Math.min(1, live.rain * 1.5);
     st.wet += (target - st.wet) * Math.min(1, dt * 1.5);
-    const w = st.wet;
+    const w = st.wet; roadUniforms.uWet.value = w;
     m.asphalt.roughness = 0.92 - 0.68 * w; m.asphalt.metalness = 0.3 * w;
     m.asphalt.color.copy(base).multiplyScalar(1 - 0.35 * w);
     m.paint.roughness = m.yellow.roughness = 0.7 - 0.4 * w;

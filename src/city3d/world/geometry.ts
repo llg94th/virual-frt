@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FLOOR_H, CITY_SEED, mulberry32, PITCH, SIDEWALK_W, BLOCK_SIZE } from '../shared';
 import type { Quality } from '../shared';
 import { GeoBuilder } from './builder';
-import { buildings, CityBuilding, DIRS, busStops, benches, PARK_BLOCK, PLAZA, POND } from './layout';
+import { buildings, CityBuilding, DIRS, busStops, benches, PARK_BLOCK, PLAZA, POND, ringPath, PATH_HW, stones } from './layout';
 import { SIGN_CELLS } from './materials';
 
 const grey = (v: number) => [v, v, v];
@@ -38,15 +38,15 @@ function roof(g: GeoBuilder, b: CityBuilding, q: Quality) {
   }
 }
 
-export function buildBlockGeometry(list: CityBuilding[], q: Quality): THREE.BufferGeometry {
+export function buildBlockGeometry(list: CityBuilding[], q: Quality, detail = true): THREE.BufferGeometry {
   const g = new GeoBuilder();
   for (const b of list) {
     b.tiers.forEach((t, k) => {
       const c = b.color.map((v) => Math.min(1, v * (1 + k * 0.06)));
       g.box(t.cx, t.y0, t.cz, t.w, t.y1 - t.y0, t.d, c, b.seed, b.style);
     });
-    if (b.floors >= 14 && q !== 'low') { const t0 = b.tiers[0]; g.box(t0.cx, FLOOR_H * 1, t0.cz, t0.w + 0.5, 0.3, t0.d + 0.5, grey(0.35)); }
-    roof(g, b, q);
+    if (detail && b.floors >= 14 && q !== 'low') { const t0 = b.tiers[0]; g.box(t0.cx, FLOOR_H * 1, t0.cz, t0.w + 0.5, 0.3, t0.d + 0.5, grey(0.35)); }
+    if (detail) roof(g, b, q);
     if (b.kind !== 'normal') {
       const pharm = b.kind === 'pharmacy';
       const [ox] = DIRS[b.face];
@@ -88,6 +88,24 @@ export function buildProps(q: Quality): { geo: THREE.BufferGeometry; signs: THRE
   g.box(pcx, pad, pcz, 9, 0.04, 9, [0.7, 0.66, 0.58]);
   const ring = new THREE.CylinderGeometry(POND.r + 0.6, POND.r + 0.6, 0.12, 24);
   g.geo(ring, new THREE.Matrix4().makeTranslation(POND.x, 0.25, POND.z), [0.6, 0.58, 0.55]); ring.dispose();
+  // curved paved path loop around the tower
+  const pc = [0.66, 0.62, 0.55], N = ringPath.length;
+  for (let k = 0; k < N; k++) {
+    const [x0, z0] = ringPath[k], [x1, z1] = ringPath[(k + 1) % N];
+    const [xp, zp] = ringPath[(k + N - 1) % N], [xn, zn] = ringPath[(k + 2) % N];
+    const off = (xa: number, za: number, xb: number, zb: number, px: number, pz: number, s: number): number[] => {
+      const dx = xb - xa, dz = zb - za, l = Math.hypot(dx, dz) || 1; return [px - (dz / l) * PATH_HW * s, 0.215, pz + (dx / l) * PATH_HW * s];
+    };
+    const a0 = off(xp, zp, x1, z1, x0, z0, 1), b0 = off(xp, zp, x1, z1, x0, z0, -1);
+    const a1 = off(x0, z0, xn, zn, x1, z1, 1), b1 = off(x0, z0, xn, zn, x1, z1, -1);
+    g.quad([a0, a1, b1, b0], [0, 1, 0], pc, [[0, 0], [0, 0], [0, 0], [0, 0]], 0, 0);
+  }
+  // stepping stones
+  const stoneG = new THREE.CylinderGeometry(1, 1, 0.08, 7);
+  for (const st of stones) {
+    g.geo(stoneG, new THREE.Matrix4().makeRotationY(st.a).setPosition(st.x, 0.22, st.z).multiply(new THREE.Matrix4().makeScale(st.r * 1.3, 1, st.r)), [0.55, 0.54, 0.5]);
+  }
+  stoneG.dispose();
   // tower front plaza: paved forecourt + drop-off lay-by + crosswalk approach
   const P = PLAZA;
   g.box((P.x0 + P.x1) / 2, 0.19, (P.z0 + P.z1) / 2, P.x1 - P.x0, 0.03, P.z1 - P.z0 + SIDEWALK_W, [0.72, 0.7, 0.66]);

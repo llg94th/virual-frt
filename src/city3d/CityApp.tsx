@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { CityWorld } from './world';
 import { FrtTower } from './tower';
 import { Crowd, Player, setObstacles } from './characters';
@@ -8,6 +8,26 @@ import { Traffic, CityAudio, setVehicleObstacles } from './vehicles';
 import { buildingFootprints } from './world/layout';
 import { CityHud } from './hud';
 import { useCity, cityStore } from './shared';
+
+/** Exposes renderer stats on window.__city3d for profiling (cheap, 1 write/sec). */
+const PerfProbe: React.FC = () => {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  React.useEffect(() => { (window as unknown as { __city3dScene?: unknown }).__city3dScene = scene; }, [scene]);
+  const acc = React.useRef(0);
+  React.useEffect(() => { gl.info.autoReset = false; return () => { gl.info.autoReset = true; }; }, [gl]);
+  useFrame((_, dt) => {
+    // runs before the frame's render: info holds the previous frame's totals (all composer passes)
+    const i = gl.info;
+    acc.current += dt;
+    if (acc.current >= 1) {
+      acc.current = 0;
+      (window as unknown as { __city3d?: unknown }).__city3d = { calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, dt };
+    }
+    i.reset();
+  });
+  return null;
+};
 
 export interface CityAppProps { onExit: () => void; }
 const CityApp: React.FC<CityAppProps> = ({ onExit }) => {
@@ -29,6 +49,7 @@ const CityApp: React.FC<CityAppProps> = ({ onExit }) => {
         <Traffic />
         <CameraRig />
         <PostFx />
+        <PerfProbe />
       </Canvas>
       <CityAudio />
       <CityHud onExit={onExit} />

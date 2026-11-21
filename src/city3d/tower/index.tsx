@@ -10,7 +10,9 @@ import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCit
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
-import { getFloor, Furn, FT, CLEAR, HALF, COURTYARDS, SLAB_PIECES, CORE, type Box, type Label, type Walker } from './furn';
+import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, SLAB_PIECES, type Box, type Label, type Walker } from './furn';
+import { LongChauGreeter } from './greeter';
+export { LongChauModel } from './greeter';
 
 const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
 const BALL_GEO = new THREE.IcosahedronGeometry(1, 1);
@@ -48,7 +50,7 @@ const InstBoxes: React.FC<{ list: Box[]; material: THREE.Material; shadow?: bool
   if (!list.length) return null;
   return <instancedMesh ref={ref} args={[BOX_GEO, material, list.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />;
 };
-const InstBalls: React.FC<{ furn: Furn; material: THREE.Material }> = ({ furn, material }) => {
+const InstBalls: React.FC<{ furn: Furn; material: THREE.Material; shadow?: boolean }> = ({ furn, material, shadow }) => {
   const ref = useRef<THREE.InstancedMesh>(null!);
   useLayoutEffect(() => {
     const m = ref.current; if (!m) return;
@@ -57,7 +59,7 @@ const InstBalls: React.FC<{ furn: Furn; material: THREE.Material }> = ({ furn, m
     m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
   }, [furn]);
   if (!furn.balls.length) return null;
-  return <instancedMesh ref={ref} args={[BALL_GEO, material, furn.balls.length]} frustumCulled={false} castShadow />;
+  return <instancedMesh ref={ref} args={[BALL_GEO, material, furn.balls.length]} frustumCulled={false} castShadow={shadow} />;
 };
 
 // ---------- text labels (canvas textures, no network) ----------
@@ -94,17 +96,17 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
   const data = useMemo(() => getFloor(f), [f]);
   const isRoof = f === ROOF;
   const walls = useMemo(() => {
-    if (isRoof || data.solid) return [];
-    const H = HALF, h = CLEAR - 0.0;
+    if (isRoof || data.str.solid) return [];
+    const h = CLEAR;
     const out: { p: V3t; s: V3t }[] = [];
     const add = (cx: number, cz: number, w: number, d: number) => out.push({ p: [cx, FT + h / 2, cz], s: [w, h, d] });
-    add(0, -H, 52, 0.06); add(0, H, 52, 0.06); add(-H, 0, 0.06, 52); add(H, 0, 0.06, 52);
+    add(0, -HZ, 2 * HX, 0.06); add(0, HZ, 2 * HX, 0.06); add(-HX, 0, 0.06, 2 * HZ); add(HX, 0, 0.06, 2 * HZ);
     for (const c of COURTYARDS) {
       add(c.x, c.z - c.d / 2, c.w, 0.06); add(c.x, c.z + c.d / 2, c.w, 0.06); add(c.x - c.w / 2, c.z, 0.06, c.d); add(c.x + c.w / 2, c.z, 0.06, c.d);
     }
     return out;
   }, [isRoof, data]);
-  const slabs = f === -1 ? [[0, 0, 52, 52] as [number, number, number, number]] : SLAB_PIECES;
+  const slabs = f === -1 ? [[0, 0, 2 * HX, 2 * HZ] as [number, number, number, number]] : SLAB_PIECES;
   const dark = f === -1;
   const onClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); cityStore.set({ selectedFloor: isRoof ? null : f }); };
   const interiorOn = interior || cut;
@@ -117,23 +119,32 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
         </mesh>
       ))}
       {walls.map((w, i) => <mesh key={i} position={w.p} scale={w.s} geometry={BOX_GEO} material={cut ? mats.glassCut : mats.glassFull} renderOrder={2} />)}
-      <group visible={interiorOn}>
-        <InstBoxes list={data.boxes} material={mats.solid} shadow={quality !== 'low'} />
-        <InstBoxes list={data.glass} material={mats.inner} />
-        <InstBoxes list={data.screens} material={mats.screen} />
-        <InstBoxes list={data.leds} material={mats.led} />
-        <InstBalls furn={data} material={mats.leaf} />
-        {data.labels.map((l, i) => <LabelMesh key={i} l={l} />)}
+      <FloorStuff furn={data.str} mats={mats} shadow={quality === 'high'} on={interiorOn} />
+      <group scale={[K, 1, K]}>
+        <FloorStuff furn={data.lay} mats={mats} shadow={quality === 'high'} on={interiorOn} />
       </group>
-      {!interiorOn && <InstBoxes list={data.boxes.filter((b) => b.s[1] > 2 || b.c === '#dfe7e6' || b.c === '#e9eeed' || b.c === '#f4f6f5')} material={mats.solid} />}
-      {!interiorOn && <InstBalls furn={data} material={mats.leaf} />}
       {cut && quality !== 'low' && <FloorLights quality={quality} />}
       {f === 0 && <RevolvingDoor mats={mats} />}
-      {f === 0 && !isRoof && <mesh position={[5, 3.05, 27]} scale={[7, 0.25, 3.4]} geometry={BOX_GEO} material={mats.slab} />}
+      {f === 0 && <mesh position={[5, 3.05, HZ + 1]} scale={[7, 0.25, 3.4]} geometry={BOX_GEO} material={mats.slab} />}
     </group>
   );
 });
 type V3t = [number, number, number];
+
+/** Instanced content of one Furn. When `on` is false (low quality, uncut) only structural uprights are drawn. */
+const FloorStuff: React.FC<{ furn: Furn; mats: Mats; shadow: boolean; on: boolean }> = ({ furn, mats, shadow, on }) => {
+  const struct = useMemo(() => furn.boxes.filter((b) => b.s[1] > 2.5 || b.c === '#dfe7e6' || b.c === '#e9eeed' || b.c === '#f4f6f5'), [furn]);
+  return (
+    <>
+      <InstBoxes list={on ? furn.boxes : struct} material={mats.solid} shadow={shadow} />
+      {on && <InstBoxes list={furn.glass} material={mats.inner} />}
+      {on && <InstBoxes list={furn.screens} material={mats.screen} />}
+      {on && <InstBoxes list={furn.leds} material={mats.led} />}
+      <InstBalls furn={furn} material={mats.leaf} shadow={shadow} />
+      {on && furn.labels.map((l, i) => <LabelMesh key={i} l={l} />)}
+    </>
+  );
+};
 
 const FloorLights: React.FC<{ quality: Quality }> = ({ quality }) => {
   const refs = useRef<THREE.PointLight[]>([]);
@@ -146,7 +157,7 @@ const RevolvingDoor: React.FC<{ mats: Mats }> = ({ mats }) => {
   const g = useRef<THREE.Group>(null!);
   useFrame((_, dt) => { if (g.current) g.current.rotation.y += dt * 0.8; });
   return (
-    <group position={[5, FT, HALF - 0.3]}>
+    <group position={[5, FT, HZ - 0.3]}>
       <mesh position={[0, 1.2, 0]} scale={[0.1, 2.4, 0.1]} geometry={BOX_GEO} material={mats.solid} />
       <group ref={g}>
         {[0, Math.PI / 2].map((r) => <mesh key={r} position={[0, 1.2, 0]} rotation={[0, r, 0]} scale={[2.4, 2.3, 0.04]} geometry={BOX_GEO} material={mats.inner} />)}
@@ -181,7 +192,8 @@ const Elevators: React.FC<{ mats: Mats }> = ({ mats }) => {
 };
 
 // ---------- people ----------
-const Walk: React.FC<{ w: Walker; y: number }> = ({ w, y }) => {
+const Walk: React.FC<{ w: Walker; y: number }> = ({ w: w0, y }) => {
+  const w = useMemo(() => ({ ...w0, a: [w0.a[0] * K, w0.a[1] * K] as [number, number], b: [w0.b[0] * K, w0.b[1] * K] as [number, number], speed: w0.speed }), [w0]);
   const g = useRef<THREE.Group>(null!);
   const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
   const ph = useMemo(() => mulberry32(w.id.length * 31 + w.id.charCodeAt(w.id.length - 1))() * 2, [w.id]);
@@ -201,10 +213,27 @@ const Npc: React.FC<{ id: string; x: number; y: number; z: number; rot: number; 
   return <Character3D appearance={look} pose={pose} position={[x, y, z]} rotationY={rot} />;
 });
 
+/** True when the camera is within ~110 m of the tower (hysteresis), polled 4x/s. Far away the occupants are sub-pixel, so skipping them saves hundreds of draw calls. */
+function useNearTower(): boolean {
+  const [near, setNear] = React.useState(true);
+  const t = React.useRef(0);
+  const cur = React.useRef(true);
+  useFrame(({ camera }, dt) => {
+    t.current += dt;
+    if (t.current < 0.25) return;
+    t.current = 0;
+    const d = Math.hypot(camera.position.x, camera.position.z, camera.position.y - 10);
+    const next = cur.current ? d < 125 : d < 100;
+    if (next !== cur.current) { cur.current = next; setNear(next); }
+  });
+  return near;
+}
+
 const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> = ({ f, sel, quality }) => {
-  const data = useMemo(() => getFloor(f), [f]);
+  const data = useMemo(() => getFloor(f).lay, [f]);
   const y = f * FLOOR_H + FT;
-  const show = sel === f || (quality === 'high' && (sel === null || sel >= f));
+  const near = useNearTower();
+  const show = sel === f || (near && quality === 'high' && (sel === null || sel >= f));
   const items = useMemo(() => {
     const r = mulberry32(f * 7 + 3);
     const pick = <T,>(arr: T[], n: number) => arr.map((v) => [r(), v] as const).sort((p, q) => p[0] - q[0]).slice(0, n).map((p) => p[1]);
@@ -213,9 +242,9 @@ const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> 
   if (!show) return null;
   return (
     <>
-      {items.type.map((s, i) => <Npc key={`t${i}`} id={`npc-f${f}-t${i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
-      {items.sit.map((s, i) => <Npc key={`s${i}`} id={`npc-f${f}-s${i}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="sit" />)}
-      {data.stands.map((s) => <Npc key={s.id} id={s.id} x={s.x} y={y} z={s.z} rot={s.rot} pose={s.pose ?? 'idle'} />)}
+      {items.type.map((s, i) => <Npc key={`t${i}`} id={`npc-f${f}-t${i}`} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose="type" />)}
+      {items.sit.map((s, i) => <Npc key={`s${i}`} id={`npc-f${f}-s${i}`} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose="sit" />)}
+      {data.stands.map((s) => <Npc key={s.id} id={s.id} x={s.x * K} y={y} z={s.z * K} rot={s.rot} pose={s.pose ?? 'idle'} />)}
       {data.walkers.map((w) => <Walk key={w.id} w={w} y={y} />)}
     </>
   );
@@ -227,10 +256,11 @@ const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality
     () => officeSimulationEngine.getSnapshot().employees.map((e) => `${e.id}:${e.status}`).join('|'),
   );
   const status = useMemo(() => Object.fromEntries(statuses.split('|').map((s) => s.split(':'))) as Record<string, string>, [statuses]);
-  const data = useMemo(() => getFloor(TEAM_FLOOR), []);
+  const data = useMemo(() => getFloor(TEAM_FLOOR).str, []);
   const y = TEAM_FLOOR * FLOOR_H + FT;
   const floorVisible = sel === null || sel >= TEAM_FLOOR;
-  const show = floorVisible && (quality === 'low' ? sel === TEAM_FLOOR : true);
+  const near = useNearTower();
+  const show = floorVisible && (sel !== null || near) && (quality === 'low' ? sel === TEAM_FLOOR : true);
   if (!show) return null;
   const chips = sel === TEAM_FLOOR;
   return (
@@ -290,9 +320,9 @@ export const FrtTower: React.FC = () => {
       <Elevators mats={mats} />
       <Team sel={sel} quality={quality} />
       {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
-      <group position={[0, 0, 0]}>{null}</group>
+      {quality !== 'low' && (sel === null || sel >= 0) && <LongChauGreeter />}
       {sel !== null && label && (
-        <Html position={[-HALF, sel * FLOOR_H + 3, HALF]} center distanceFactor={30} style={{ pointerEvents: 'none' }}>
+        <Html position={[-HX, sel * FLOOR_H + 3, HZ]} center distanceFactor={30} style={{ pointerEvents: 'none' }}>
           <div style={{ padding: '3px 10px', borderRadius: 10, background: 'rgba(15,122,115,0.92)', color: '#fff', font: '700 13px system-ui', whiteSpace: 'nowrap' }}>{label.label} • {label.name}</div>
         </Html>
       )}
@@ -301,4 +331,3 @@ export const FrtTower: React.FC = () => {
 };
 
 export default FrtTower;
-void CORE;

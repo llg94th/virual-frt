@@ -128,6 +128,21 @@ export const lamps: Lamp[] = [];
 export const trees: TreeP[] = [];
 export const busStops: BusStop[] = [];
 export const benches: Bench[] = [];
+/** Tower-ring path: superellipse loop (exponent 8) hugging the tower; half-extent PATH_A. */
+export const PATH_A = TOWER_FOOTPRINT.w / 2 + 2.2;
+export const PATH_HW = 0.75;
+export const ringPath: [number, number][] = Array.from({ length: 112 }, (_, k) => {
+  const th = (k / 112) * Math.PI * 2, c = Math.cos(th), sn = Math.sin(th);
+  const f = Math.pow(Math.pow(Math.abs(c), 8) + Math.pow(Math.abs(sn), 8), -1 / 8);
+  return [c * f * PATH_A, sn * f * PATH_A] as [number, number];
+});
+export interface GardenLight { x: number; z: number }
+export const gardenLights: GardenLight[] = [];
+export interface Stone { x: number; z: number; r: number; a: number }
+export const stones: Stone[] = [];
+/** Water features: round pools / canal in the tower ring, plus the park pond. */
+export const waterRects: { x: number; z: number; w: number; d: number }[] = [{ x: 0, z: -(TOWER_FOOTPRINT.d / 2 + 0.9), w: TOWER_FOOTPRINT.w * 0.55, d: 0.9 }];
+export const waterRounds: { x: number; z: number; r: number }[] = [{ x: -17.5, z: 25.6, r: 1.8 }, { x: 17.5, z: 25.6, r: 1.8 }];
 export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8, r: 8 };
 
 (function furniture() {
@@ -156,6 +171,22 @@ export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8
       });
     }
   }
+  // tower ring: bushes between wall and path, benches, garden lights, stepping stones
+  const hw = TOWER_FOOTPRINT.w / 2;
+  for (let t = -hw + 3; t <= hw - 3; t += 4.5) for (const [ox, oz] of DIRS) {
+    const x = ox ? ox * (hw + 0.7) : t, z = oz ? oz * (hw + 0.7) : t;
+    if (oz === 1 && Math.abs(x) < 15) continue; // south forecourt
+    if (oz === -1 && Math.abs(x) < hw * 0.55 / 2 + 1) continue; // canal
+    trees.push({ x, z, s: 0.3 + r() * 0.12, c: green(), lod: 1 });
+  }
+  for (const t of [-14, 0, 14]) for (const [ox, oz] of DIRS) {
+    if (oz === 1) continue;
+    benches.push({ x: ox ? ox * (PATH_A + 1.35) : t, z: oz ? oz * (PATH_A + 1.35) : t, rot: Math.atan2(-ox, -oz) });
+  }
+  ringPath.forEach(([x, z], k) => {
+    if (k % 7 !== 3 || (z > 14 && Math.abs(x) < 15)) return;
+    const n = Math.hypot(x, z); gardenLights.push({ x: x + (x / n) * (PATH_HW + 0.35), z: z + (z / n) * (PATH_HW + 0.35) });
+  });
   // park
   const px = PARK_BLOCK[0] * PITCH, pz = PARK_BLOCK[1] * PITCH;
   let k = 0;
@@ -168,5 +199,6 @@ export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8
   for (const [dx, dz, rot] of [[5, 1.9, Math.PI], [-5, 1.9, Math.PI], [5, -1.9, 0], [-5, -1.9, 0], [1.9, 8, -Math.PI / 2], [-1.9, 8, Math.PI / 2], [1.9, -8, -Math.PI / 2], [-1.9, -14, Math.PI / 2]] as [number, number, number][]) {
     benches.push({ x: px + dx, z: pz + dz, rot });
   }
+  for (let k = 0; k < 14; k++) stones.push({ x: px + 6 + k * 0.9, z: pz + 3.5 + Math.sin(k * 0.7) * 1.2 + k * 0.55, r: 0.4, a: k });
   for (const [dx, dz] of [[4, 4], [-4, 4], [4, -4], [-4, -4]]) lamps.push({ x: px + dx * 3, z: pz + dz * 3, ox: 0, oz: 0 });
 })();

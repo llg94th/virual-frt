@@ -108,7 +108,7 @@ export const Rain: React.FC = () => {
     u.uTime.value = t; u.uCam.value.copy(camera.position);
     u.uBox.value.set(80 * s, 60 * s, 80 * s); u.uLen.value = s;
     u.uWind.value.set(-3 - 4 * wx.dark, 1 + wx.dark);
-    u.uOpacity.value = (0.22 + 0.25 * day) * (0.5 + 0.5 * r);
+    u.uOpacity.value = (0.3 + 0.3 * day) * (0.5 + 0.5 * r);
     u.uColor.value.setRGB(0.55 + 0.3 * day, 0.65 + 0.25 * day, 0.85 + 0.15 * day);
     ptsGeo.setDrawRange(0, Math.floor((count / 5) * Math.min(1, r)));
     const p = ptsMat.uniforms;

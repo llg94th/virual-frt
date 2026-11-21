@@ -208,7 +208,8 @@ export const Atmosphere: React.FC = () => {
     _grey.setRGB(lumT * 1.1, lumT * 1.15, lumT * 1.25);
     const ov = Math.min(1, s.cover * 0.85);
     _tmpTop.lerp(_grey, ov); _tmpHor.lerp(_grey, ov * 0.8);
-    const dim = 1 - 0.6 * s.dark;
+    const wet = sstep(0.3, 0.75, s.rain);
+    const dim = (1 - 0.6 * s.dark) * (1 - 0.22 * wet);
     _tmpTop.multiplyScalar(dim); _tmpHor.multiplyScalar(dim);
     const u = skyMat.uniforms;
     u.uTop.value.copy(_tmpTop); u.uHor.value.copy(_tmpHor);
@@ -261,7 +262,8 @@ export const Atmosphere: React.FC = () => {
       if (Math.abs(cam.right - S2) > 0.05) { cam.left = -S2; cam.right = S2; cam.top = S2; cam.bottom = -S2; cam.near = 5; cam.far = 460; cam.updateProjectionMatrix(); }
       const overcast = 1 - 0.6 * s.cover;
       if (moonMode) { sun.color.copy(MOON_COL); sun.intensity = 0.45 * (1 - dayRaw) * overcast; }
-      else { sun.color.copy(u.uSunCol.value); sun.intensity = 3.2 * sstep(-0.02, 0.3, elev) * overcast; }
+      else { sun.color.copy(u.uSunCol.value); sun.intensity = 3.2 * sstep(-0.02, 0.3, elev) * overcast * (1 - 0.4 * sstep(0.3, 0.75, s.rain)); }
+      if (flash > 0.01) { sun.intensity += flash * 3; if (moonMode) sun.color.lerp(WHITE, flash); }
       sun.castShadow = sun.intensity > 0.05;
     }
     const hemi = hemiRef.current;

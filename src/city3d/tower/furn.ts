@@ -2,13 +2,17 @@
  * Procedural data builders for F-Town 3 floors. Pure data (no React): lists of boxes / balls / labels
  * that index.tsx renders with instancing. Floor-local coordinates: y=0 is the slab bottom, FT is the walking surface.
  */
-import { FLOOR_H, TEAM_FLOOR, mulberry32 } from '../shared';
+import { FLOOR_H, TOWER_FLOORS, TOWER_FOOTPRINT, FLOOR_DEPARTMENTS, mulberry32 } from '../shared';
 import { NHA_THUOC_SEAT_SLOTS } from '../../data/officeLayout';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 
 export const FT = 0.3; // slab thickness
 export const CLEAR = FLOOR_H - FT; // clear height 3.3
-export const HALF = 26; // half footprint (52 / 2)
+export const HX = TOWER_FOOTPRINT.w / 2;
+export const HZ = TOWER_FOOTPRINT.d / 2;
+export const HALF = Math.max(HX, HZ);
+/** Layout items were authored for a 52 m plate; the layout group is squashed horizontally by K (axis-aligned only, so no shear). */
+export const K = Math.min(TOWER_FOOTPRINT.w, TOWER_FOOTPRINT.d) / 52;
 export type V3 = [number, number, number];
 export interface Box { p: V3; s: V3; c: string; r: number; rx: number }
 export interface Ball { p: V3; r: number; c: string }
@@ -17,15 +21,23 @@ export interface Seat { x: number; z: number; rot: number; id?: string }
 export interface Walker { a: [number, number]; b: [number, number]; speed: number; id: string }
 export interface Stand { x: number; z: number; rot: number; id: string; pose?: 'idle' | 'wave' }
 
-/** Courtyard atria (open voids through every floor) */
+/** Courtyard atria (open voids through every floor), proportional to the footprint */
+const STRIP = 0.057 * TOWER_FOOTPRINT.w;
+const CW = 0.273 * TOWER_FOOTPRINT.w, CD = 0.273 * TOWER_FOOTPRINT.d;
+const CXC = -HX + STRIP + CW / 2;
 export const COURTYARDS = [
-  { x: -16, z: -13, w: 14, d: 14 },
-  { x: -16, z: 13, w: 14, d: 14 },
+  { x: CXC, z: -0.25 * TOWER_FOOTPRINT.d, w: CW, d: CD },
+  { x: CXC, z: 0.25 * TOWER_FOOTPRINT.d, w: CW, d: CD },
 ];
 /** Slab = footprint minus courtyards: [cx, cz, w, d] */
-export const SLAB_PIECES: [number, number, number, number][] = [
-  [8.5, 0, 35, 52], [-24.5, 0, 3, 52], [-16, -23, 14, 6], [-16, 0, 14, 12], [-16, 23, 14, 6],
-];
+export const SLAB_PIECES: [number, number, number, number][] = (() => {
+  const [c1, c2] = COURTYARDS, xe = CXC + CW / 2;
+  const z = [-HZ, c1.z - c1.d / 2, c1.z + c1.d / 2, c2.z - c2.d / 2, c2.z + c2.d / 2, HZ];
+  return [
+    [(xe + HX) / 2, 0, HX - xe, 2 * HZ], [-HX + STRIP / 2, 0, STRIP, 2 * HZ],
+    [CXC, (z[0] + z[1]) / 2, CW, z[1] - z[0]], [CXC, (z[2] + z[3]) / 2, CW, z[3] - z[2]], [CXC, (z[4] + z[5]) / 2, CW, z[5] - z[4]],
+  ];
+})();
 /** Elevator/structural core */
 export const CORE = { x: -2.5, z: 0, w: 5, d: 7 };
 
@@ -157,13 +169,13 @@ export class Furn {
 
 // ---------- shared parts ----------
 function shell(F: Furn, f: number) {
-  const H = HALF;
+  const W = 2 * HX, D = 2 * HZ;
   if (F.solid) {
-    F.b(0, 0, -H, 52, CLEAR, 0.4, '#8d949a'); F.b(0, 0, H, 52, CLEAR, 0.4, '#8d949a');
-    F.b(-H, 0, 0, 0.4, CLEAR, 52, '#8d949a'); F.b(H, 0, 0, 0.4, CLEAR, 52, '#8d949a');
+    F.b(0, 0, -HZ, W, CLEAR, 0.4, '#8d949a'); F.b(0, 0, HZ, W, CLEAR, 0.4, '#8d949a');
+    F.b(-HX, 0, 0, 0.4, CLEAR, D, '#8d949a'); F.b(HX, 0, 0, 0.4, CLEAR, D, '#8d949a');
     return;
   }
-  F.frame(-H, -H, H, -H); F.frame(-H, H, H, H); F.frame(-H, -H, -H, H); F.frame(H, -H, H, H);
+  F.frame(-HX, -HZ, HX, -HZ); F.frame(-HX, HZ, HX, HZ); F.frame(-HX, -HZ, -HX, HZ); F.frame(HX, -HZ, HX, HZ);
   for (const c of COURTYARDS) {
     const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, z0 = c.z - c.d / 2, z1 = c.z + c.d / 2;
     F.frame(x0, z0, x1, z0, 3.5); F.frame(x0, z1, x1, z1, 3.5); F.frame(x0, z0, x0, z1, 3.5); F.frame(x1, z0, x1, z1, 3.5);
@@ -175,12 +187,14 @@ function shell(F: Furn, f: number) {
     for (const s of sides) {
       const alongX = s === 'N' || s === 'S';
       const sign = s === 'N' || s === 'W' ? -1 : 1;
-      const off = H + 1.2;
+      const hh = alongX ? HZ : HX, len = (alongX ? W : D) - 6;
+      const off = hh + 1.2;
       const cx = alongX ? 0 : sign * off, cz = alongX ? sign * off : 0;
-      F.b(cx, -FT, cz, alongX ? 46 : 2.4, FT, alongX ? 2.4 : 46, '#eef1ef');
-      const edge = H + 2.2;
-      F.g(alongX ? 0 : sign * (H + 2.4), 0, alongX ? sign * (H + 2.4) : 0, alongX ? 46 : 0.04, 1.0, alongX ? 0.04 : 46);
-      for (let i = -11; i <= 11; i++) {
+      F.b(cx, -FT, cz, alongX ? len : 2.4, FT, alongX ? 2.4 : len, '#eef1ef');
+      const edge = hh + 2.2;
+      F.g(alongX ? 0 : sign * (hh + 2.4), 0, alongX ? sign * (hh + 2.4) : 0, alongX ? len : 0.04, 1.0, alongX ? 0.04 : len);
+      const cnt = Math.floor(len / 2 / 2);
+      for (let i = -cnt; i <= cnt; i++) {
         const along = i * 2;
         const px = alongX ? along : sign * edge, pz = alongX ? sign * edge : along;
         F.b(px, 0, pz, alongX ? 1.7 : 0.7, 0.5, alongX ? 0.7 : 1.7, '#d4cfc4');
@@ -204,23 +218,23 @@ function core(F: Furn) {
   F.scr(x, 1.3, z + d / 2 + 0.12, 0.3, 0.45, 0.04, '#ffb03a');
   // stairwell next to the south wall (rises one storey)
   const steps = 14;
-  for (let i = 0; i < steps; i++) F.b(8 + i * 0.7 + 0.35, 0, 24.2, 0.7, ((i + 1) * CLEAR) / steps, 1.6, '#c9cfcc');
-  F.g(13, 0.4, 25.1, 10, 1.0, 0.04);
+  for (let i = 0; i < steps; i++) F.b(6 + i * 0.7 + 0.35, 0, HZ - 1.8, 0.7, ((i + 1) * CLEAR) / steps, 1.6, '#c9cfcc');
+  F.g(11, 0.4, HZ - 0.9, 10, 1.0, 0.04);
 }
 function garden(F: Furn) {
   const rnd = mulberry32(2024);
   COURTYARDS.forEach((c, k) => {
     F.b(c.x, -FT - 0.1, c.z, c.w - 0.2, 0.15, c.d - 0.2, '#4c9a4f');
-    F.b(c.x + (k ? 2 : -2), -FT - 0.07, c.z, 5, 0.04, 6.5, '#4fc0cf'); // pond
-    F.b(c.x + (k ? 2 : -2), -FT, c.z, 5.4, 0.1, 0.3, '#d8d2c4');
-    for (let i = 0; i < 9; i++) F.b(c.x - 6 + i * 1.5, -FT - 0.05, c.z + (k ? -5 : 5), 0.9, 0.08, 0.9, '#c9c3b5');
+    F.b(c.x + (k ? 1.5 : -1.5), -FT - 0.07, c.z, 4.5, 0.04, 6, '#4fc0cf'); // pond
+    F.b(c.x + (k ? 1.5 : -1.5), -FT, c.z, 4.9, 0.1, 0.3, '#d8d2c4');
+    for (let i = 0; i < 9; i++) F.b(c.x - c.w / 2 + 1.5 + i * 1.2, -FT - 0.05, c.z + (k ? -1 : 1) * (c.d / 2 - 1.5), 0.9, 0.08, 0.9, '#c9c3b5');
     for (let i = 0; i < 7; i++) {
       const tx = c.x + (rnd() - 0.5) * (c.w - 3), tz = c.z + (rnd() - 0.5) * (c.d - 3);
       F.tree(tx, tz, 5 + rnd() * 8, 2 + rnd() * 1.8, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
     }
-    for (let i = 0; i < 14; i++) F.ball(c.x + (rnd() - 0.5) * 12, -FT + 0.4, c.z + (rnd() - 0.5) * 12, 0.45 + rnd() * 0.4, rnd() < 0.3 ? '#e87aa0' : '#5ab86a');
+    for (let i = 0; i < 14; i++) F.ball(c.x + (rnd() - 0.5) * (c.w - 1), -FT + 0.4, c.z + (rnd() - 0.5) * (c.d - 1), 0.45 + rnd() * 0.4, rnd() < 0.3 ? '#e87aa0' : '#5ab86a');
   });
-  F.label({ t: 'GIẾNG TRỜI • RAINFOREST', x: -16, y: 0.2, z: 0, w: 8, h: 1, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(30,110,90,0.0)' });
+  F.label({ t: 'GIẾNG TRỜI • RAINFOREST', x: CXC, y: 0.2, z: 0, w: 8, h: 1, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(30,110,90,0.0)' });
 }
 
 // ---------- floors ----------
@@ -271,58 +285,61 @@ function training(F: Furn) {
   F.sitSeats.push({ x: 6, z: -5.8, rot: 0 }, { x: 11, z: -5.8, rot: 0 });
   F.walkers.push({ a: [3, 5], b: [22, 5], speed: 1.0, id: 'f2-walk1' });
 }
-function teamFloor(F: Furn) {
-  const S = 0.0327, CX = 13.5;
-  const mx = (wx: number) => CX + (wx - 1177.5) * S, mz = (wy: number) => (wy - 492.5) * S;
-  F.b(CX, 0, 0, 24.2, 0.02, 20.6, '#b9cfae');
-  // low glass bay walls with north door gap
-  F.g(CX, 0, 10.3, 24.2, 1.4, 0.05); F.g(1.5, 0, 0, 0.05, 1.4, 20.6); F.g(25.5, 0, 0, 0.05, 1.4, 20.6);
-  F.g(5.5, 0, -10.3, 8, 1.4, 0.05); F.g(19.5, 0, -10.3, 12, 1.4, 0.05);
-  F.b(CX, 1.4, 10.3, 24.2, 0.05, 0.08, '#2e8f8a');
-  F.label({ t: 'CỬA RA VÀO', x: 11.5, y: 0.05, z: -9.2, w: 3.6, h: 0.6, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(255,255,255,0.0)' });
-  F.label({ t: 'NHÀ THUỐC', x: CX, y: 0.06, z: mz(418), w: 9, h: 1.7, rot: 0, flat: true, fg: '#2c6b4f', bg: 'rgba(0,0,0,0)' });
+function teamFloor(F: Furn, S: Furn) {
+  // Bay is authored directly in world metres (S = structure, unsquashed): ~20 x 17 m
+  const s2 = 20 / 735, CX = HX - 11, bw = 735 * s2, bd = 625 * s2;
+  const mx = (wx: number) => CX + (wx - 1177.5) * s2, mz = (wy: number) => (wy - 492.5) * s2;
+  const x0 = CX - bw / 2, x1 = CX + bw / 2, zN = -bd / 2, zS = bd / 2;
+  const doorX = mx(1115), doorW = 124 * s2;
+  S.b(CX, 0, 0, bw, 0.02, bd, '#b9cfae');
+  S.g(CX, 0, zS, bw, 1.4, 0.05); S.g(x0, 0, 0, 0.05, 1.4, bd); S.g(x1, 0, 0, 0.05, 1.4, bd);
+  const gl = doorX - doorW / 2, gr = doorX + doorW / 2;
+  S.g((x0 + gl) / 2, 0, zN, gl - x0, 1.4, 0.05); S.g((gr + x1) / 2, 0, zN, x1 - gr, 1.4, 0.05);
+  S.b(CX, 1.4, zS, bw, 0.05, 0.08, '#2e8f8a');
+  S.label({ t: 'CỬA RA VÀO', x: doorX, y: 0.05, z: zN + 1.0, w: 3.2, h: 0.55, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(255,255,255,0.0)' });
+  S.label({ t: 'NHÀ THUỐC', x: CX, y: 0.06, z: mz(418), w: 8, h: 1.5, rot: 0, flat: true, fg: '#2c6b4f', bg: 'rgba(0,0,0,0)' });
   const islands = new Map<string, typeof NHA_THUOC_SEAT_SLOTS>();
   for (const s of NHA_THUOC_SEAT_SLOTS) { const a = islands.get(s.islandId) ?? []; a.push(s); islands.set(s.islandId, a); }
   islands.forEach((slots) => {
-    const xs = slots.map((s) => mx(s.wx)), zs = slots.map((s) => mz(s.wy));
+    const xs = slots.map((q) => mx(q.wx)), zs = slots.map((q) => mz(q.wy));
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-    const d = Math.max(...zs) - Math.min(...zs) + 1.4;
-    F.b(cx, 0.02, cz, 3.2, 0.01, d + 0.4, '#9fb994');
-    F.g(cx, 0.75, cz, 0.04, 0.4, d);
+    const d = Math.max(...zs) - Math.min(...zs) + 1.1;
+    S.b(cx, 0.02, cz, 2.7, 0.01, d + 0.3, '#9fb994');
+    S.g(cx, 0.75, cz, 0.04, 0.4, d);
   });
-  for (const s of NHA_THUOC_SEAT_SLOTS) {
-    const x = mx(s.wx), z = mz(s.wy);
-    if (s.kind === 'PILLAR') { F.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); continue; }
-    const th = s.side === 'LEFT' ? Math.PI / 2 : -Math.PI / 2;
-    const emp = s.assignedEmployeeId && EMPLOYEE_BY_ID[s.assignedEmployeeId] ? s.assignedEmployeeId : undefined;
-    const occupied = s.kind === 'OCCUPIED';
-    const seat = F.workstation(x, z, th, {
-      dw: 1.05, dd: 1.11, on: occupied,
-      top: s.highlight === 'red' ? '#d94a4a' : s.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
+  for (const q of NHA_THUOC_SEAT_SLOTS) {
+    const x = mx(q.wx), z = mz(q.wy);
+    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.6, CLEAR, 0.6, '#e6e8e6'); continue; }
+    const th = q.side === 'LEFT' ? Math.PI / 2 : -Math.PI / 2;
+    const emp = q.assignedEmployeeId && EMPLOYEE_BY_ID[q.assignedEmployeeId] ? q.assignedEmployeeId : undefined;
+    const occupied = q.kind === 'OCCUPIED';
+    const seat = S.workstation(x, z, th, {
+      dw: 0.9, dd: 0.95, on: occupied,
+      top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
     });
-    if (emp) F.team.push({ emp, x: seat.x, z: seat.z, rot: th });
-    else if (occupied) F.extraTeam.push({ ...seat, id: s.seatCode });
+    if (emp) S.team.push({ emp, x: seat.x, z: seat.z, rot: th });
+    else if (occupied) S.extraTeam.push({ ...seat, id: q.seatCode });
   }
-  TEAM_SEATS.length = 0; TEAM_SEATS.push(...F.team);
-  // surroundings
-  F.room(6, -19, 8, 6); F.room(18, -19, 8, 6);
+  TEAM_SEATS.length = 0; TEAM_SEATS.push(...S.team);
+  // surroundings (layout group)
+  F.room(6, -21, 8, 6); F.room(18, -21, 8, 6);
   F.counter(-16, -3, 8, 0.8, '#f1ede4', '#2e8f8a');
   F.label({ t: 'PANTRY', x: -16, y: 2.6, z: -3.6, w: 3.2, h: 0.8, rot: 0, fg: '#fff', bg: '#e07a3a' });
-  F.sofa(8, 17, Math.PI, 2.6); F.sofa(14, 17, Math.PI, 2.6); F.table(11, 19, 1.4, 0.7, '#e9e2d3', 0.4);
-  for (const [px, pz] of [[2, 12], [25, 12], [2, -12], [-7, 8], [-7, -8]]) F.plant(px, pz, 1.4);
-  F.walkers.push({ a: [4, 13], b: [23, 13], speed: 1.0, id: 'f3-walk1' });
+  F.sofa(8, 20, Math.PI, 2.6); F.sofa(14, 20, Math.PI, 2.6); F.table(11, 22, 1.4, 0.7, '#e9e2d3', 0.4);
+  for (const [px, pz] of [[-7, 8], [-7, -8], [25, 18], [25, -18]]) F.plant(px, pz, 1.4);
+  F.walkers.push({ a: [4, 16], b: [23, 16], speed: 1.0, id: 'team-walk1' });
 }
-function openPlan(F: Furn, f: number) {
+function openPlan(F: Furn, f: number, tag: string) {
   const rnd = mulberry32(f * 977);
   const tones = ['#e9e2d3', '#dfe9e1', '#e6e2ee'];
   for (const cx of [-5, 3, 11, 19]) for (const cz of [-19, -11, 11, 19]) {
-    if (f === 4 && cz === 19 && cx > 5) continue; // breakout area
+    if (f % 2 === 0 && cz === 19 && cx > 5) continue; // breakout area
     F.island(cx, cz, tones[Math.floor(rnd() * 3)]);
   }
-  if (f === 4) { F.sofa(14, 19, Math.PI, 2.6); F.sofa(20, 19, Math.PI, 2.6); F.table(17, 21, 1.4, 0.7, '#e9e2d3', 0.4); }
+  if (f % 2 === 0) { F.sofa(14, 19, Math.PI, 2.6); F.sofa(20, 19, Math.PI, 2.6); F.table(17, 21, 1.4, 0.7, '#e9e2d3', 0.4); }
   F.room(22, -3, 4, 5);
   for (const [px, pz] of [[7, 0], [15, 0], [24, -7], [-7, 0]]) F.plant(px, pz, 1.3);
-  F.label({ t: f === 3 ? 'F4 • OPEN WORKSPACE' : 'F5 • OPEN WORKSPACE', x: 13, y: 0.05, z: 0, w: 9, h: 1.2, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
+  F.label({ t: `${tag} • OPEN WORKSPACE`, x: 13, y: 0.05, z: 0, w: 9, h: 1.2, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
   F.npcSeated = 6;
 }
 function rnd(F: Furn) {
@@ -391,22 +408,23 @@ function basement(F: Furn) {
   F.b(-23, 0, 0, 3, 2.4, 6, '#9aa6ad'); F.b(-23, 2.4, 0, 2.6, 0.5, 5.6, '#7d8b93');
   F.b(8, 0, 0, 4, 2.2, 3, '#e0a64b'); F.label({ t: 'GENERATOR', x: 8, y: 1.2, z: 1.55, w: 2.4, h: 0.5, rot: 0, fg: '#222', bg: '#fff' });
   F.b(14, 0, 0, 1.2, 2.0, 3, '#33a1a8'); F.b(17, 0, 0, 1.2, 2.0, 3, '#33a1a8');
-  F.b(0, 2.9, -8.5, 52, 0.18, 0.18, '#3aa0ff'); F.b(0, 2.6, -8.1, 52, 0.18, 0.18, '#e04a3a'); F.b(0, 2.9, 8.5, 52, 0.18, 0.18, '#e8c24a');
+  F.b(0, 2.9, -8.5, 44 / K, 0.18, 0.18, '#3aa0ff'); F.b(0, 2.6, -8.1, 44 / K, 0.18, 0.18, '#e04a3a'); F.b(0, 2.9, 8.5, 44 / K, 0.18, 0.18, '#e8c24a');
   F.b(23.5, 0, 20.5, 5, 0.06, 10, '#6b7880', 0, -0.0); // ramp apron
   F.b(23.5, 0.5, 24, 5, 0.12, 6, '#6b7880', 0, 0.2);
   F.label({ t: 'B1 • HẦM ĐỖ XE', x: 0, y: 0.04, z: 0, w: 9, h: 1.2, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
   F.scr(-2.5, 2.8, 3.7, 1.2, 0.3, 0.05, '#ff5a3a');
 }
 
-export function roof(F: Furn) {
-  const H = HALF, rnd = mulberry32(777);
-  F.b(0, 0, -H, 52.4, 0.9, 0.25, '#f1f4f2'); F.b(0, 0, H, 52.4, 0.9, 0.25, '#f1f4f2');
-  F.b(-H, 0, 0, 0.25, 0.9, 52.4, '#f1f4f2'); F.b(H, 0, 0, 0.25, 0.9, 52.4, '#f1f4f2');
+export function roof(F: Furn, S: Furn) {
+  const rnd = mulberry32(777), W = 2 * HX, D = 2 * HZ;
+  S.b(0, 0, -HZ, W + 0.4, 0.9, 0.25, '#f1f4f2'); S.b(0, 0, HZ, W + 0.4, 0.9, 0.25, '#f1f4f2');
+  S.b(-HX, 0, 0, 0.25, 0.9, D + 0.4, '#f1f4f2'); S.b(HX, 0, 0, 0.25, 0.9, D + 0.4, '#f1f4f2');
   for (const c of COURTYARDS) {
     const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, z0 = c.z - c.d / 2, z1 = c.z + c.d / 2;
-    F.b(c.x, 0, z0, c.w, 0.9, 0.2, '#f1f4f2'); F.b(c.x, 0, z1, c.w, 0.9, 0.2, '#f1f4f2');
-    F.b(x0, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2'); F.b(x1, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2');
+    S.b(c.x, 0, z0, c.w, 0.9, 0.2, '#f1f4f2'); S.b(c.x, 0, z1, c.w, 0.9, 0.2, '#f1f4f2');
+    S.b(x0, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2'); S.b(x1, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2');
   }
+  S.label({ t: 'F-TOWN 3', x: 0, y: 1.8, z: HZ - 0.3, w: 14, h: 2.6, rot: 0, fg: '#ffffff', bg: '#0f7a73' });
   // solar panels
   for (let row = 0; row < 5; row++) for (let i = 0; i < 11; i++) {
     const x = -6 + i * 2.6, z = -23 + row * 3.4;
@@ -422,25 +440,32 @@ export function roof(F: Furn) {
   F.b(11, 0.15, 16, 3, 0.03, 13, '#d8d2c4');
   for (let i = 0; i < 16; i++) F.tree(-2 + rnd() * 26, 10 + rnd() * 12, 2.6 + rnd() * 2, 1 + rnd() * 0.7, rnd() < 0.5 ? '#2f8a4a' : '#5cbf6b');
   for (let i = 0; i < 5; i++) F.b(-1 + i * 6, 0.15, 21.5, 2.2, 0.4, 0.6, '#c49a6c');
-  F.label({ t: 'F-TOWN 3', x: 0, y: 1.8, z: H - 0.3, w: 14, h: 2.6, rot: 0, fg: '#ffffff', bg: '#0f7a73' });
   F.label({ t: 'FRT • SKY GARDEN & SOLAR', x: 11, y: 0.25, z: 16, w: 10, h: 1, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(0,0,0,0)' });
 }
 
-const cache = new Map<number, Furn>();
-export function getFloor(f: number): Furn {
+export interface FloorData { lay: Furn; str: Furn }
+const cache = new Map<number, FloorData>();
+export function getFloor(f: number): FloorData {
   const hit = cache.get(f); if (hit) return hit;
-  const F = new Furn();
-  if (f === 7) { roof(F); cache.set(f, F); return F; }
-  if (f === -1) basement(F);
-  if (f === 0) garden(F);
-  shell(F, f);
-  core(F);
-  if (f === 0) lobby(F);
-  else if (f === 1) training(F);
-  else if (f === TEAM_FLOOR) teamFloor(F);
-  else if (f === 3 || f === 4) openPlan(F, f);
-  else if (f === 5) rnd(F);
-  else if (f === 6) canteen(F);
-  cache.set(f, F);
-  return F;
+  const lay = new Furn(), str = new Furn();
+  const dept = FLOOR_DEPARTMENTS.find((d) => d.floor === f);
+  const commons = FLOOR_DEPARTMENTS.filter((d) => d.role === 'COMMON').map((d) => d.floor).sort((a, b) => a - b);
+  if (f === TOWER_FLOORS) roof(lay, str);
+  else {
+    if (f === -1) { str.solid = true; basement(lay); }
+    if (f === 0) garden(str);
+    shell(str, f);
+    core(str);
+    switch (dept?.role) {
+      case 'COMMON': if (f === commons[0]) lobby(lay); else training(lay); break;
+      case 'TEAM': teamFloor(lay, str); break;
+      case 'OTHER_BU': openPlan(lay, f, dept.label); break;
+      case 'RND': rnd(lay); break;
+      case 'ROOF': canteen(lay); break;
+      default: break;
+    }
+  }
+  const out = { lay, str };
+  cache.set(f, out);
+  return out;
 }

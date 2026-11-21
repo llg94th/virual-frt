@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CITY_EXTENT, CITY_SEED, ROAD_LINES, ROAD_W, cityStore, live, mulberry32, useCity } from '../shared';
 import { CityAudio } from './audio';
@@ -195,10 +196,13 @@ const TrafficLights: React.FC = () => {
 // =====================================================================
 // AI fleet
 // =====================================================================
-const TYPES = ['sedan', 'suv', 'taxi', 'bus', 'truck', 'bike'] as const;
-type TypeIdx = 0 | 1 | 2 | 3 | 4 | 5;
-const LENGTH = [4.4, 4.7, 4.4, 11, 7.8, 1.9];
-const VMAX: [number, number][] = [[9, 14], [8, 13], [9, 14], [7, 10], [7, 10], [8, 12]];
+// type index: 0 sedan, 1 suv, 2 taxi, 3 bus, 4 truck, 5 bike, 6 hatchback, 7 van, 8 police, 9 ambulance, 10 firetruck
+type TypeIdx = number;
+const LENGTH = [4.4, 4.7, 4.4, 11, 6, 1.9, 3.9, 5, 4.5, 5.6, 8];
+const VMAX: [number, number][] = [[9, 14], [8, 13], [9, 14], [7, 10], [7, 10], [8, 12], [9, 14], [8, 12], [10, 15], [10, 15], [8, 11]];
+/** GLB (Kenney) variant per type; bus and bike stay procedural. */
+const KIT_FILE: (string | null)[] = ['sedan', 'suv', 'taxi', null, 'delivery', null, 'hatchback-sports', 'van', 'police', 'ambulance', 'firetruck'];
+const KIT_LEN = [4.4, 4.7, 4.4, 0, 6, 0, 3.9, 5, 4.5, 5.6, 8];
 const PAINT: string[][] = [
   ['#c9ccd1', '#1f2a44', '#8b1a1a', '#e8e8e8', '#2f3b35', '#3b5b8c', '#111214'],
   ['#222428', '#d9d9d9', '#4a3a2a', '#5a6470', '#7a1d1d'],
@@ -206,6 +210,7 @@ const PAINT: string[][] = [
   ['#1e88e5', '#e53935', '#43a047'],
   ['#f0f0f0', '#3a6ea5', '#c27a2a', '#6b7b4b'],
   ['#e53935', '#1e88e5', '#fdd835', '#43a047', '#222222', '#ec407a', '#ff7043', '#ffffff'],
+  ['#e8e8e8', '#3b5b8c', '#8b1a1a'], ['#f0f0f0', '#3a6ea5'], ['#1d2b4a'], ['#ffffff'], ['#c62828'],
 ];
 
 interface Veh {
@@ -224,9 +229,10 @@ function nextCross(s: number, dir: 1 | -1): number {
   return -1;
 }
 const countsFor = (n: number) => {
-  const f = [0.2, 0.1, 0.08, 0.05, 0.06];
-  const c = f.map((x) => Math.round(n * x));
-  c.push(Math.max(0, n - c.reduce((a, b) => a + b, 0)));
+  const rare = (x: number) => (n >= 100 ? Math.max(1, Math.round(n * x)) : Math.round(n * x));
+  const c = [Math.round(n * 0.14), Math.round(n * 0.07), Math.round(n * 0.08), Math.round(n * 0.05), Math.round(n * 0.05), 0,
+    Math.round(n * 0.06), Math.round(n * 0.05), rare(0.015), rare(0.01), rare(0.01)];
+  c[5] = Math.max(0, n - c.reduce((a, b) => a + b, 0));
   return c;
 };
 
@@ -263,7 +269,76 @@ function createFleet(n: number, seed: number): Veh[] {
   return out;
 }
 
-const Fleet: React.FC<{ n: number; shadows: boolean }> = ({ n, shadows }) => {
+function lightsOnly(len: number, wid: number, y: number): G {
+  const x = wid * 0.32;
+  return merge([
+    box(0.4, 0.2, 0.08, x, y, len / 2 + 0.02, HEAD), box(0.4, 0.2, 0.08, -x, y, len / 2 + 0.02, HEAD),
+    box(0.44, 0.16, 0.08, x, y, -len / 2 - 0.02, TAIL), box(0.44, 0.16, 0.08, -x, y, -len / 2 - 0.02, TAIL),
+  ]);
+}
+
+// =====================================================================
+// Kenney GLB kit (loaded lazily; procedural fallback when unavailable)
+// =====================================================================
+interface KitVariant { geo: G; mat: THREE.Material; len: number; wid: number; h: number }
+interface Kit { variants: Record<string, KitVariant>; hero: THREE.Object3D }
+const KIT_BASE = `${import.meta.env.BASE_URL || '/'}models/kenney/car-kit/`;
+const HERO_FILE = 'sedan-sports';
+const KIT_NAMES = Array.from(new Set([...(KIT_FILE.filter(Boolean) as string[]), HERO_FILE]));
+const KIT_URLS = KIT_NAMES.map((n) => `${KIT_BASE}${n}.glb`);
+
+/** Bake all meshes of a GLB scene into one pos/normal/uv geometry, normalised to targetLen, ground at y=0, centred. */
+function bakeVariant(scene: THREE.Object3D, targetLen: number): KitVariant | null {
+  scene.updateMatrixWorld(true);
+  const parts: G[] = [];
+  let mat: THREE.Material | null = null;
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    let g = m.geometry.clone();
+    g.applyMatrix4(m.matrixWorld);
+    if (g.index) g = g.toNonIndexed();
+    const ng = new THREE.BufferGeometry();
+    ng.setAttribute('position', g.getAttribute('position'));
+    if (g.getAttribute('normal')) ng.setAttribute('normal', g.getAttribute('normal'));
+    else ng.computeVertexNormals();
+    ng.setAttribute('uv', g.getAttribute('uv') ?? new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 2), 2));
+    parts.push(ng);
+    if (!mat) mat = Array.isArray(m.material) ? m.material[0] : m.material;
+  });
+  if (!parts.length || !mat) return null;
+  const geo = mergeGeometries(parts, false);
+  if (!geo) return null;
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox as THREE.Box3;
+  const sz = bb.getSize(new THREE.Vector3());
+  const sc = targetLen / sz.z;
+  geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
+  geo.scale(sc, sc, sc);
+  return { geo, mat, len: sz.z * sc, wid: sz.x * sc, h: sz.y * sc };
+}
+
+function useKit(): Kit {
+  const gltfs = useGLTF(KIT_URLS) as unknown as { scene: THREE.Object3D }[];
+  return useMemo(() => {
+    const variants: Record<string, KitVariant> = {};
+    KIT_NAMES.forEach((name, i) => {
+      const t = KIT_FILE.indexOf(name);
+      const v = bakeVariant(gltfs[i].scene.clone(true), t >= 0 ? KIT_LEN[t] : 4.6);
+      if (v) variants[name] = v;
+    });
+    return { variants, hero: gltfs[KIT_NAMES.indexOf(HERO_FILE)].scene };
+  }, [gltfs]);
+}
+
+class KitBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) { console.warn('[city3d] car kit GLB failed, using procedural vehicles', e); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
+
+const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, shadows, kit }) => {
   const fleet = useMemo(() => {
     const rnd = mulberry32(CITY_SEED + n);
     const vs = createFleet(n, CITY_SEED + n * 7);
@@ -272,6 +347,9 @@ const Fleet: React.FC<{ n: number; shadows: boolean }> = ({ n, shadows }) => {
       carModel({ ...SEDAN, len: 4.7, wid: 1.95, bodyH: 0.8, bodyY: 0.85, cabW: 1.85, cabH: 0.6, cabY: 1.55, cabL: 3.0, cabZ: -0.3, wheelR: 0.4 }),
       carModel({ ...SEDAN, roofSign: true }),
       busModel(), truckModel(), bikeModel(),
+      carModel(SEDAN), carModel({ ...SEDAN, len: 4.7, wid: 1.95, bodyH: 0.8, bodyY: 0.85, cabW: 1.85, cabH: 0.6, cabY: 1.55, cabL: 3.0, cabZ: -0.3, wheelR: 0.4 }),
+      carModel(SEDAN), carModel({ ...SEDAN, len: 4.7, wid: 1.95, bodyH: 0.8, bodyY: 0.85, cabW: 1.85, cabH: 0.6, cabY: 1.55, cabL: 3.0, cabZ: -0.3, wheelR: 0.4 }),
+      truckModel(),
     ];
     const counts = countsFor(n).map((_, t) => vs.filter((v) => v.type === t).length);
     const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.35 });
@@ -283,6 +361,17 @@ const Fleet: React.FC<{ n: number; shadows: boolean }> = ({ n, shadows }) => {
     models.forEach((m, t) => {
       const cnt = counts[t];
       if (cnt === 0) { meshes.push([]); return; }
+      const kv = KIT_FILE[t] && kit ? kit.variants[KIT_FILE[t] as string] : undefined;
+      if (kv) {
+        const lg = lightsOnly(kv.len, kv.wid, kv.h * 0.38);
+        geos.push(lg);
+        const b = new THREE.InstancedMesh(kv.geo, kv.mat, cnt);
+        const l = new THREE.InstancedMesh(lg, lightMat, cnt);
+        b.castShadow = shadows;
+        [b, l].forEach((x) => { x.frustumCulled = false; group.add(x); });
+        meshes.push([b, l]);
+        return;
+      }
       const lights = merge([m.heads, m.tails]);
       geos.push(m.body, m.dark, m.heads, m.tails, lights);
       const b = new THREE.InstancedMesh(m.body, bodyMat, cnt);
@@ -295,7 +384,7 @@ const Fleet: React.FC<{ n: number; shadows: boolean }> = ({ n, shadows }) => {
       meshes.push([b, d, l]);
     });
     return { vs, group, meshes, geos, mats: [bodyMat, darkMat, lightMat], lightMat };
-  }, [n, shadows]);
+  }, [n, shadows, kit]);
   useEffect(() => () => { fleet.geos.forEach((g) => g.dispose()); fleet.mats.forEach((m) => m.dispose()); }, [fleet]);
 
   const groups = useMemo(() => new Map<number, Veh[]>(), []);
@@ -427,7 +516,7 @@ function isTyping(e: KeyboardEvent): boolean {
 
 const hv = { vx: 0, vz: 0, steer: 0, spin: 0, pitch: 0, roll: 0, lastVF: 0 };
 
-const HeroCar: React.FC = () => {
+const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
   const root = useRef<THREE.Group>(null);
   const tilt = useRef<THREE.Group>(null);
   const spot = useRef<THREE.SpotLight>(null);
@@ -447,6 +536,26 @@ const HeroCar: React.FC = () => {
       wheel: wheelG(0.36, 0.28, 0, 0, 0, '#141414'), rim: wheelG(0.22, 0.3, 0, 0, 0, '#b9c0c8'),
     };
   }, []);
+  const hero = useMemo(() => {
+    if (!kit) return null;
+    try {
+      const obj = kit.hero.clone(true);
+      obj.updateMatrixWorld(true);
+      const bb = new THREE.Box3().setFromObject(obj);
+      const sz = bb.getSize(new THREE.Vector3());
+      const sc = 4.6 / sz.z;
+      obj.position.set(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
+      const wrap = new THREE.Group(); wrap.add(obj); wrap.scale.setScalar(sc);
+      const wheels = ['wheel-front-left', 'wheel-front-right', 'wheel-back-left', 'wheel-back-right'].map((n) => obj.getObjectByName(n) ?? null);
+      wheels.forEach((w) => { if (w) w.rotation.order = 'YXZ'; });
+      obj.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
+      const wid = sz.x * sc, y = sz.y * sc * 0.38, x = wid * 0.32, len = 4.6;
+      const heads = merge([box(0.4, 0.2, 0.08, x, y, len / 2 + 0.02, HEAD), box(0.4, 0.2, 0.08, -x, y, len / 2 + 0.02, HEAD)]);
+      const tails = merge([box(0.44, 0.16, 0.08, x, y, -len / 2 - 0.02, TAIL), box(0.44, 0.16, 0.08, -x, y, -len / 2 - 0.02, TAIL)]);
+      return { wrap, wheels, heads, tails, r: 0.3 * sc };
+    } catch (e) { console.warn('[city3d] hero GLB unusable', e); return null; }
+  }, [kit]);
+  useEffect(() => () => { hero?.heads.dispose(); hero?.tails.dispose(); }, [hero]);
   const mats = useMemo(() => ({
     body: new THREE.MeshStandardMaterial({ vertexColors: true, color: '#e0222d', roughness: 0.25, metalness: 0.6 }),
     dark: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.3 }),
@@ -561,9 +670,13 @@ const HeroCar: React.FC = () => {
       const pitchT = Math.max(-0.06, Math.min(0.06, -acc * 0.003));
       hv.roll += (rollT - hv.roll) * Math.min(1, dt * 6); hv.pitch += (pitchT - hv.pitch) * Math.min(1, dt * 6);
       t.rotation.z = hv.roll; t.rotation.x = hv.pitch;
-      hv.spin += (vF2 * dt) / 0.36;
-      wheelsF.current.forEach((w) => { if (w) w.rotation.y = hv.steer * 0.45; });
-      wheelsS.current.forEach((w) => { if (w) w.rotation.x = hv.spin; });
+      hv.spin += (vF2 * dt) / (hero ? hero.r : 0.36);
+      if (hero) {
+        hero.wheels.forEach((w, i) => { if (w) { w.rotation.x = hv.spin; if (i < 2) w.rotation.y = hv.steer * 0.45; } });
+      } else {
+        wheelsF.current.forEach((w) => { if (w) w.rotation.y = hv.steer * 0.45; });
+        wheelsS.current.forEach((w) => { if (w) w.rotation.x = hv.spin; });
+      }
     }
     const night = live.nightFactor;
     mats.heads.color.setScalar(0.3 + 0.9 * night);
@@ -575,13 +688,17 @@ const HeroCar: React.FC = () => {
   return (
     <group ref={root} position={[heroCar.x, 0.04, heroCar.z]} rotation={[0, heroCar.heading, 0]}>
       <group ref={tilt}>
-        <mesh geometry={model.body} material={mats.body} castShadow />
-        <mesh geometry={model.dark} material={mats.dark} />
-        <mesh geometry={model.heads} material={mats.heads} />
-        <mesh geometry={model.tails} material={mats.tails} />
+        {hero ? <primitive object={hero.wrap} /> : (
+          <>
+            <mesh geometry={model.body} material={mats.body} castShadow />
+            <mesh geometry={model.dark} material={mats.dark} />
+          </>
+        )}
+        <mesh geometry={hero ? hero.heads : model.heads} material={mats.heads} />
+        <mesh geometry={hero ? hero.tails : model.tails} material={mats.tails} />
         <spotLight ref={spot} position={[0, 0.9, 2.1]} angle={0.5} penumbra={0.7} distance={70} decay={1.4} intensity={0} />
         <object3D ref={tgt} position={[0, 0, 22]} />
-        {W4.map(([x, z, front], i) => (
+        {!hero && W4.map(([x, z, front], i) => (
           <group key={i} position={[x, 0.36, z]}>
             <group ref={(el) => { if (el) { if (front) wheelsF.current[i] = el; } }}>
               <group ref={(el) => { if (el) wheelsS.current[i] = el; }}>
@@ -599,14 +716,33 @@ const HeroCar: React.FC = () => {
 // =====================================================================
 // Traffic (root export)
 // =====================================================================
+const KitScene: React.FC<{ n: number; quality: string }> = ({ n, quality }) => {
+  const kit = useKit();
+  return (
+    <>
+      <Fleet key={quality} n={n} shadows={quality === 'high'} kit={kit} />
+      <HeroCar kit={kit} />
+    </>
+  );
+};
+
 export const Traffic: React.FC = () => {
   const quality = useCity((s) => s.quality);
   const n = quality === 'low' ? 40 : quality === 'medium' ? 120 : 260;
+  const plain = (
+    <>
+      <Fleet key={quality} n={n} shadows={quality === 'high'} kit={null} />
+      <HeroCar kit={null} />
+    </>
+  );
   return (
     <>
       <TrafficLights />
-      <Fleet key={quality} n={n} shadows={quality === 'high'} />
-      <HeroCar />
+      <KitBoundary fallback={plain}>
+        <Suspense fallback={plain}>
+          <KitScene n={n} quality={quality} />
+        </Suspense>
+      </KitBoundary>
     </>
   );
 };

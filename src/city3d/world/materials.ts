@@ -19,28 +19,28 @@ varying vec2 vWuv; varying vec2 vInfo;
 float wHash(vec3 p){ p = fract(p*0.1031); p += dot(p, p.yzx+33.33); return fract((p.x+p.y)*p.z); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 float sd = floor(vInfo.x+0.5); float st = floor(vInfo.y+0.5);
-vec2 wg = vec2(vWuv.x/3.0, vWuv.y/${FLOOR_H.toFixed(2)});
+vec2 wg = vec2(vWuv.x/2.4, vWuv.y/${FLOOR_H.toFixed(2)});
 float wfw = max(fwidth(wg.x), fwidth(wg.y));
 float wMask = 0.0; float wLit = 0.0; vec3 wEm = vec3(0.0); float wGlass = 0.0;
 if (st > 0.5 && st < 3.5) {
   vec2 cell = floor(wg); vec2 f = fract(wg);
-  vec2 lo = vec2(0.06,0.12); vec2 hi = vec2(0.94,0.88);
-  if (st > 1.5 && st < 2.5) { lo = vec2(0.2,0.28); hi = vec2(0.8,0.82); }
-  else if (st > 2.5) { lo = vec2(0.28,0.25); hi = vec2(0.72,0.85); }
+  vec2 lo = vec2(0.14,0.2); vec2 hi = vec2(0.86,0.78);
+  if (st > 1.5 && st < 2.5) { lo = vec2(0.3,0.34); hi = vec2(0.7,0.76); }
+  else if (st > 2.5) { lo = vec2(0.33,0.3); hi = vec2(0.67,0.76); }
   float ground = 1.0 - step(0.5, cell.y);
   if (ground > 0.5 && st < 1.5) { lo.y = 0.04; }
   vec2 s2 = step(lo, f) * step(f, hi);
   float m = s2.x * s2.y;
   float h1 = wHash(vec3(cell, sd)); float h2 = wHash(vec3(cell + 31.7, sd + 3.0)); float h3 = wHash(vec3(cell + 7.3, sd + 9.0));
-  float bProb = 0.2 + 0.55 * wHash(vec3(sd, 7.0, 1.0));
-  bProb = mix(bProb, 0.85, ground * 0.6);
+  float bProb = 0.06 + 0.34 * wHash(vec3(sd, 7.0, 1.0));
+  bProb = mix(bProb, 0.6, ground * 0.5);
   float lit = step(h2, bProb);
   float fade = smoothstep(0.4, 1.0, wfw);
   wMask = mix(m, (hi.x-lo.x)*(hi.y-lo.y), fade);
   wLit = mix(lit, bProb, fade);
   wGlass = st < 1.5 ? 1.0 : 0.6;
   vec3 warm = mix(vec3(1.0,0.78,0.45), vec3(0.75,0.88,1.0), step(0.75, h3));
-  wEm = warm * (0.6 + 0.8*h1);
+  wEm = warm * (0.3 + 0.9*h1*h1);
   vec3 dayC = mix(vec3(0.10,0.16,0.22), vec3(0.38,0.52,0.64), 0.5+0.5*h1) * (0.35 + 0.65*uDay);
   vec3 nightC = vec3(0.02,0.03,0.05) * (0.5 + h1);
   diffuseColor.rgb = mix(diffuseColor.rgb, mix(nightC, dayC, uDay), wMask * 0.95);
@@ -50,8 +50,8 @@ roughnessFactor = mix(roughnessFactor, 0.1, wMask * wGlass);`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
 metalnessFactor = mix(metalnessFactor, 0.5, wMask * wGlass);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += wEm * wLit * wMask * uNight * 1.8;
-if (st > 3.5) totalEmissiveRadiance += diffuseColor.rgb * (0.4 + uNight * 2.5);`);
+totalEmissiveRadiance += wEm * wLit * wMask * uNight * 0.7;
+if (st > 3.5) totalEmissiveRadiance += diffuseColor.rgb * (0.4 + uNight * 1.8);`);
   };
   return m;
 }
@@ -91,4 +91,61 @@ export function makeSignAtlas(): THREE.CanvasTexture {
   });
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   return t;
+}
+
+export const roadUniforms = { uWet: { value: 0 }, uNight: { value: 0 }, uDay: { value: 1 }, uTime: { value: 0 } };
+/** Cheap fake wet reflections for asphalt: lamp streaks in world space + grazing-angle sky sheen + puddle roughness. */
+export function patchWetRoad(m: THREE.MeshStandardMaterial) {
+  m.customProgramCacheKey = () => 'cityRoadWet1';
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, roadUniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWp;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform float uWet; uniform float uNight; uniform float uDay; uniform float uTime;
+varying vec3 vWp;
+float rHash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+float rNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(rHash(i),rHash(i+vec2(1,0)),f.x), mix(rHash(i+vec2(0,1)),rHash(i+vec2(1,1)),f.x), f.y); }
+float lampStreak(float a, float b, float t) {
+  float da = mod(a, 70.0) - 35.0;
+  float db = mod(b + 35.0, 70.0) - 35.0;
+  float dl = min(abs(db), min(abs(db - 27.2), abs(db + 27.2)));
+  float across = exp(-pow((abs(da) - 6.4) / 0.55, 2.0));
+  float along = exp(-pow(dl / 7.0, 2.0));
+  return across * along * (0.75 + 0.25 * sin(b * 2.3 + t * 1.5));
+}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+float puddle = smoothstep(0.35, 0.65, rNoise(vWp.xz * 0.35));
+roughnessFactor = mix(roughnessFactor, 0.1, uWet * (0.5 + 0.5 * puddle));`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+{
+  float fres = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0);
+  vec3 sky = mix(vec3(0.12,0.15,0.25), vec3(0.45,0.55,0.7), uDay);
+  float wetAmt = uWet * (0.5 + 0.5 * puddle);
+  totalEmissiveRadiance += sky * fres * wetAmt * 0.35;
+  float st = lampStreak(vWp.x, vWp.z, uTime) + lampStreak(vWp.z, vWp.x, uTime);
+  totalEmissiveRadiance += vec3(1.0,0.75,0.42) * st * wetAmt * uNight * 1.1 * (0.4 + 0.6 * fres + 0.3);
+}`);
+  };
+}
+
+/** Tileable normal map for gentle water ripples. */
+export function makeWaterNormal(): THREE.CanvasTexture {
+  const N = 128, h = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = (x / N) * Math.PI * 2, v = (y / N) * Math.PI * 2;
+    h[y * N + x] = Math.sin(u * 3 + Math.sin(v * 2) * 1.2) * 0.5 + Math.sin(v * 4 + u * 2) * 0.35 + Math.sin((u + v) * 5) * 0.2;
+  }
+  const c = document.createElement('canvas'); c.width = c.height = N;
+  const x2 = c.getContext('2d')!, img = x2.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = h[y * N + (x + 1) % N] - h[y * N + (x + N - 1) % N], dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+    const nx = -dx * 0.6, ny = -dy * 0.6, nz = 1, l = Math.hypot(nx, ny, nz), i = (y * N + x) * 4;
+    img.data[i] = (nx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (ny / l * 0.5 + 0.5) * 255; img.data[i + 2] = (nz / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  x2.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }

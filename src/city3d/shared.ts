@@ -32,17 +32,17 @@ export const CITY_SEED = 20261121;
 // ---------- Tower contract: F-Town 3 (FPT Software HCM, Saigon Hi-Tech Park, Q9/Thu Duc) ----------
 // Real facts: 7 above-ground floors + 1 basement, ~7,500 staff, "Building in the Park" concept
 // (layered terrace gardens, natural light, rainforest/water-journey themes), smart building, opened 13/11/2019.
-export const TOWER_FOOTPRINT = { w: 52, d: 52 }; // fits inside the reserved block (0,0); has inner courtyard(s)
+export const TOWER_FOOTPRINT = { w: 44, d: 44 }; // leaves a ~6m park ring inside the reserved block (0,0); has inner courtyard(s)
 export const TOWER_FLOORS = 7; // above ground: index 0..6 == F1..F7
 export const BASEMENT_FLOORS = 1; // B1 occupies y in [-FLOOR_H, 0]
 /** Floor index the user's team (Khoang NHA THUOC FT3.III2A.1, 30 staff) sits on. Change here if wrong. */
-export const TEAM_FLOOR = 2; // F3 (index 2)
+export const TEAM_FLOOR = 1; // F2 (index 1) - confirmed by user
 /** index -1 = B1 basement; 0..6 = F1..F7 */
 export const FLOOR_DEPARTMENTS: { floor: number; label: string; name: string; role: string }[] = [
   { floor: -1, label: 'B1', name: 'Hầm xe & Kỹ thuật', role: 'BASEMENT' },
   { floor: 0, label: 'F1', name: 'Sảnh đón tiếp, Café & Lễ tân', role: 'COMMON' },
-  { floor: 1, label: 'F2', name: 'Training, Phòng họp & Pantry', role: 'COMMON' },
-  { floor: 2, label: 'F3', name: 'Khoang NHÀ THUỐC – Phòng Lập trình (30 nhân sự)', role: 'TEAM' },
+  { floor: 1, label: 'F2', name: 'Khoang NHÀ THUỐC – Phòng Lập trình (30 nhân sự)', role: 'TEAM' },
+  { floor: 2, label: 'F3', name: 'Training, Phòng họp & Pantry', role: 'COMMON' },
   { floor: 3, label: 'F4', name: 'Khối phát triển phần mềm (đơn vị khác)', role: 'OTHER_BU' },
   { floor: 4, label: 'F5', name: 'Khối phát triển phần mềm (đơn vị khác)', role: 'OTHER_BU' },
   { floor: 5, label: 'F6', name: 'R&D Center & Jenkins/Server room', role: 'RND' },

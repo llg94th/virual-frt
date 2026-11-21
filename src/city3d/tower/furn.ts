@@ -151,23 +151,35 @@ export class Furn {
     }
     this.g(cx, 0.75, cz, 2.9, 0.4, 0.03);
   }
-  /** frame (mullions + spandrel) along a segment */
-  frame(x0: number, z0: number, x1: number, z1: number, step = 2.6) {
+  /** slim grey columns + thin dark railings along a straight slab edge (facade is open / recessed, not curtain wall) */
+  frame(x0: number, z0: number, x1: number, z1: number, step = 4.4) {
     const L = Math.hypot(x1 - x0, z1 - z0);
+    if (L < 0.5) return;
     const alongX = Math.abs(z1 - z0) < 1e-6;
     const n = Math.max(1, Math.round(L / step));
-    for (let i = 0; i <= n; i++) {
-      const x = x0 + ((x1 - x0) * i) / n, z = z0 + ((z1 - z0) * i) / n;
-      const big = i === 0 || i === n;
-      this.b(x, 0, z, big ? 0.5 : 0.1, CLEAR, big ? 0.5 : 0.1, big ? '#e9eeed' : '#dfe7e6');
-    }
+    for (let i = 0; i <= n; i++) this.b(x0 + ((x1 - x0) * i) / n, 0, z0 + ((z1 - z0) * i) / n, 0.32, CLEAR - 0.9, 0.32, '#9ba2a6');
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    this.b(cx, CLEAR - 0.35, cz, alongX ? L : 0.24, 0.35, alongX ? 0.24 : L, '#f4f6f5');
-    this.b(cx, 0, cz, alongX ? L : 0.2, 0.12, alongX ? 0.2 : L, '#f4f6f5');
+    for (const y of [1.0, 0.5]) this.b(cx, y, cz, alongX ? L : 0.04, 0.04, alongX ? 0.04 : L, '#2b3338');
+    const posts = Math.round(L / 1.6);
+    for (let i = 0; i <= posts; i++) this.b(x0 + ((x1 - x0) * i) / posts, 0, z0 + ((z1 - z0) * i) / posts, 0.04, 1.0, 0.04, '#2b3338');
+  }
+  /** attached frond: pivot at (x,y,z) (y absolute above walking surface), yaw r, pitch-down a, length L */
+  frond(x: number, y: number, z: number, r: number, a: number, L: number, w: number, c: string) {
+    const ca = Math.cos(a);
+    this.boxes.push({ p: [x + Math.sin(r) * ca * (L / 2), FT + y - Math.sin(a) * (L / 2), z + Math.cos(r) * ca * (L / 2)], s: [w, 0.04, L], c, r, rx: a });
+  }
+  palm(x: number, z: number, h = 6) {
+    this.b(x, 0, z, 0.26, h, 0.26, '#a28b6a');
+    for (let i = 0; i < 8; i++) this.frond(x, h, z, (i * Math.PI * 2) / 8 + x, 0.25 + (i % 2) * 0.35, 2.6, 0.5, i % 2 ? '#3f9a4f' : '#2e8a45');
+    this.ball(x, h + 0.1, z, 0.3, '#4a8a3a');
+  }
+  banana(x: number, z: number) {
+    for (let i = 0; i < 5; i++) this.frond(x, 0.25, z, i * 1.26 + x, -0.9 + (i % 2) * 0.3, 1.7, 0.65, i % 2 ? '#4fb05a' : '#3c9c4c');
   }
 }
 
 // ---------- shared parts ----------
+const R_OUT = 5, R_CT = 3;
 function shell(F: Furn, f: number) {
   const W = 2 * HX, D = 2 * HZ;
   if (F.solid) {
@@ -175,35 +187,44 @@ function shell(F: Furn, f: number) {
     F.b(-HX, 0, 0, 0.4, CLEAR, D, '#8d949a'); F.b(HX, 0, 0, 0.4, CLEAR, D, '#8d949a');
     return;
   }
-  F.frame(-HX, -HZ, HX, -HZ); F.frame(-HX, HZ, HX, HZ); F.frame(-HX, -HZ, -HX, HZ); F.frame(HX, -HZ, HX, HZ);
-  for (const c of COURTYARDS) {
-    const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, z0 = c.z - c.d / 2, z1 = c.z + c.d / 2;
-    F.frame(x0, z0, x1, z0, 3.5); F.frame(x0, z1, x1, z1, 3.5); F.frame(x0, z0, x0, z1, 3.5); F.frame(x1, z0, x1, z1, 3.5);
-  }
-  // terrace garden balconies: alternate facades by floor ("Building in the Park")
-  if (f >= 1) {
-    const rnd = mulberry32(f * 131 + 7);
-    const sides = f % 2 === 1 ? ['N', 'S'] : ['E', 'W'];
-    for (const s of sides) {
-      const alongX = s === 'N' || s === 'S';
-      const sign = s === 'N' || s === 'W' ? -1 : 1;
-      const hh = alongX ? HZ : HX, len = (alongX ? W : D) - 6;
-      const off = hh + 1.2;
-      const cx = alongX ? 0 : sign * off, cz = alongX ? sign * off : 0;
-      F.b(cx, -FT, cz, alongX ? len : 2.4, FT, alongX ? 2.4 : len, '#eef1ef');
-      const edge = hh + 2.2;
-      F.g(alongX ? 0 : sign * (hh + 2.4), 0, alongX ? sign * (hh + 2.4) : 0, alongX ? len : 0.04, 1.0, alongX ? 0.04 : len);
-      const cnt = Math.floor(len / 2 / 2);
-      for (let i = -cnt; i <= cnt; i++) {
-        const along = i * 2;
-        const px = alongX ? along : sign * edge, pz = alongX ? sign * edge : along;
-        F.b(px, 0, pz, alongX ? 1.7 : 0.7, 0.5, alongX ? 0.7 : 1.7, '#d4cfc4');
-        F.b(px, 0.5, pz, alongX ? 1.6 : 0.6, 0.06, alongX ? 0.6 : 1.6, '#5b4630');
-        if (rnd() < 0.3) F.tree(px, pz, 2.4 + rnd() * 1.6, 0.8 + rnd() * 0.5, rnd() < 0.5 ? '#2f8a4a' : '#59b36a');
-        else F.ball(px, 0.5 + FT * 0 + 0.35, pz, 0.45 + rnd() * 0.15, rnd() < 0.5 ? '#3e9b55' : '#6cc07a');
+  // railings + slim columns along the straight parts of the (rounded) slab edge
+  const r = R_OUT, e = 0.15;
+  F.frame(-HX + r, -HZ + e, HX - r, -HZ + e); F.frame(-HX + r, HZ - e, HX - r, HZ - e);
+  F.frame(-HX + e, -HZ + r, -HX + e, HZ - r); F.frame(HX - e, -HZ + r, HX - e, HZ - r);
+  const rc = R_CT;
+  COURTYARDS.forEach((c, k) => {
+    const x0 = c.x - c.w / 2 - e, x1 = c.x + c.w / 2 + e, z0 = c.z - c.d / 2 - e, z1 = c.z + c.d / 2 + e;
+    F.frame(x0 + rc, z0, x1 - rc, z0, 4); F.frame(x0 + rc, z1, x1 - rc, z1, 4); F.frame(x0, z0 + rc, x0, z1 - rc, 4); F.frame(x1, z0 + rc, x1, z1 - rc, 4);
+    // trailing greenery on the atrium railings
+    const rnd = mulberry32(f * 31 + k * 7 + 5);
+    for (let i = 0; i < 9; i++) {
+      const side = Math.floor(rnd() * 4), u = (rnd() - 0.5) * (c.w - 2 * rc);
+      const px = side < 2 ? c.x + u : side === 2 ? x0 : x1, pz = side < 2 ? (side === 0 ? z0 : z1) : c.z + u;
+      F.ball(px, 1.05, pz, 0.32 + rnd() * 0.15, rnd() < 0.5 ? '#3e9b55' : '#6cc07a');
+    }
+    // concrete stair flight cascading down the atrium side (connects this floor to the one below)
+    if (f >= 1) {
+      const len = 6.2, a = Math.atan2(FLOOR_H, len), L = Math.hypot(len, FLOOR_H);
+      const sx = k === 0 ? 1 : -1, xx = c.x + sx * (c.w / 2 - 1.1);
+      const zc = c.z + (k === 0 ? 1 : -1) * (-c.d / 2 + 0.6 + len / 2) * -1 * -1;
+      const dir = k === 0 ? 1 : -1; // descends toward +z for k=0, toward -z for k=1
+      const zmid = c.z - dir * (c.d / 2 - 0.6 - len / 2);
+      void zc;
+      F.boxes.push({ p: [xx, FT - FLOOR_H / 2 - 0.12, zmid], s: [1.4, 0.24, L], c: '#c9cdcc', r: 0, rx: dir * a });
+      for (const o of [-0.7, 0.7]) F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.95, zmid], s: [0.04, 0.04, L], c: '#2b3338', r: 0, rx: dir * a });
+    }
+    // red-brown (corten) pedestrian bridge across the atrium at the second storey
+    if (f === 1) {
+      const xa = c.x - c.w / 2 - 0.3, xb = c.x + c.w / 2 + 0.3, segs = 4, wv = 1.2;
+      for (let i = 0; i < segs; i++) {
+        const u0 = i / segs, u1 = (i + 1) / segs, zc0 = c.z + Math.sin(u0 * Math.PI) * 1.6, zc1 = c.z + Math.sin(u1 * Math.PI) * 1.6;
+        const px0 = xa + (xb - xa) * u0, px1 = xa + (xb - xa) * u1, len = Math.hypot(px1 - px0, zc1 - zc0), yaw = Math.atan2(px1 - px0, zc1 - zc0);
+        const mx = (px0 + px1) / 2, mz = (zc0 + zc1) / 2;
+        F.boxes.push({ p: [mx, FT + 0.05, mz], s: [wv, 0.16, len + 0.05], c: '#8a3b22', r: yaw, rx: 0 });
+        for (const o of [-wv / 2, wv / 2]) F.boxes.push({ p: [mx + Math.cos(yaw) * o, FT + 0.6, mz - Math.sin(yaw) * o], s: [0.05, 1.0, len + 0.05], c: '#6e2c1a', r: yaw, rx: 0 });
       }
     }
-  }
+  });
 }
 function core(F: Furn) {
   const { x, z, w, d } = CORE;
@@ -224,17 +245,29 @@ function core(F: Furn) {
 function garden(F: Furn) {
   const rnd = mulberry32(2024);
   COURTYARDS.forEach((c, k) => {
+    const sx = k === 0 ? -1 : 1, sz = k === 0 ? 1 : -1; // pond sits at a different corner of each atrium
+    const px = c.x + sx * (c.w / 2 - 3), pz = c.z + sz * (c.d / 2 - 3);
     F.b(c.x, -FT - 0.1, c.z, c.w - 0.2, 0.15, c.d - 0.2, '#4c9a4f');
-    F.b(c.x + (k ? 1.5 : -1.5), -FT - 0.07, c.z, 4.5, 0.04, 6, '#4fc0cf'); // pond
-    F.b(c.x + (k ? 1.5 : -1.5), -FT, c.z, 4.9, 0.1, 0.3, '#d8d2c4');
-    for (let i = 0; i < 9; i++) F.b(c.x - c.w / 2 + 1.5 + i * 1.2, -FT - 0.05, c.z + (k ? -1 : 1) * (c.d / 2 - 1.5), 0.9, 0.08, 0.9, '#c9c3b5');
-    for (let i = 0; i < 7; i++) {
-      const tx = c.x + (rnd() - 0.5) * (c.w - 3), tz = c.z + (rnd() - 0.5) * (c.d - 3);
-      F.tree(tx, tz, 5 + rnd() * 8, 2 + rnd() * 1.8, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
+    F.b(px, -FT - 0.04, pz, 5.2, 0.05, 5.2, '#4aa7b5'); // lily pond
+    for (let i = 0; i < 16; i++) {
+      F.b(px + (rnd() - 0.5) * 4.4, -FT + 0.02, pz + (rnd() - 0.5) * 4.4, 0.5 + rnd() * 0.3, 0.02, 0.5 + rnd() * 0.3, '#3f8f4a', rnd() * 3);
     }
-    for (let i = 0; i < 14; i++) F.ball(c.x + (rnd() - 0.5) * (c.w - 1), -FT + 0.4, c.z + (rnd() - 0.5) * (c.d - 1), 0.45 + rnd() * 0.4, rnd() < 0.3 ? '#e87aa0' : '#5ab86a');
+    for (let i = 0; i < 4; i++) F.ball(px + (rnd() - 0.5) * 3.6, -FT + 0.1, pz + (rnd() - 0.5) * 3.6, 0.14, '#f08ab0');
+    // stepping path + broadleaf trees
+    for (let i = 0; i < 9; i++) F.b(c.x - c.w / 2 + 1.5 + i * 1.2, -FT - 0.05, c.z + (k ? -1 : 1) * 0.2, 0.9, 0.08, 0.9, '#c9c3b5');
+    for (let i = 0; i < 5; i++) F.tree(c.x + (rnd() - 0.5) * (c.w - 3), c.z + (rnd() - 0.5) * (c.d - 3), 4 + rnd() * 7, 1.8 + rnd() * 1.5, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
+    for (let i = 0; i < 7; i++) {
+      const tx = c.x + (rnd() - 0.5) * (c.w - 2.5), tz = c.z + (rnd() - 0.5) * (c.d - 2.5);
+      if (Math.hypot(tx - px, tz - pz) < 3.3) continue;
+      F.palm(tx, tz, 5 + rnd() * 5);
+    }
+    for (let i = 0; i < 10; i++) {
+      const tx = c.x + (rnd() - 0.5) * (c.w - 1.5), tz = c.z + (rnd() - 0.5) * (c.d - 1.5);
+      if (Math.hypot(tx - px, tz - pz) < 3) continue;
+      F.banana(tx, tz);
+    }
+    for (let i = 0; i < 14; i++) F.ball(c.x + (rnd() - 0.5) * (c.w - 1), -FT + 0.4, c.z + (rnd() - 0.5) * (c.d - 1), 0.45 + rnd() * 0.4, rnd() < 0.2 ? '#e87aa0' : '#5ab86a');
   });
-  F.label({ t: 'GIẾNG TRỜI • RAINFOREST', x: CXC, y: 0.2, z: 0, w: 8, h: 1, rot: 0, flat: true, fg: '#ffffff', bg: 'rgba(30,110,90,0.0)' });
 }
 
 // ---------- floors ----------
@@ -433,7 +466,7 @@ export function roof(F: Furn, S: Furn) {
     F.b(x, 0, z - 0.25, 0.08, 0.2, 0.08, '#8a949b');
   }
   // plant room over core + AHU
-  F.b(-2.5, 0, 0, 6, 2.2, 8, '#d8dedc'); F.b(-2.5, 2.2, 0, 6.4, 0.2, 8.4, '#2e8f8a');
+  F.b(-2.5, 0, 0, 6, 2.2, 8, '#d9cdb4'); F.b(-2.5, 2.2, 0, 6.3, 0.15, 8.3, '#efe8d8');
   F.b(10, 0, -4, 3, 1.4, 2, '#9aa6ad'); F.b(15, 0, -4, 3, 1.4, 2, '#9aa6ad'); F.b(20, 0, -4, 3, 1.4, 2, '#9aa6ad');
   // sky garden on roof
   F.b(11, 0, 16, 28, 0.15, 14, '#5eb862');

@@ -11,7 +11,7 @@ const WEATHERS: [Weather, string][] = [['clear', 'Quang đãng'], ['cloudy', 'Nh
 const QUALITIES: [Quality, string][] = [['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']];
 const CAMERAS: [CameraMode, string][] = [['orbit', 'Quỹ đạo'], ['follow', 'Bám theo'], ['cutaway', 'Cắt lớp'], ['cinematic', 'Điện ảnh'], ['drive', 'Lái xe']];
 const MISSIONS = [
-  'giao tài liệu lên F3 (Khoang NHÀ THUỐC)',
+  'giao tài liệu lên F2 (Khoang NHÀ THUỐC)',
   'lái xe một vòng quanh thành phố',
   'đi bộ vào sảnh F-Town 3',
   'ngắm hoàng hôn từ sân thượng',

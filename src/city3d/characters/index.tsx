@@ -10,10 +10,14 @@ import {
   CITY_EXTENT, ROAD_LINES, ROAD_W, SIDEWALK_W, live, mulberry32, useCity,
 } from '../shared';
 import type { CharacterAppearance, CharacterPose } from '../shared';
+import { RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
+import type { RigEntry } from './rigged';
 
 export interface Character3DProps {
   appearance: CharacterAppearance; pose?: CharacterPose; position?: [number, number, number];
   rotationY?: number; scale?: number; label?: string;
+  /** Internal: always use the rigged model when available (Player). */
+  priority?: boolean;
 }
 
 // ---------------------------------------------------------------- caches
@@ -158,7 +162,7 @@ function computeTarget(pose: CharacterPose, ph: number, t: number, off: number) 
 // ---------------------------------------------------------------- Character3D
 const nodeRef = <T extends THREE.Object3D>() => React.createRef<T>();
 
-export const Character3D: React.FC<Character3DProps> = ({ appearance, pose = 'idle', position, rotationY = 0, scale = 1, label }) => {
+const ProceduralCharacter: React.FC<Character3DProps> = ({ appearance, pose = 'idle', position, rotationY = 0, scale = 1, label }) => {
   const quality = useCity((s) => s.quality);
   const cfg = useMemo(() => resolve(appearance), [appearance]);
   const k = (cfg.height ?? 1.75) / 1.75 * scale;
@@ -274,6 +278,51 @@ export const Character3D: React.FC<Character3DProps> = ({ appearance, pose = 'id
         <Billboard position={[0, 1.95, 0]}>
           <Text fontSize={0.16} color="#ffffff" outlineWidth={0.015} outlineColor="#000000" anchorY="bottom">{label}</Text>
         </Billboard>
+      )}
+    </group>
+  );
+};
+
+// ---------------------------------------------------------------- Character3D (rigged when near, procedural otherwise)
+export const Character3D: React.FC<Character3DProps> = (props) => {
+  const { appearance, pose = 'idle', position, rotationY = 0, scale = 1, priority = false, label } = props;
+  const quality = useCity((s) => s.quality);
+  const rigStatus = useRigStatus();
+  const eligible = !appearance.mascot || appearance.mascot === 'none';
+  const want = eligible && (priority || quality !== 'low');
+  useEffect(() => { if (want) ensureRigAsset(); }, [want]);
+  const outer = useRef<THREE.Group>(null);
+  const entry = useMemo<RigEntry>(() => ({ dist: 1e9, priority, allowed: priority }), [priority]);
+  const [on, setOn] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => (want ? registerRig(entry) : undefined), [want, entry]);
+  const tmp = useMemo(() => new THREE.Vector3(), []);
+  useFrame((state) => {
+    if (!want || rigStatus !== 'ready') return;
+    const g = outer.current; if (!g) return;
+    g.getWorldPosition(tmp);
+    entry.dist = priority ? 0 : Math.hypot(state.camera.position.x - tmp.x, state.camera.position.z - tmp.z);
+    rigTick(state.camera, state.gl.info.render.frame, performance.now());
+    if (entry.allowed !== on) setOn(entry.allowed);
+  });
+  const useRig = want && rigStatus === 'ready' && on && !failed;
+  useEffect(() => { if (!useRig) setReady(false); }, [useRig]);
+  const showRig = useRig && ready;
+  const height = appearance.height ?? 1.75;
+  const procProps = { appearance, pose, label, position: undefined, rotationY: 0, scale: 1 };
+  return (
+    <group ref={outer} position={position} rotation-y={rotationY} scale={scale}>
+      {!showRig && <ProceduralCharacter {...procProps} />}
+      {useRig && (
+        <RigBoundary onError={() => setFailed(true)}>
+          <React.Suspense fallback={null}>
+            <group visible={ready}>
+              <RiggedCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
+                onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
+            </group>
+          </React.Suspense>
+        </RigBoundary>
       )}
     </group>
   );
@@ -703,7 +752,7 @@ const PlayerInner: React.FC = () => {
 
   return (
     <group ref={group} position={[live.player.x, live.player.y, live.player.z]}>
-      <Character3D appearance={PLAYER_APPEARANCE} pose={pose} />
+      <Character3D appearance={PLAYER_APPEARANCE} pose={pose} priority />
     </group>
   );
 };

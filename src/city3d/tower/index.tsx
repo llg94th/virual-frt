@@ -10,7 +10,8 @@ import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCit
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
-import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, SLAB_PIECES, type Box, type Label, type Walker } from './furn';
+import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker } from './furn';
+import { fasciaGeo, slabGeo, cortenGeo } from './facade';
 import { LongChauGreeter } from './greeter';
 export { LongChauModel } from './greeter';
 
@@ -21,7 +22,7 @@ const ROOF = TOWER_FLOORS; // index of the roof group
 // ---------- shared materials ----------
 function useMats() {
   return useMemo(() => {
-    const glassFull = new THREE.MeshStandardMaterial({ color: '#8fd3cf', transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.6, depthWrite: false, side: THREE.DoubleSide, emissive: '#ffd9a0', emissiveIntensity: 0 });
+    const glassFull = new THREE.MeshStandardMaterial({ color: '#1d2d33', transparent: true, opacity: 0.55, roughness: 0.15, metalness: 0.5, depthWrite: false, side: THREE.DoubleSide, emissive: '#ffd9a0', emissiveIntensity: 0 });
     const glassCut = new THREE.MeshStandardMaterial({ color: '#9fd8d4', transparent: true, opacity: 0.05, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
     const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 });
     const inner = new THREE.MeshStandardMaterial({ color: '#bfe8ea', transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
@@ -29,8 +30,17 @@ function useMats() {
     const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
     const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
     const slab = new THREE.MeshStandardMaterial({ color: '#f2f4f3', roughness: 0.8 });
+    const dots = (() => {
+      if (typeof document === 'undefined') return null;
+      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
+      g.fillStyle = '#f6f7f5'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#c9cecb';
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.beginPath(); g.arc(8 + x * 16 + (y % 2) * 8, 8 + y * 16, 2.2, 0, 7); g.fill(); }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const fascia = new THREE.MeshStandardMaterial({ color: '#ffffff', map: dots, roughness: 0.7, side: THREE.DoubleSide });
+    const corten = new THREE.MeshStandardMaterial({ color: '#8a3b22', roughness: 0.8, side: THREE.DoubleSide });
     const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });
-    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin };
+    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten };
   }, []);
 }
 type Mats = ReturnType<typeof useMats>;
@@ -95,30 +105,32 @@ interface FloorProps { f: number; visible: boolean; cut: boolean; quality: Quali
 const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) => {
   const data = useMemo(() => getFloor(f), [f]);
   const isRoof = f === ROOF;
-  const walls = useMemo(() => {
+  const walls = useMemo((): Box[] => {
     if (isRoof || data.str.solid) return [];
-    const h = CLEAR;
-    const out: { p: V3t; s: V3t }[] = [];
-    const add = (cx: number, cz: number, w: number, d: number) => out.push({ p: [cx, FT + h / 2, cz], s: [w, h, d] });
-    add(0, -HZ, 2 * HX, 0.06); add(0, HZ, 2 * HX, 0.06); add(-HX, 0, 0.06, 2 * HZ); add(HX, 0, 0.06, 2 * HZ);
+    const out: Box[] = [];
+    const add = (cx: number, cz: number, w: number, d: number) => out.push({ p: [cx, FT + CLEAR / 2, cz], s: [w, CLEAR, d], c: '#ffffff', r: 0, rx: 0 });
+    // glazing is recessed ~0.9 m behind the slab edge (open dark terraces, as in the real building)
+    const i = 0.9, sh = 5;
+    add(0, -HZ + i, 2 * HX - 2 * sh, 0.06); add(0, HZ - i, 2 * HX - 2 * sh, 0.06); add(-HX + i, 0, 0.06, 2 * HZ - 2 * sh); add(HX - i, 0, 0.06, 2 * HZ - 2 * sh);
     for (const c of COURTYARDS) {
-      add(c.x, c.z - c.d / 2, c.w, 0.06); add(c.x, c.z + c.d / 2, c.w, 0.06); add(c.x - c.w / 2, c.z, 0.06, c.d); add(c.x + c.w / 2, c.z, 0.06, c.d);
+      const o = 0.6, w = c.w - 2 * 3, d = c.d - 2 * 3;
+      add(c.x, c.z - c.d / 2 - o, w, 0.06); add(c.x, c.z + c.d / 2 + o, w, 0.06); add(c.x - c.w / 2 - o, c.z, 0.06, d); add(c.x + c.w / 2 + o, c.z, 0.06, d);
     }
     return out;
   }, [isRoof, data]);
-  const slabs = f === -1 ? [[0, 0, 2 * HX, 2 * HZ] as [number, number, number, number]] : SLAB_PIECES;
+  const fascia = useMemo(() => (f >= 0 && !isRoof ? fasciaGeo(f) : null), [f, isRoof]);
   const dark = f === -1;
   const onClick = (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); cityStore.set({ selectedFloor: isRoof ? null : f }); };
   const interiorOn = interior || cut;
   return (
     <group position={[0, f * FLOOR_H, 0]} visible={visible} onClick={onClick}
       onPointerOver={(e) => { e.stopPropagation(); setCursor('pointer'); }} onPointerOut={() => setCursor('auto')}>
-      {slabs.map(([cx, cz, w, d], i) => (
-        <mesh key={i} position={[cx, FT / 2, cz]} scale={[w, FT, d]} geometry={BOX_GEO} material={dark ? mats.solid : mats.slab} castShadow receiveShadow>
-          {dark && <meshStandardMaterial attach="material" color="#5c646a" roughness={0.95} />}
-        </mesh>
-      ))}
-      {walls.map((w, i) => <mesh key={i} position={w.p} scale={w.s} geometry={BOX_GEO} material={cut ? mats.glassCut : mats.glassFull} renderOrder={2} />)}
+      {dark
+        ? <mesh position={[0, FT / 2, 0]} scale={[2 * HX, FT, 2 * HZ]} geometry={BOX_GEO} material={mats.solid} castShadow receiveShadow><meshStandardMaterial attach="material" color="#5c646a" roughness={0.95} /></mesh>
+        : <mesh geometry={slabGeo()} material={mats.slab} castShadow receiveShadow />}
+      {fascia && <mesh geometry={fascia} material={mats.fascia} castShadow />}
+      {f === 0 && <mesh geometry={cortenGeo()} material={mats.corten} castShadow />}
+      <InstBoxes list={walls} material={cut ? mats.glassCut : mats.glassFull} />
       <FloorStuff furn={data.str} mats={mats} shadow={quality === 'high'} on={interiorOn} />
       <group scale={[K, 1, K]}>
         <FloorStuff furn={data.lay} mats={mats} shadow={quality === 'high'} on={interiorOn} />
@@ -301,7 +313,7 @@ export const FrtTower: React.FC = () => {
   useFrame(({ clock }) => {
     const nf = live.nightFactor;
     mats.glassFull.emissiveIntensity = nf * 0.55;
-    const base = quality === 'high' ? 0.2 : quality === 'medium' ? 0.3 : 0.55;
+    const base = quality === 'high' ? 0.42 : quality === 'medium' ? 0.52 : 0.7;
     mats.glassFull.opacity = base + nf * 0.08;
     mats.slab.emissiveIntensity = 0;
     mats.led.opacity = 0.55 + 0.45 * Math.abs(Math.sin(clock.elapsedTime * 7));

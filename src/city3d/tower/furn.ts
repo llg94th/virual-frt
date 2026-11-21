@@ -445,7 +445,6 @@ function training(F: Furn) {
     F.table(rx, rz, 5, 0.6, '#e9e2d3');
     for (let i = 0; i < 4; i++) F.chair(rx - 1.9 + i * 1.25, rz + 0.75, Math.PI);
   }
-  F.stands.push({ x: 16, z: 11.8, rot: 0, id: 'f2-trainer' });
   // glass partition around the training room (door gap in the middle of the north side)
   F.g(10.5, 0, 11.6, 4, CLEAR - 0.4, 0.05); F.g(21.5, 0, 11.6, 6, CLEAR - 0.4, 0.05); F.g(8, 0, 17, 0.05, CLEAR - 0.4, 11);
   for (const rz of [13, 15.5, 18, 20.5]) for (const rx of [12, 19]) for (let i = 0; i < 4; i++) F.sitSeats.push({ x: rx - 1.9 + i * 1.25, z: rz + 0.75, rot: Math.PI });

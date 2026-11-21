@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BLOCK_SIZE, FLOOR_DEPARTMENTS, PITCH, ROAD_LINES, ROAD_W, TOWER_FOOTPRINT, cityStore, live, useCity } from '../shared';
 import type { CameraMode, Quality, Weather } from '../shared';
-import { heroCar, setDriving, trafficView } from '../vehicles';
+import { heroCar, nearestRide, setDriving, trafficView } from '../vehicles';
 
 const FONT = "'Oswald','Barlow Condensed','Bebas Neue','Arial Narrow',Impact,sans-serif";
 const PANEL = 'pointer-events-auto bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg shadow-[0_0_18px_rgba(255,170,0,0.15)]';
@@ -122,7 +122,7 @@ export const CityHud: React.FC<{ onExit: () => void }> = ({ onExit }) => {
     const id = setInterval(() => {
       const p = live.player;
       setKmh(Math.round(Math.abs(p.speed) * 3.6));
-      setNearCar(cityStore.get().playerMode === 'walk' && Math.hypot(p.x - heroCar.x, p.z - heroCar.z) < 6);
+      setNearCar(cityStore.get().playerMode === 'walk' && nearestRide() !== null);
       const i = Math.round(p.x / PITCH), j = Math.round(p.z / PITCH);
       setDistrict(i === 0 && j === 0 ? 'Quảng trường FRT' : DISTRICTS[Math.abs(i * 7 + j * 3) % DISTRICTS.length]);
     }, 100);

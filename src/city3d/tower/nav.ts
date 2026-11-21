@@ -2,7 +2,7 @@
  * Per-floor walkable grid + A* for the tower interior, and the collider list exposed through `interior`.
  * Everything is derived from the same Furn layout data that is instanced (no hand-copied furniture numbers).
  */
-import type { Rect2 } from '../shared';
+import { FLOOR_DEPARTMENTS, type Rect2 } from '../shared';
 import { getFloor, HX, HZ, K, COURTYARDS, CORE, FT, type Box } from './furn';
 
 export const CELL = 0.5;
@@ -16,6 +16,15 @@ export const DOOR = { x: 5, halfW: 1.6 };
 export const ENTRANCE = { outside: [DOOR.x, HZ + 2.6] as [number, number], inside: [DOOR.x, HZ - 2.4] as [number, number] };
 export const LIFT_PAD = { x: CORE.x, z: CORE.z + CORE.d / 2 + 1.3, r: 1.6 };
 
+/** Static Meshy human figures (rendered by figures.tsx); also circular obstacles for the Player and the agents' nav grids. */
+const commonFloors = FLOOR_DEPARTMENTS.filter((d) => d.role === 'COMMON').map((d) => d.floor).sort((a, b) => a - b);
+export const FIGURE_R = 0.35;
+export interface FigureSpot { id: string; file: string; floor: number; x: number; z: number; yaw: number; height: number; label: string }
+export const FIGURES: FigureSpot[] = [
+  { id: 'open_arms', file: 'open_arms', floor: commonFloors[0], x: 2.6, z: 16.8, yaw: 0.5, height: 1.72, label: 'Chào mừng!' },
+  { id: 'professional', file: 'professional', floor: commonFloors[0], x: 14.5, z: 14.9, yaw: 0, height: 1.78, label: 'Lễ tân' },
+  { id: 'teacher', file: 'teacher', floor: commonFloors[1], x: 16 * K, z: 11.9 * K, yaw: 0, height: 1.78, label: 'Giảng viên' },
+];
 const collCache = new Map<number, Rect2[]>();
 function addBoxes(out: Rect2[], list: Box[], k: number, glass: boolean) {
   for (const b of list) {
@@ -48,6 +57,7 @@ export function collidersFor(f: number): Rect2[] {
     addBoxes(out, d.str.boxes, 1, false); addBoxes(out, d.str.altBoxes, 1, false); addBoxes(out, d.str.glass, 1, true);
     addBoxes(out, d.lay.boxes, K, false); addBoxes(out, d.lay.altBoxes, K, false); addBoxes(out, d.lay.glass, K, true);
   }
+  for (const fg of FIGURES) if (fg.floor === f) out.push({ minX: fg.x - FIGURE_R, maxX: fg.x + FIGURE_R, minZ: fg.z - FIGURE_R, maxZ: fg.z + FIGURE_R });
   collCache.set(f, out);
   return out;
 }

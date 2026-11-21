@@ -21,9 +21,32 @@ export const heroCar = { x: 0, z: 36, heading: Math.PI / 2, speed: 0 };
 /** Traffic positions (x,z pairs) for the minimap. */
 export const trafficView = { count: 0, pos: new Float32Array(2 * 400) };
 
-export function setDriving(on: boolean) {
+/** Rideable vehicles. `heroCar` is always the pose of the ACTIVE ride; the other one is stored parked here. */
+export type RideKind = 'car' | 'scooter';
+export const rides = { active: 'car' as RideKind, car: { x: 0, z: 36, heading: Math.PI / 2 }, scooter: { x: 9, z: 26, heading: Math.PI / 2 } };
+const poseOf = (k: RideKind) => (rides.active === k ? heroCar : rides[k]);
+/** Which ride is within reach of the walking player (or null). */
+export function nearestRide(): RideKind | null {
+  let best: RideKind | null = null, bd = 1e9;
+  for (const [k, r] of [['car', 6], ['scooter', 4]] as [RideKind, number][]) {
+    const p = poseOf(k); const d = Math.hypot(live.player.x - p.x, live.player.z - p.z);
+    if (d < r && d < bd) { best = k; bd = d; }
+  }
+  return best;
+}
+function switchRide(k: RideKind) {
+  if (k === rides.active) return;
+  rides[rides.active] = { x: heroCar.x, z: heroCar.z, heading: heroCar.heading };
+  const n = rides[k];
+  heroCar.x = n.x; heroCar.z = n.z; heroCar.heading = n.heading; heroCar.speed = 0;
+  hv.vx = 0; hv.vz = 0; hv.steer = 0;
+  rides.active = k;
+}
+
+export function setDriving(on: boolean, kind?: RideKind) {
   const s = cityStore.get();
   if (on) {
+    if (kind) switchRide(kind);
     cityStore.set({ playerMode: 'drive', cameraMode: 'drive' });
   } else {
     const h = heroCar.heading;
@@ -198,11 +221,11 @@ const TrafficLights: React.FC = () => {
 // =====================================================================
 // type index: 0 sedan, 1 suv, 2 taxi, 3 bus, 4 truck, 5 bike, 6 hatchback, 7 van, 8 police, 9 ambulance, 10 firetruck
 type TypeIdx = number;
-const LENGTH = [4.4, 4.7, 4.4, 11, 6, 1.9, 3.9, 5, 4.5, 5.6, 8];
-const VMAX: [number, number][] = [[9, 14], [8, 13], [9, 14], [7, 10], [7, 10], [8, 12], [9, 14], [8, 12], [10, 15], [10, 15], [8, 11]];
+const LENGTH = [4.4, 4.7, 4.4, 11, 6, 1.9, 3.9, 5, 4.5, 5.6, 8, 1.9];
+const VMAX: [number, number][] = [[9, 14], [8, 13], [9, 14], [7, 10], [7, 10], [8, 12], [9, 14], [8, 12], [10, 15], [10, 15], [8, 11], [10, 15]];
 /** GLB (Kenney) variant per type; bus and bike stay procedural. */
-const KIT_FILE: (string | null)[] = ['sedan', 'suv', 'taxi', null, 'delivery', null, 'hatchback-sports', 'van', 'police', 'ambulance', 'firetruck'];
-const KIT_LEN = [4.4, 4.7, 4.4, 0, 6, 0, 3.9, 5, 4.5, 5.6, 8];
+const KIT_FILE: (string | null)[] = ['sedan', 'suv', 'taxi', null, 'delivery', null, 'hatchback-sports', 'van', 'police', 'ambulance', 'firetruck', null /* 11: GHN shipper, loaded separately */];
+const KIT_LEN = [4.4, 4.7, 4.4, 0, 6, 0, 3.9, 5, 4.5, 5.6, 8, 1.85];
 const PAINT: string[][] = [
   ['#c9ccd1', '#1f2a44', '#8b1a1a', '#e8e8e8', '#2f3b35', '#3b5b8c', '#111214'],
   ['#222428', '#d9d9d9', '#4a3a2a', '#5a6470', '#7a1d1d'],
@@ -210,7 +233,7 @@ const PAINT: string[][] = [
   ['#1e88e5', '#e53935', '#43a047'],
   ['#f0f0f0', '#3a6ea5', '#c27a2a', '#6b7b4b'],
   ['#e53935', '#1e88e5', '#fdd835', '#43a047', '#222222', '#ec407a', '#ff7043', '#ffffff'],
-  ['#e8e8e8', '#3b5b8c', '#8b1a1a'], ['#f0f0f0', '#3a6ea5'], ['#1d2b4a'], ['#ffffff'], ['#c62828'],
+  ['#e8e8e8', '#3b5b8c', '#8b1a1a'], ['#f0f0f0', '#3a6ea5'], ['#1d2b4a'], ['#ffffff'], ['#c62828'], ['#f97316'],
 ];
 
 interface Veh {
@@ -231,7 +254,7 @@ function nextCross(s: number, dir: 1 | -1): number {
 const countsFor = (n: number) => {
   const rare = (x: number) => (n >= 100 ? Math.max(1, Math.round(n * x)) : Math.round(n * x));
   const c = [Math.round(n * 0.14), Math.round(n * 0.07), Math.round(n * 0.08), Math.round(n * 0.05), Math.round(n * 0.05), 0,
-    Math.round(n * 0.06), Math.round(n * 0.05), rare(0.015), rare(0.01), rare(0.01)];
+    Math.round(n * 0.06), Math.round(n * 0.05), rare(0.015), rare(0.01), rare(0.01), n >= 200 ? 10 : n >= 100 ? 8 : 0];
   c[5] = Math.max(0, n - c.reduce((a, b) => a + b, 0));
   return c;
 };
@@ -250,7 +273,7 @@ function createFleet(n: number, seed: number): Veh[] {
         const s = ROAD_LINES[0] + rnd() * (ROAD_LINES[NL - 1] - ROAD_LINES[0]);
         if (ROAD_LINES.some((L) => Math.abs(L - s) < 11)) continue;
         const lane = (rnd() < 0.5 ? 0 : 1) as 0 | 1;
-        const lat = t === 5 ? (lane === 0 ? 1.4 + rnd() * 2 : 4.4 + rnd() * 2) : lane === 0 ? 1.9 : 5.3;
+        const lat = t === 5 || t === 11 ? (lane === 0 ? 1.4 + rnd() * 2 : 4.4 + rnd() * 2) : lane === 0 ? 1.9 : 5.3;
         const clash = out.some((o) => o.axis === axis && o.li === li && o.dir === dir && laneOf(o.lat) === laneOf(lat) && Math.abs(o.s - s) < (o.len + LENGTH[t]) / 2 + 4);
         if (clash) continue;
         const [a, b] = VMAX[t];
@@ -277,6 +300,19 @@ function lightsOnly(len: number, wid: number, y: number): G {
   ]);
 }
 
+function bikeLights(len: number, h: number): G {
+  return merge([box(0.22, 0.16, 0.08, 0, h * 0.5, len / 2 + 0.02, HEAD), box(0.2, 0.12, 0.06, 0, h * 0.42, -len / 2 - 0.02, TAIL)]);
+}
+const SHIPPER_URL = `${import.meta.env.BASE_URL || '/'}models/meshy/shipper.glb`;
+/** Rotation about Y mapping the GLB's length axis (X) onto +Z so the front faces forward. -PI/2: front is +X; +PI/2: front is -X. */
+const SHIPPER_ROT = -Math.PI / 2;
+function useShipper(): KitVariant | null {
+  const g = useGLTF(SHIPPER_URL) as unknown as { scene: THREE.Object3D };
+  return useMemo(() => {
+    try { return bakeVariant(g.scene.clone(true), 1.85, SHIPPER_ROT); } catch (e) { console.warn('[city3d] shipper bake failed', e); return null; }
+  }, [g]);
+}
+
 // =====================================================================
 // Kenney GLB kit (loaded lazily; procedural fallback when unavailable)
 // =====================================================================
@@ -288,7 +324,7 @@ const KIT_NAMES = Array.from(new Set([...(KIT_FILE.filter(Boolean) as string[]),
 const KIT_URLS = KIT_NAMES.map((n) => `${KIT_BASE}${n}.glb`);
 
 /** Bake all meshes of a GLB scene into one pos/normal/uv geometry, normalised to targetLen, ground at y=0, centred. */
-function bakeVariant(scene: THREE.Object3D, targetLen: number): KitVariant | null {
+function bakeVariant(scene: THREE.Object3D, targetLen: number, rotY = 0): KitVariant | null {
   scene.updateMatrixWorld(true);
   const parts: G[] = [];
   let mat: THREE.Material | null = null;
@@ -309,6 +345,7 @@ function bakeVariant(scene: THREE.Object3D, targetLen: number): KitVariant | nul
   if (!parts.length || !mat) return null;
   const geo = mergeGeometries(parts, false);
   if (!geo) return null;
+  if (rotY) geo.rotateY(rotY);
   geo.computeBoundingBox();
   const bb = geo.boundingBox as THREE.Box3;
   const sz = bb.getSize(new THREE.Vector3());
@@ -338,7 +375,7 @@ class KitBoundary extends React.Component<{ fallback: React.ReactNode; children:
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
-const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, shadows, kit }) => {
+const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null; shipper: KitVariant | null }> = ({ n, shadows, kit, shipper }) => {
   const fleet = useMemo(() => {
     const rnd = mulberry32(CITY_SEED + n);
     const vs = createFleet(n, CITY_SEED + n * 7);
@@ -349,7 +386,7 @@ const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, 
       busModel(), truckModel(), bikeModel(),
       carModel(SEDAN), carModel({ ...SEDAN, len: 4.7, wid: 1.95, bodyH: 0.8, bodyY: 0.85, cabW: 1.85, cabH: 0.6, cabY: 1.55, cabL: 3.0, cabZ: -0.3, wheelR: 0.4 }),
       carModel(SEDAN), carModel({ ...SEDAN, len: 4.7, wid: 1.95, bodyH: 0.8, bodyY: 0.85, cabW: 1.85, cabH: 0.6, cabY: 1.55, cabL: 3.0, cabZ: -0.3, wheelR: 0.4 }),
-      truckModel(),
+      truckModel(), bikeModel(),
     ];
     const counts = countsFor(n).map((_, t) => vs.filter((v) => v.type === t).length);
     const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.35 });
@@ -361,9 +398,9 @@ const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, 
     models.forEach((m, t) => {
       const cnt = counts[t];
       if (cnt === 0) { meshes.push([]); return; }
-      const kv = KIT_FILE[t] && kit ? kit.variants[KIT_FILE[t] as string] : undefined;
+      const kv = t === 11 ? shipper ?? undefined : KIT_FILE[t] && kit ? kit.variants[KIT_FILE[t] as string] : undefined;
       if (kv) {
-        const lg = lightsOnly(kv.len, kv.wid, kv.h * 0.38);
+        const lg = t === 11 ? bikeLights(kv.len, kv.h) : lightsOnly(kv.len, kv.wid, kv.h * 0.38);
         geos.push(lg);
         const b = new THREE.InstancedMesh(kv.geo, kv.mat, cnt);
         const l = new THREE.InstancedMesh(lg, lightMat, cnt);
@@ -384,7 +421,7 @@ const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, 
       meshes.push([b, d, l]);
     });
     return { vs, group, meshes, geos, mats: [bodyMat, darkMat, lightMat], lightMat };
-  }, [n, shadows, kit]);
+  }, [n, shadows, kit, shipper]);
   useEffect(() => () => { fleet.geos.forEach((g) => g.dispose()); fleet.mats.forEach((m) => m.dispose()); }, [fleet]);
 
   const groups = useMemo(() => new Map<number, Veh[]>(), []);
@@ -490,7 +527,7 @@ const Fleet: React.FC<{ n: number; shadows: boolean; kit: Kit | null }> = ({ n, 
       v.x = nx; v.z = nz;
 
       dummy.position.set(v.x, 0.04, v.z);
-      dummy.rotation.set(0, v.h, v.type === 5 ? v.lean : 0);
+      dummy.rotation.set(0, v.h, v.type === 5 || v.type === 11 ? v.lean : 0);
       dummy.updateMatrix();
       for (const m of meshes[v.type]) m.setMatrixAt(v.slot, dummy.matrix);
       if (di < 400) { trafficView.pos[di * 2] = v.x; trafficView.pos[di * 2 + 1] = v.z; }
@@ -575,8 +612,8 @@ const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
         if (e.repeat) return;
         if (mode === 'drive') { e.preventDefault(); setDriving(false); }
         else if (mode === 'walk') {
-          const d = Math.hypot(live.player.x - heroCar.x, live.player.z - heroCar.z);
-          if (d < 6) { e.preventDefault(); setDriving(true); }
+          const k = nearestRide();
+          if (k) { e.preventDefault(); setDriving(true, k); }
         }
         return;
       }
@@ -609,25 +646,26 @@ const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
     hv.steer += (st - hv.steer) * Math.min(1, dt * 7);
     let fx = Math.sin(h), fz = Math.cos(h);
     let vF = hv.vx * fx + hv.vz * fz;
-    const yaw = hv.steer * (1.9 / (1 + Math.abs(vF) * 0.04)) * Math.max(-1, Math.min(1, vF / 5)) * (K.has('Space') ? 1.5 : 1);
+    const sc = rides.active === 'scooter';
+    const yaw = hv.steer * ((sc ? 2.7 : 1.9) / (1 + Math.abs(vF) * (sc ? 0.05 : 0.04))) * Math.max(-1, Math.min(1, vF / 5)) * (K.has('Space') && !sc ? 1.5 : 1);
     h += yaw * dt;
     fx = Math.sin(h); fz = Math.cos(h);
     const rx = -Math.cos(h), rz = Math.sin(h);
     vF = hv.vx * fx + hv.vz * fz;
     let vL = hv.vx * rx + hv.vz * rz;
-    const maxF = boost ? 52 : 36;
-    if (fw) vF += (16 * (boost ? 1.7 : 1) * (1 - Math.max(0, vF) / maxF) + 2) * dt;
+    const maxF = sc ? (boost ? 36 : 27) : boost ? 52 : 36;
+    if (fw) vF += ((sc ? 24 : 16) * (boost ? 1.7 : 1) * (1 - Math.max(0, vF) / maxF) + 2) * dt;
     if (bk) { if (vF > 0.5) vF -= 34 * dt; else vF = Math.max(-10, vF - 9 * dt); }
     if (!fw && !bk) { const dr = (3 + 0.02 * vF * vF) * dt; vF -= Math.sign(vF) * Math.min(Math.abs(vF), dr); }
     if (hand) vF -= Math.sign(vF) * Math.min(Math.abs(vF), (driving ? 10 : 25) * dt);
-    vL *= Math.exp(-(K.has('Space') ? 1.4 : 9) * dt);
+    vL *= Math.exp(-(K.has('Space') && !sc ? 1.4 : sc ? 14 : 9) * dt);
     hv.vx = fx * vF + rx * vL; hv.vz = fz * vF + rz * vL;
     let px = heroCar.x + hv.vx * dt, pz = heroCar.z + hv.vz * dt;
 
     // collisions (two circles)
-    const R = 1.15;
+    const R = sc ? 0.6 : 1.15, OFF = sc ? 0.65 : 1.3;
     for (let pass = 0; pass < 2; pass++) {
-      for (const off of [1.3, -1.3]) {
+      for (const off of [OFF, -OFF]) {
         const cx = px + fx * off, cz = pz + fz * off;
         for (const o of obstacles) {
           const hw = o.w / 2, hd = o.d / 2;
@@ -663,13 +701,15 @@ const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
 
     // visuals
     const g = root.current, t = tilt.current;
+    const isCar = rides.active === 'car';
     if (g && t) {
-      g.position.set(px, 0.04, pz); g.rotation.y = h;
+      const ps = isCar ? heroCar : rides.car;
+      g.position.set(ps.x, 0.04, ps.z); g.rotation.y = ps.heading;
       const acc = (vF2 - hv.lastVF) / Math.max(dt, 1e-3); hv.lastVF = vF2;
       const rollT = Math.max(-0.1, Math.min(0.1, -hv.steer * vF2 * 0.003 + vL * 0.01));
       const pitchT = Math.max(-0.06, Math.min(0.06, -acc * 0.003));
       hv.roll += (rollT - hv.roll) * Math.min(1, dt * 6); hv.pitch += (pitchT - hv.pitch) * Math.min(1, dt * 6);
-      t.rotation.z = hv.roll; t.rotation.x = hv.pitch;
+      t.rotation.z = isCar ? hv.roll : 0; t.rotation.x = isCar ? hv.pitch : 0;
       hv.spin += (vF2 * dt) / (hero ? hero.r : 0.36);
       if (hero) {
         hero.wheels.forEach((w, i) => { if (w) { w.rotation.x = hv.spin; if (i < 2) w.rotation.y = hv.steer * 0.45; } });
@@ -681,7 +721,7 @@ const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
     const night = live.nightFactor;
     mats.heads.color.setScalar(0.3 + 0.9 * night);
     mats.tails.color.setScalar(0.25 + 0.5 * night + (bk || hand ? 0.9 : 0));
-    if (spot.current) spot.current.intensity = night > 0.15 ? 220 * night : 0;
+    if (spot.current) spot.current.intensity = night > 0.15 && driving ? 220 * night : 0;
   });
 
   const W4: [number, number, boolean][] = [[0.88, 1.4, true], [-0.88, 1.4, true], [0.88, -1.4, false], [-0.88, -1.4, false]];
@@ -716,33 +756,77 @@ const HeroCar: React.FC<{ kit: Kit | null }> = ({ kit }) => {
 // =====================================================================
 // Traffic (root export)
 // =====================================================================
-const KitScene: React.FC<{ n: number; quality: string }> = ({ n, quality }) => {
+const Rig: React.FC<{ n: number; quality: string; kit: Kit | null; shipper: KitVariant | null }> = ({ n, quality, kit, shipper }) => (
+  <>
+    <Fleet key={quality} n={n} shadows={quality === 'high'} kit={kit} shipper={shipper} />
+    <HeroCar kit={kit} />
+    <ShipperProp shipper={shipper} />
+  </>
+);
+const KitScene: React.FC<{ n: number; quality: string; shipper: KitVariant | null }> = ({ n, quality, shipper }) => {
   const kit = useKit();
+  return <Rig n={n} quality={quality} kit={kit} shipper={shipper} />;
+};
+const KitTier: React.FC<{ n: number; quality: string; shipper: KitVariant | null }> = ({ n, quality, shipper }) => {
+  const plain = <Rig n={n} quality={quality} kit={null} shipper={shipper} />;
   return (
-    <>
-      <Fleet key={quality} n={n} shadows={quality === 'high'} kit={kit} />
-      <HeroCar kit={kit} />
-    </>
+    <KitBoundary fallback={plain}>
+      <Suspense fallback={plain}><KitScene n={n} quality={quality} shipper={shipper} /></Suspense>
+    </KitBoundary>
+  );
+};
+const ShipperScene: React.FC<{ n: number; quality: string }> = ({ n, quality }) => <KitTier n={n} quality={quality} shipper={useShipper()} />;
+
+/** GHN shipper bike parked near the F1 door; becomes the ridden vehicle when rides.active==='scooter'. */
+const ShipperProp: React.FC<{ shipper: KitVariant | null }> = ({ shipper }) => {
+  const root = useRef<THREE.Group>(null);
+  const tilt = useRef<THREE.Group>(null);
+  const res = useMemo(() => {
+    const lightMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    if (shipper) return { lightMat, lg: bikeLights(shipper.len, shipper.h), proc: null as Model | null, body: null, dark: null };
+    const proc = bikeModel();
+    return {
+      lightMat, lg: merge([proc.heads, proc.tails]), proc,
+      body: new THREE.MeshStandardMaterial({ vertexColors: true, color: '#f97316', roughness: 0.5 }),
+      dark: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }),
+    };
+  }, [shipper]);
+  useEffect(() => () => { res.lightMat.dispose(); res.lg.dispose(); res.body?.dispose(); res.dark?.dispose(); }, [res]);
+  useFrame(() => {
+    const act = rides.active === 'scooter';
+    const ps = act ? heroCar : rides.scooter;
+    if (root.current) { root.current.position.set(ps.x, 0.04, ps.z); root.current.rotation.y = ps.heading; }
+    if (tilt.current) { tilt.current.rotation.z = act ? hv.roll * 3 + hv.steer * heroCar.speed * 0.01 : 0; tilt.current.rotation.x = act ? hv.pitch : 0; }
+    res.lightMat.color.setScalar(0.2 + 0.8 * live.nightFactor);
+  });
+  return (
+    <group ref={root}>
+      <group ref={tilt}>
+        {shipper ? <mesh geometry={shipper.geo} material={shipper.mat} castShadow /> : res.proc && (
+          <>
+            <mesh geometry={res.proc.body} material={res.body!} castShadow />
+            <mesh geometry={res.proc.dark} material={res.dark!} />
+          </>
+        )}
+        <mesh geometry={res.lg} material={res.lightMat} />
+      </group>
+    </group>
   );
 };
 
 export const Traffic: React.FC = () => {
   const quality = useCity((s) => s.quality);
   const n = quality === 'low' ? 40 : quality === 'medium' ? 120 : 260;
-  const plain = (
-    <>
-      <Fleet key={quality} n={n} shadows={quality === 'high'} kit={null} />
-      <HeroCar kit={null} />
-    </>
-  );
+  const plain = <KitTier n={n} quality={quality} shipper={null} />;
   return (
     <>
       <TrafficLights />
       <KitBoundary fallback={plain}>
-        <Suspense fallback={plain}>
-          <KitScene n={n} quality={quality} />
-        </Suspense>
+        <Suspense fallback={plain}><ShipperScene n={n} quality={quality} /></Suspense>
       </KitBoundary>
     </>
   );
 };
+
+useGLTF.preload(SHIPPER_URL);
+KIT_URLS.forEach((u) => useGLTF.preload(u));

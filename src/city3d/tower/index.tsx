@@ -17,6 +17,7 @@ import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor } from './nav';
 import { getProp, usePropsState } from './props';
 import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
 import { LongChauGreeter } from './greeter';
+import { FiguresLayer } from './figures';
 export { LongChauModel } from './greeter';
 
 const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
@@ -347,6 +348,8 @@ function useNearTower(): boolean {
   return near;
 }
 
+const FiguresNearGate: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality }) => <FiguresLayer sel={sel} quality={quality} near={useNearTower()} />;
+
 const Population: React.FC<{ f: number; sel: number | null; quality: Quality }> = ({ f, sel, quality }) => {
   const near = useNearTower();
   const show = sel === f || (near && quality === 'high' && (sel === null || sel >= f));
@@ -475,6 +478,7 @@ export const FrtTower: React.FC = () => {
       <Team sel={sel} quality={quality} />
       {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
       {quality !== 'low' && (sel === null || sel >= 0) && <LongChauGreeter />}
+      <FiguresNearGate sel={sel} quality={quality} />
       {sel !== null && label && (
         <Html position={[-HX, sel * FLOOR_H + 3, HZ]} center distanceFactor={30} style={{ pointerEvents: 'none' }}>
           <div style={{ padding: '3px 10px', borderRadius: 10, background: 'rgba(15,122,115,0.92)', color: '#fff', font: '700 13px system-ui', whiteSpace: 'nowrap' }}>{label.label} • {label.name}</div>

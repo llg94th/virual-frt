@@ -12,7 +12,7 @@ import { officeSimulationEngine } from '../../engine/simulationStore';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import type { DocumentTransferTask, Employee } from '../../types/office';
 import { getFloor, FT, K } from './furn';
-import { findPath, freePoint, ENTRANCE } from './nav';
+import { findPath, freePoint, ENTRANCE, FIGURES } from './nav';
 
 export type Pose = 'idle' | 'walk' | 'sit' | 'type' | 'wave';
 type St = 'home' | 'wait' | 'go' | 'back' | 'at' | 'handing' | 'gone';
@@ -33,6 +33,10 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const arr: Agent[] = [];
 export const sim = { budget: 2, quality: 'high' as string };
 const movers = new Float32Array(10), totals = new Float32Array(10);
+/** walking figures (Meshy) counted into dbg.walking */
+export const figWalk = new Map<string, number>();
+/** distance from (x,z) to the nearest mounted, shown agent on the floor (for figure reactions) */
+export function nearestAgentDist(floor: number, x: number, z: number): number { let b = 99; for (let i = 0; i < arr.length; i++) { const o = arr[i]; if (o.floor !== floor || !o.shown) continue; const d = Math.hypot(o.x - x, o.z - z); if (d < b) b = d; } return b; }
 export const dbg: { walking: number; seated: number; transfers: number; mapped: number; proxied: number; unmappedTransfers: number; inject?: (from: string, to: string, key?: string) => void } = { walking: 0, seated: 0, transfers: 0, mapped: 0, proxied: 0, unmappedTransfers: 0 };
 if (typeof window !== 'undefined') (window as unknown as { __city3dAgents?: unknown }).__city3dAgents = dbg;
 export const register = (a: Agent) => { if (!arr.includes(a)) arr.push(a); };
@@ -137,6 +141,11 @@ function follow(a: Agent, dt: number): boolean {
       if ((-ex * sy - ez * cy) / dist > 0.5) slow = 0.45;
     }
   }
+  for (let i = 0; i < FIGURES.length; i++) { // dynamic obstacles: Meshy figures
+    const o = FIGURES[i]; if (o.floor !== a.floor) continue;
+    const ex = a.x - o.x, ez = a.z - o.z, dd = ex * ex + ez * ez;
+    if (dd < 0.55 && dd > 1e-4) { const dist = Math.sqrt(dd), push = (0.75 - dist) * 2 * dt; a.x += (ex / dist) * push; a.z += (ez / dist) * push; }
+  }
   sp *= slow; const step = Math.min(d, sp * dt);
   a.x += (dx / d) * step; a.z += (dz / d) * step;
   return false;
@@ -162,6 +171,7 @@ export function stepAgents(dt: number) {
     if (a.st === 'go' || a.st === 'back') walking++; else if (a.pose === 'sit' || a.pose === 'type') seated++;
     if (a.g) { a.g.position.set(a.x, a.floor * FLOOR_H + FT, a.z); a.g.rotation.y = a.yaw; if (a.g.visible !== a.shown) a.g.visible = a.shown; }
   }
+  figWalk.forEach((v) => { walking += v; });
   dbg.walking = walking; dbg.seated = seated; dbg.transfers = busy;
 }
 

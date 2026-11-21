@@ -19,12 +19,18 @@ export const LIFT_PAD = { x: CORE.x, z: CORE.z + CORE.d / 2 + 1.3, r: 1.6 };
 /** Static Meshy human figures (rendered by figures.tsx); also circular obstacles for the Player and the agents' nav grids. */
 const commonFloors = FLOOR_DEPARTMENTS.filter((d) => d.role === 'COMMON').map((d) => d.floor).sort((a, b) => a - b);
 export const FIGURE_R = 0.35;
-export interface FigureSpot { id: string; file: string; floor: number; x: number; z: number; yaw: number; height: number; label: string }
+export interface FigureSpot { id: string; file: string; floor: number; x: number; z: number; yaw: number; height: number; label: string; hx: number; hz: number; rect: Rect2 }
+const mk = (id: string, floor: number, x: number, z: number, yaw: number, height: number, label: string): FigureSpot => ({ id, file: id, floor, x, z, yaw, height, label, hx: x, hz: z, rect: { minX: x - FIGURE_R, maxX: x + FIGURE_R, minZ: z - FIGURE_R, maxZ: z + FIGURE_R } });
 export const FIGURES: FigureSpot[] = [
-  { id: 'open_arms', file: 'open_arms', floor: commonFloors[0], x: 2.6, z: 16.8, yaw: 0.5, height: 1.72, label: 'Chào mừng!' },
-  { id: 'professional', file: 'professional', floor: commonFloors[0], x: 14.5, z: 14.9, yaw: 0, height: 1.78, label: 'Lễ tân' },
-  { id: 'teacher', file: 'teacher', floor: commonFloors[1], x: 16 * K, z: 11.9 * K, yaw: 0, height: 1.78, label: 'Giảng viên' },
+  mk('open_arms', commonFloors[0], 2.6, 16.8, 0.5, 1.72, 'Chào mừng!'),
+  mk('professional', commonFloors[0], 14.5, 14.9, 0, 1.78, 'Lễ tân'),
+  mk('teacher', commonFloors[1], 16 * K, 11.9 * K, 0, 1.78, 'Giảng viên'),
 ];
+/** Move a figure and keep its (shared, mutable) collider rectangle in sync so the Player and agents see it. */
+export function moveFigure(fg: FigureSpot, x: number, z: number) {
+  fg.x = x; fg.z = z; const r = fg.rect; r.minX = x - FIGURE_R; r.maxX = x + FIGURE_R; r.minZ = z - FIGURE_R; r.maxZ = z + FIGURE_R;
+}
+const figureRects = new Set<Rect2>(FIGURES.map((g) => g.rect));
 const collCache = new Map<number, Rect2[]>();
 function addBoxes(out: Rect2[], list: Box[], k: number, glass: boolean) {
   for (const b of list) {
@@ -57,7 +63,7 @@ export function collidersFor(f: number): Rect2[] {
     addBoxes(out, d.str.boxes, 1, false); addBoxes(out, d.str.altBoxes, 1, false); addBoxes(out, d.str.glass, 1, true);
     addBoxes(out, d.lay.boxes, K, false); addBoxes(out, d.lay.altBoxes, K, false); addBoxes(out, d.lay.glass, K, true);
   }
-  for (const fg of FIGURES) if (fg.floor === f) out.push({ minX: fg.x - FIGURE_R, maxX: fg.x + FIGURE_R, minZ: fg.z - FIGURE_R, maxZ: fg.z + FIGURE_R });
+  for (const fg of FIGURES) if (fg.floor === f) out.push(fg.rect); // live rect: updated in place when the figure walks
   collCache.set(f, out);
   return out;
 }
@@ -67,6 +73,7 @@ export function gridFor(f: number): Uint8Array {
   const hit = gridCache.get(f); if (hit) return hit;
   const g = new Uint8Array(N);
   for (const r of collidersFor(f)) {
+    if (figureRects.has(r)) continue; // moving figures are handled by separation, not baked into the grid
     const x0 = Math.max(0, Math.floor((r.minX - AGENT_R + HX) / CELL)), x1 = Math.min(GW - 1, Math.floor((r.maxX + AGENT_R + HX) / CELL));
     const z0 = Math.max(0, Math.floor((r.minZ - AGENT_R + HZ) / CELL)), z1 = Math.min(GD - 1, Math.floor((r.maxZ + AGENT_R + HZ) / CELL));
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {

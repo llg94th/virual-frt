@@ -520,6 +520,7 @@ const DOT_MAT = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: fals
 // ---------- root ----------
 export const FrtTower: React.FC = () => {
   const sel = useCity((s) => s.selectedFloor);
+  const mode = useCity((s) => s.cameraMode);
   const quality = useCity((s) => s.quality);
   const mats = useMats();
 
@@ -546,18 +547,20 @@ export const FrtTower: React.FC = () => {
   });
 
   const floors = useMemo(() => Array.from({ length: TOWER_FLOORS + 2 }, (_, i) => i - 1), []); // -1..7
-  const visible = (f: number) => (f === -1 ? sel === -1 : f === ROOF ? sel === null : sel === null ? true : f <= sel);
+  // eye-level office tour: keep the floor above as a ceiling (shell only) so the room is not open to the sky
+  const lid = mode === 'office' && sel !== null && sel >= 0 && sel < TOWER_FLOORS - 1 ? sel + 1 : -9;
+  const visible = (f: number) => (f === -1 ? sel === -1 : f === ROOF ? sel === null : sel === null ? true : f <= sel || f === lid);
   const label = FLOOR_DEPARTMENTS.find((d) => d.floor === sel);
   return (
     <group>
       {floors.map((f) => (
         <Floor key={f} f={f} visible={visible(f)} cut={sel === f} quality={quality} mats={mats}
-          interior={quality !== 'low' || sel === f} />
+          interior={f === lid ? false : quality !== 'low' || sel === f} />
       ))}
       <Elevators mats={mats} />
       {quality !== 'low' && <Effects />}
       <Team sel={sel} quality={quality} />
-      {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
+      {floors.filter((f) => f >= 0 && f < TOWER_FLOORS && f !== TEAM_FLOOR && f !== lid && visible(f)).map((f) => <Population key={f} f={f} sel={sel} quality={quality} />)}
       {quality !== 'low' && (sel === null || sel >= 0) && <LongChauGreeter />}
       <FiguresNearGate sel={sel} quality={quality} />
       {sel !== null && label && (

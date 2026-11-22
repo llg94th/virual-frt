@@ -28,6 +28,8 @@ export const SEATED = new Set(['SitIdle', 'Typing', 'SitDesk', 'Meeting', 'SitTo
 export const SEAT_AT = { office: { y: 0.58, z: 0.06 }, sofa: { y: 0.47, z: 0.0 }, car: { y: 0.5, z: 0.0 } };
 export type SeatKind = keyof typeof SEAT_AT;
 
+const BOUNDS = new WeakMap<THREE.Object3D, THREE.Box3>();
+
 export interface BoyRig {
   wrap: THREE.Group; mixer: THREE.AnimationMixer; k: number; base: number;
   clips: Map<string, THREE.AnimationClip>; hips: Map<string, THREE.Vector3>;
@@ -38,14 +40,15 @@ export function useBoy(height: number, shadow: boolean): BoyRig {
   const gltf = useGLTF(BOY_URL, false, false) as unknown as { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
   return useMemo(() => {
     const o = skeletonClone(gltf.scene) as THREE.Object3D;
-    const bb = new THREE.Box3();
     o.traverse((c) => {
       const m = c as THREE.SkinnedMesh; if (!m.isSkinnedMesh) return;
       m.frustumCulled = false; m.castShadow = shadow; m.receiveShadow = true;
       const mat = (m.material as THREE.MeshStandardMaterial).clone();
       mat.envMapIntensity = 0.7; mat.metalness = 0; mat.roughness = Math.max(0.75, mat.roughness); m.material = mat;
-      m.geometry.computeBoundingBox(); bb.union(m.geometry.boundingBox!);
     });
+    // the quantized geometry's own bounds are not metres: measure the skinned body in its bind pose (once per GLB)
+    let bb = BOUNDS.get(gltf.scene);
+    if (!bb) { gltf.scene.updateMatrixWorld(true); bb = new THREE.Box3().setFromObject(gltf.scene, true); BOUNDS.set(gltf.scene, bb); }
     const h = Math.max(0.3, bb.max.y - bb.min.y);
     const k = height / h;
     const wrap = new THREE.Group(); wrap.scale.setScalar(k); o.position.y = -bb.min.y; wrap.add(o);

@@ -15,8 +15,6 @@ import type { CharacterPose } from '../shared';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { inView, rigTick, readGltf, ensureRegions, sampleRef, NPC_DIR, RIG_URL, CLIP, RigBoundary } from './rigged';
-import { safeTop } from './color';
-import { realisticSkin } from './rpm';
 
 export const FAR_IN = 20; // metres from camera: beyond -> far LOD (hysteresis handled by caller)
 export const SHADOW_DIST = 60; // beyond: no shadow casting
@@ -38,12 +36,10 @@ export function joinFar(token: object) { farUsers.add(token); bump(); return () 
 export const useFarLeader = (token: object) =>
   useSyncExternalStore(sub, () => farUsers.values().next().value === token);
 
-export function makeFarColors(a: { top: string; bottom: string; skin: string; hair: string; shoes: string; hairStyle: string }, out: Float32Array) {
-  // same colour rules as the near RPM bodies (realistic skin range, lightened top, bald = skin) so the LOD switch does not pop
-  const c = new THREE.Color(), skin = realisticSkin(a.skin), top = new THREE.Color(safeTop(a.top, a.skin));
-  if (0.2126 * top.r + 0.7152 * top.g + 0.0722 * top.b > 0.12) top.lerp(new THREE.Color('#ffffff'), 0.2);
-  const cols: THREE.Color[] = [top, c.set(a.bottom).clone(), skin, a.hairStyle === 'bald' ? skin : c.set(a.hair).clone(), c.set(a.shoes).clone()];
-  cols.forEach((col, i) => { out[i * 3] = col.r; out[i * 3 + 1] = col.g; out[i * 3 + 2] = col.b; });
+/** Colours sampled from the open_arms body (white shirt, grey-lilac trousers, dark hair, dark shoes): every near character is that same model, so the far capsules match it and the LOD switch does not pop. */
+const OPEN_ARMS_LOOK = ['#e9ebef', '#8e91a8', '#dba488', '#221e20', '#2a2a2f'].map((h) => new THREE.Color(h));
+export function makeFarColors(_a: { top: string; bottom: string; skin: string; hair: string; shoes: string; hairStyle: string }, out: Float32Array) {
+  OPEN_ARMS_LOOK.forEach((col, i) => { out[i * 3] = col.r; out[i * 3 + 1] = col.g; out[i * 3 + 2] = col.b; });
 }
 
 // ---------------------------------------------------------------- pre-posed merged geometry

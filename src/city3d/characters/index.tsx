@@ -17,7 +17,7 @@ import type { Grid } from './walk';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { FarHost, farEntries, joinFar, useFarLeader, makeFarColors, FAR_IN } from './far';
 import type { FarEntry } from './far';
-import { RpmCharacter, rpmKindFor } from './rpm';
+import { RpmCharacter } from './rpm';
 import { OfficeCharacter, MeshyCharacter, npcKindFor, RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
 import type { RigEntry } from './rigged';
 
@@ -268,7 +268,7 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
   const farRef = useRef(false);
   useEffect(() => { if (!farOk) return; farEntries.add(fe); const un = joinFar(token); return () => { farEntries.delete(fe); un(); }; }, [farOk, fe, token]);
   useEffect(() => { makeFarColors(appearance, fe.cols); }, [appearance, fe]);
-  fe.pose = pose; fe.k = (appearance.height ?? 1.75) / 1.75;
+  fe.pose = pose; fe.k = 1.7 / 1.75; // every character is the 1.7 m open_arms body
   const rigShown = useRef(false);
   useFrame((state) => {
     const g = outer.current; if (!g) return;
@@ -315,8 +315,8 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
           <React.Suspense fallback={null}>
             <group visible={ready}>
               {NPC_MESHY && !priority ? (
-                <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />}>
-                  <RpmCharacter kind={rpmKindFor(appearance)} office={office} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
+                <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority} onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />}>
+                  <RpmCharacter office={office} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority} onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
                 </RigBoundary>
               ) : (
                 <OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
@@ -485,7 +485,7 @@ export function setObstacles(list: Array<Obstacle | Rect | any>) {
     : { minX: o.x - o.w / 2, maxX: o.x + o.w / 2, minZ: o.z - o.d / 2, maxZ: o.z + o.d / 2 });
 }
 /** Camera orbit hint written by dragging the mouse while walking; CameraRig may read it. */
-const NPC_MESHY = true; // NPCs use the Quaternius office worker (reliable animation, skin/hair/beard variants); Meshy bodies kept for named figures
+const NPC_MESHY = true; // NPCs and desk workers use the Meshy open_arms body (rpm.tsx); the player stays on the Quaternius OfficeCharacter (walk/run/drive not QA'd on open_arms)
 export const playerLook = { yaw: 0, pitch: 0.35, dist: 6 };
 
 // ---------------------------------------------------------------- Crowd

@@ -20,11 +20,11 @@ export const LIFT_PAD = { x: CORE.x, z: CORE.z + CORE.d / 2 + 1.3, r: 1.6 };
 const commonFloors = FLOOR_DEPARTMENTS.filter((d) => d.role === 'COMMON').map((d) => d.floor).sort((a, b) => a - b);
 export const FIGURE_R = 0.35;
 export interface FigureSpot { id: string; file: string; floor: number; x: number; z: number; yaw: number; height: number; label: string; hx: number; hz: number; rect: Rect2 }
-const mk = (id: string, floor: number, x: number, z: number, yaw: number, height: number, label: string): FigureSpot => ({ id, file: id, floor, x, z, yaw, height, label, hx: x, hz: z, rect: { minX: x - FIGURE_R, maxX: x + FIGURE_R, minZ: z - FIGURE_R, maxZ: z + FIGURE_R } });
+const mk = (id: string, floor: number, x: number, z: number, yaw: number, height: number, label: string): FigureSpot => ({ id, file: 'open_arms', floor, x, z, yaw, height, label, hx: x, hz: z, rect: { minX: x - FIGURE_R, maxX: x + FIGURE_R, minZ: z - FIGURE_R, maxZ: z + FIGURE_R } });
 export const FIGURES: FigureSpot[] = [
   mk('open_arms', commonFloors[0], 2.6, 16.8, 0.5, 1.72, 'Chào mừng!'),
-  mk('professional', commonFloors[0], 14.5, 14.9, 0, 1.78, 'Lễ tân'),
-  mk('teacher', commonFloors[1], 16 * K, 11.9 * K, 0, 1.78, 'Giảng viên'),
+  mk('professional', commonFloors[0], 14.5, 14.9, 0, 1.72, 'Lễ tân'),
+  mk('teacher', commonFloors[1], 16 * K, 11.9 * K, 0, 1.72, 'Giảng viên'),
 ];
 /** Move a figure and keep its (shared, mutable) collider rectangle in sync so the Player and agents see it. */
 export function moveFigure(fg: FigureSpot, x: number, z: number) {

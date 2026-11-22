@@ -1,10 +1,10 @@
 /**
- * NPC bodies from the public hmthanh/3d-human-model repo (Ready Player Me style avatars, Mixamo-named skeleton).
- * - Quaternius UAL clips are retargeted onto the Mixamo skeleton once per body (hip height scaled by leg length, root motion removed,
- *   seated clips pinned to the chair seat height, standing clips grounded from sampled foot heights).
- * - Seated 'type' pose: analytic two-bone arm IK puts the hands on the keyboard (clip hands are only gesturing).
- * - Materials: skin tinted per appearance (texture-mean normalised so seams between head/body match), hair + clothes + shoes tinted with a
- *   luminance-preserving shader (fabric detail kept), normal/roughness maps kept, glossy eyes, optional procedural glasses.
+ * Crowd / desk-worker bodies: the Meshy "open_arms" character (auto-rigged, Mixamo-style bone names, one baked texture) is used for everybody.
+ * - Quaternius UAL clips are retargeted onto the Meshy skeleton once (world-rotation deltas; limb axes are re-aimed from the real joint
+ *   positions because the Meshy bone frames are arbitrary), hip height scaled by leg length, root motion removed, seated clips pinned to
+ *   the chair seat, standing clips grounded from sampled ankle heights.
+ * - Seated 'type' pose: analytic two-bone arm IK puts the hands on the keyboard; office mode adds leg IK, micro-motions, lanyard + badge.
+ * - The baked texture is kept as is (only a faint per-person brightness variation).
  */
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -12,37 +12,39 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone, retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CharacterAppearance, CharacterPose } from '../shared';
-import { safeTop } from './color';
 import { CLIP, RIG_URL, readGltf, inView } from './rigged';
 
-const DIR = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/npc/`;
-export type RpmKind = 'rpm_m' | 'rpm_f';
-export const rpmUrls = [`${DIR}rpm_m.glb`, `${DIR}rpm_f.glb`];
-const MIXAMO_TO_UE: Record<string, string> = {
-  Hips: 'pelvis', Spine: 'spine_01', Spine1: 'spine_02', Spine2: 'spine_03', Neck: 'neck_01', Head: 'Head',
+export const OPEN_ARMS_URL = `${(import.meta as any).env?.BASE_URL ?? "/"}models/meshy/rigged/open_arms_rigged.glb`;
+/** Meshy bone -> UAL (UE mannequin) bone. Meshy's spine chain is numbered top-down: Spine02 is the lowest, Spine the highest. */
+const MESHY_TO_UE: Record<string, string> = {
+  Hips: 'pelvis', Spine02: 'spine_01', Spine01: 'spine_02', Spine: 'spine_03', neck: 'neck_01', Head: 'Head',
   LeftShoulder: 'clavicle_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', LeftHand: 'hand_l',
   RightShoulder: 'clavicle_r', RightArm: 'upperarm_r', RightForeArm: 'lowerarm_r', RightHand: 'hand_r',
   LeftUpLeg: 'thigh_l', LeftLeg: 'calf_l', LeftFoot: 'foot_l', LeftToeBase: 'ball_l',
   RightUpLeg: 'thigh_r', RightLeg: 'calf_r', RightFoot: 'foot_r', RightToeBase: 'ball_r',
 };
-/** Seated placement in character-local metres (origin = chair centre on the floor, +z = towards the desk). */
-export const SEAT = { hipY: 0.575, hipZ: 0.03 };
+/** limb axis of a bone = direction towards this child joint (end bones reuse the re-aim of their parent) */
+const AIM_CHILD: Record<string, string> = {
+  Hips: 'Spine02', Spine02: 'Spine01', Spine01: 'Spine', Spine: 'neck', neck: 'Head',
+  LeftShoulder: 'LeftArm', LeftArm: 'LeftForeArm', LeftForeArm: 'LeftHand', LeftUpLeg: 'LeftLeg', LeftLeg: 'LeftFoot', LeftFoot: 'LeftToeBase',
+  RightShoulder: 'RightArm', RightArm: 'RightForeArm', RightForeArm: 'RightHand', RightUpLeg: 'RightLeg', RightLeg: 'RightFoot', RightFoot: 'RightToeBase',
+};
+const AIM_PARENT: Record<string, string> = { Head: 'neck', LeftHand: 'LeftForeArm', RightHand: 'RightForeArm', LeftToeBase: 'LeftFoot', RightToeBase: 'RightFoot' };
+/** Seated placement of the hip JOINT (thigh start) in character-local metres (origin = seat centre on the floor, +z = towards the desk). */
+export const SEAT = { hipY: 0.5, hipZ: 0.03 };
 /**
  * Office chair ('chairDesk' Kenney mesh, 1.5x as placed by furn.ts `chair()`): measured from the GLB (flat up-facing layers):
  * pink cushion top y = 0.33 * 1.5 = 0.495 m (armrest rim 0.525 m), seat spans z -0.19..+0.11 (chair centre = 0), backrest top 0.91 m.
- * The RPM legs are long (knee ~0.6 m with feet flat on the floor), so the Hips bone is pinned at 0.55 m: thigh slopes up ~12 deg from the cushion to the knee (checked in side-view screenshots + window.__rpmDbg). Desk: top 0.75 m, front edge 0.25 m in front of the chair centre; keyboard centre z 0.46, top 0.78 m.
+ * Hip joint pinned so the thigh rests on the cushion. Desk: top 0.75 m, front edge 0.25 m in front of the chair centre; keyboard centre z 0.46, top 0.78 m.
  */
-export const OFFICE_SEAT = { top: 0.525, hipY: 0.55, hipZ: 0.03 };
+export const OFFICE_SEAT = { top: 0.525, hipY: 0.6, hipZ: 0.06 };
 const DESK = { kbY: 0.80, kbZ: 0.43, kbDx: 0.14, mouseX: -0.34, mouseZ: 0.48, cup: [-0.44, 0.79, 0.62] as [number, number, number] };
 /** Keyboard centre (character-local) for the 'type' IK, and hand spread. */
 const KEYS = { y: 0.8, z: 0.45, dx: 0.15 };
+/** body height (bounding box) the model is scaled to */
+const BODY_H = 1.7;
 
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
-export const rpmKindFor = (a: CharacterAppearance): RpmKind => {
-  const seed = hash(`${a.skin}${a.hair}${a.top}${a.bottom}${a.hairStyle}`);
-  const female = a.hairStyle === 'long' || a.hairStyle === 'bun' ? true : (seed & 1) === 1;
-  return female ? 'rpm_f' : 'rpm_m';
-};
 const firstSkinned = (o: THREE.Object3D): THREE.SkinnedMesh | null => { let r: THREE.SkinnedMesh | null = null; o.traverse((c) => { if (!r && (c as THREE.SkinnedMesh).isSkinnedMesh) r = c as THREE.SkinnedMesh; }); return r as THREE.SkinnedMesh | null; };
 const bone = (o: THREE.Object3D, n: string) => o.getObjectByName(n) as THREE.Bone | undefined;
 
@@ -60,33 +62,6 @@ function readRpm(url: string): THREE.Group {
   throw c.p;
 }
 
-// ---------------------------------------------------------------- texture statistics + tint shader
-const lum = (c: string) => { const k = new THREE.Color(c); return 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b; };
-const statCache = new WeakMap<THREE.Texture, { r: number; g: number; b: number; l: number }>();
-/** mean linear colour of a texture (opaque texels, 32x32 sample) */
-function texStats(t: THREE.Texture | null) {
-  const dflt = { r: 0.4, g: 0.4, b: 0.4, l: 0.4 };
-  if (!t || !t.image) return dflt;
-  const hit = statCache.get(t); if (hit) return hit;
-  let v = dflt;
-  try {
-    const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d', { willReadFrequently: true })!;
-    g.drawImage(t.image as CanvasImageSource, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data; let r = 0, gg = 0, b = 0, n = 0;
-    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { r += Math.pow(d[i] / 255, 2.2); gg += Math.pow(d[i + 1] / 255, 2.2); b += Math.pow(d[i + 2] / 255, 2.2); n++; }
-    if (n) v = { r: Math.max(0.02, r / n), g: Math.max(0.02, gg / n), b: Math.max(0.02, b / n), l: Math.max(0.03, 0.2126 * r / n + 0.7152 * gg / n + 0.0722 * b / n) };
-  } catch { /* keep default */ }
-  statCache.set(t, v); return v;
-}
-function tintable(m: THREE.MeshStandardMaterial) {
-  const tint = { value: new THREE.Color('#ffffff') }, ref = { value: texStats(m.map).l }, detail = { value: 1 };
-  m.userData.tint = tint; m.userData.detail = detail; m.customProgramCacheKey = () => 'city3d-rpm-tint-v2';
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.uTint = tint; sh.uniforms.uRef = ref; sh.uniforms.uDetail = detail;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uTint; uniform float uRef; uniform float uDetail;')
-      .replace('#include <map_fragment>', '#include <map_fragment>\n#ifdef USE_MAP\n diffuseColor.rgb = uTint * mix(1.0, clamp(dot(diffuseColor.rgb, vec3(0.2126,0.7152,0.0722)) / uRef, 0.3, 1.8), uDetail);\n#endif');
-  };
-  return m;
-}
 /** Realistic skin range: keeps hue, pulls extreme lightness / saturation back into human values. */
 const hsl = { h: 0, s: 0, l: 0 };
 export function realisticSkin(hex: string): THREE.Color {
@@ -105,34 +80,42 @@ function sourceHipY(sm: THREE.SkinnedMesh) {
   if (srcRestY === null) { sm.skeleton.pose(); sm.skeleton.bones[0].updateWorldMatrix(true, true); const p = sm.skeleton.bones.find((b) => b.name === 'pelvis'); srcRestY = p ? new THREE.Vector3().setFromMatrixPosition(p.matrixWorld).y : 1; }
   return srcRestY || 1;
 }
-function clipFor(kind: RpmKind, obj: THREE.Object3D, mesh: THREE.SkinnedMesh, ual: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, pose: CharacterPose, seat: { hipY: number; hipZ: number } = SEAT): THREE.AnimationClip | undefined {
-  const name = CLIP[pose], k = `${kind}|${name}|${seat.hipY}`; let c = clipCache.get(k);
+const wpos = (b: THREE.Object3D) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+/** `seat.hipY` = height of the hip joint; the Hips bone sits `hipOff` metres above it */
+function clipFor(obj: THREE.Object3D, mesh: THREE.SkinnedMesh, ual: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, pose: CharacterPose, seat: { hipY: number; hipZ: number } = SEAT): THREE.AnimationClip | undefined {
+  const name = CLIP[pose], k = `${name}|${seat.hipY}`; let c = clipCache.get(k);
   if (c) return c.clip;
   const src = ual.animations.find((a) => a.name === name) ?? ual.animations.find((a) => a.name === 'Idle_Loop'), sm = firstSkinned(ual.scene);
   if (!src || !sm) return undefined;
   const hipsB = bone(obj, 'Hips'); if (!hipsB) return undefined;
-  const sy = sourceHipY(sm);
+  const sy = sourceHipY(sm), sc = OBJ_SCALE.get(obj)!;
+  // the Meshy file is in centimetres under a 0.01 Armature: hip track values are in the parent's local units
+  const pu = hipsB.parent!.getWorldScale(new THREE.Vector3()).x || 1;
   mesh.skeleton.pose(); obj.updateMatrixWorld(true);
   const ty = new THREE.Vector3().setFromMatrixPosition(hipsB.matrixWorld).y;
-  // the two rigs have different bind poses (leg spread, arm angle): retarget world-rotation *deltas* (Wt = Ws * Ws_rest^-1 * Wt_rest)
+  const hipOff = ty - wpos(bone(obj, 'LeftUpLeg')!).y; // Hips bone above the hip joints (model units)
+  // the two rigs have different bind poses (UAL: T-pose, Meshy: own arm pose + arbitrary bone frames): retarget world-rotation *deltas*
+  // (Wt = Ws * Ws_rest^-1 * adj) with adj = target rest frame re-aimed so its limb axis (towards the child joint) matches the source's
   sm.skeleton.pose(); ual.scene.updateMatrixWorld(true);
-  const localOffsets: Record<string, THREE.Matrix4> = {}, qs = new THREE.Quaternion(), qt = new THREE.Quaternion();
-  for (const [tn, sn] of Object.entries(MIXAMO_TO_UE)) {
-    const tb = bone(obj, tn), sb = sm.skeleton.getBoneByName(sn); if (!tb || !sb) continue;
+  const localOffsets: Record<string, THREE.Matrix4> = {}, qs = new THREE.Quaternion(), qt = new THREE.Quaternion(), swing: Record<string, THREE.Quaternion> = {};
+  for (const tn of Object.keys(MESHY_TO_UE)) {
+    const tb = bone(obj, tn), sb = sm.skeleton.getBoneByName(MESHY_TO_UE[tn]); if (!tb || !sb) continue;
     sb.getWorldQuaternion(qs); tb.getWorldQuaternion(qt);
-    // target frame re-aimed so its limb axis matches the source's rest limb axis (UAL rests in a T-pose, RPM in an A-pose), keeping its own twist
-    const ys = new THREE.Vector3(0, 1, 0).applyQuaternion(qs), yt = new THREE.Vector3(0, 1, 0).applyQuaternion(qt);
-    const adj = new THREE.Quaternion().setFromUnitVectors(yt, ys).multiply(qt);
-    localOffsets[tn] = new THREE.Matrix4().makeRotationFromQuaternion(qs.clone().invert().multiply(adj));
+    let sw = new THREE.Quaternion();
+    const ch = AIM_CHILD[tn], tc = ch && bone(obj, ch), scb = ch && sm.skeleton.getBoneByName(MESHY_TO_UE[ch]);
+    if (tc && scb) sw = new THREE.Quaternion().setFromUnitVectors(wpos(tc).sub(wpos(tb)).normalize(), wpos(scb).sub(wpos(sb)).normalize());
+    else if (AIM_PARENT[tn] && swing[AIM_PARENT[tn]]) sw = swing[AIM_PARENT[tn]].clone();
+    swing[tn] = sw;
+    localOffsets[tn] = new THREE.Matrix4().makeRotationFromQuaternion(qs.clone().invert().multiply(sw.clone().multiply(qt)));
   }
-  const clip = retargetClip(mesh, sm, src, { names: MIXAMO_TO_UE, hip: 'pelvis', scale: ty / sy, preserveBoneMatrix: true, useFirstFramePosition: false, localOffsets } as any);
+  const clip = retargetClip(mesh, sm, src, { names: MESHY_TO_UE, hip: 'pelvis', scale: ty / sy, preserveBoneMatrix: true, useFirstFramePosition: false, localOffsets } as any);
   const tr = clip.tracks.find((t) => t.name === '.bones[Hips].position');
   if (tr) {
     const v = tr.values, n = v.length / 3; let mx = 0, my = 0, mz = 0;
     for (let i = 0; i < n; i++) { mx += v[i * 3]; my += v[i * 3 + 1]; mz += v[i * 3 + 2]; }
     mx /= n; my /= n; mz /= n;
     let dy = 0, dz = 0;
-    if (SEATED.has(pose)) { dy = seat.hipY / OBJ_SCALE.get(obj)! - my; dz = seat.hipZ / OBJ_SCALE.get(obj)!; }
+    if (SEATED.has(pose)) { dy = (seat.hipY / sc + hipOff) / pu - my; dz = seat.hipZ / sc / pu; }
     else {
       // ground the clip: sample the lowest ankle over the cycle and shift the hips so it sits at the rest ankle height
       mesh.skeleton.pose(); obj.updateMatrixWorld(true);
@@ -145,7 +128,7 @@ function clipFor(kind: RpmKind, obj: THREE.Object3D, mesh: THREE.SkinnedMesh, ua
         low = Math.min(low, tmp.setFromMatrixPosition(la.matrixWorld).y, tmp.setFromMatrixPosition(ra.matrixWorld).y);
       }
       mixer.stopAllAction(); mixer.uncacheRoot(obj); mesh.skeleton.pose();
-      dy = rest - low; mx = 0; mz = 0; // x/z already centred
+      dy = (rest - low) / pu; mx = 0; mz = 0; // x/z already centred
     }
     for (let i = 0; i < n; i++) { v[i * 3] -= mx; v[i * 3 + 1] += dy; v[i * 3 + 2] -= mz; v[i * 3 + 2] += dz; }
   }
@@ -183,83 +166,43 @@ function solveArm(upper: THREE.Bone, fore: THREE.Bone, hand: THREE.Bone, target:
 }
 
 // ---------------------------------------------------------------- component
-interface Props { appearance: CharacterAppearance; pose: CharacterPose; height: number; castShadow: boolean; onReady?: () => void; speed?: number; kind: RpmKind; /** desk worker on the real office chair: measured seat, leg/arm IK, lanyard, headset, micro-motions */ office?: boolean }
-export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castShadow, onReady, speed, kind, office }) => {
+interface Props { appearance: CharacterAppearance; pose: CharacterPose; height: number; castShadow: boolean; onReady?: () => void; speed?: number; /** desk worker on the real office chair: measured seat, leg/arm IK, lanyard, micro-motions */ office?: boolean }
+export const RpmCharacter: React.FC<Props> = ({ appearance, pose, castShadow, onReady, speed, office }) => {
   const gl = useThree((st) => st.gl);
-  const seatCfg = office ? OFFICE_SEAT : SEAT;
-  const body = readRpm(`${DIR}${kind}.glb`);
+  const body = readRpm(OPEN_ARMS_URL);
   const ual = readGltf(RIG_URL);
-  const top = useMemo(() => safeTop(appearance.top, appearance.skin), [appearance.top, appearance.skin]);
   const seed = useMemo(() => hash(`${appearance.skin}${appearance.hair}${appearance.top}${appearance.bottom}${appearance.shoes}`), [appearance]);
-  const wantGlasses = appearance.accessory === 'glasses' || (appearance.accessory !== 'none' && seed % 5 === 0);
-  const { obj, scale, mats, skinned, glasses, rig } = useMemo(() => {
+  const { obj, scale, mats, skinned, rig, hipOff } = useMemo(() => {
     const o = skeletonClone(body) as THREE.Object3D;
-    const mats = { top: [] as THREE.MeshStandardMaterial[], bottom: [] as THREE.MeshStandardMaterial[], shoes: [] as THREE.MeshStandardMaterial[], hair: [] as THREE.MeshStandardMaterial[], skin: [] as { m: THREE.MeshStandardMaterial; ref: { r: number; g: number; b: number } }[] };
+    const mats: THREE.MeshStandardMaterial[] = [];
     o.traverse((c) => {
       const m = c as THREE.SkinnedMesh; if (!m.isSkinnedMesh) return;
-      const n = m.name.toLowerCase();
-      m.frustumCulled = false; m.castShadow = castShadow && !n.includes('teeth') && !n.includes('eye'); m.receiveShadow = !!office && castShadow;
-      if (n.includes('glasses')) { m.visible = false; return; } // asset has a reindeer-nose/antler texture; replaced by procedural glasses
-      const mm = (m.material as THREE.MeshStandardMaterial).clone(); mm.envMapIntensity = 0.9; mm.metalness = 0; mm.metalnessMap = null; m.material = mm;
-      if (office) { const an = gl.capabilities.getMaxAnisotropy(); for (const tx of [mm.map, mm.normalMap, mm.roughnessMap, mm.aoMap]) if (tx && tx.anisotropy < an) { tx.anisotropy = an; tx.needsUpdate = true; } }
-      if (n.includes('outfit_top')) { mm.roughness = 0.9; mats.top.push(tintable(mm)); }
-      else if (n.includes('outfit_bottom')) { mm.roughness = 0.9; mats.bottom.push(tintable(mm)); }
-      else if (n.includes('footwear')) { mm.roughness = 0.65; mats.shoes.push(tintable(mm)); }
-      else if (n.includes('hair')) { mm.roughness = 0.55; mats.hair.push(tintable(mm)); }
-      else if (n.includes('eye')) { mm.roughness = 0.12; mm.envMapIntensity = 1.4; }
-      else if (n.includes('teeth')) { mm.roughness = 0.35; }
-      else if (n.includes('head') || n.includes('body')) { mm.roughness = 0.62; mm.normalScale?.set(0.8, 0.8); const st = texStats(mm.map); mats.skin.push({ m: mm, ref: st }); }
-      if (n.includes('hair')) m.visible = appearance.hairStyle !== 'bald';
+      m.frustumCulled = false; m.castShadow = castShadow; m.receiveShadow = !!office && castShadow;
+      const mm = (m.material as THREE.MeshStandardMaterial).clone();
+      mm.envMapIntensity = 0.8; mm.metalness = 0; mm.metalnessMap = null; mm.emissive.set(0, 0, 0); mm.emissiveMap = null; mm.roughness = 1; m.material = mm; mats.push(mm);
+      const an = gl.capabilities.getMaxAnisotropy(); for (const tx of [mm.map, mm.normalMap, mm.roughnessMap]) if (tx && tx.anisotropy < an) { tx.anisotropy = an; tx.needsUpdate = true; }
     });
-    const bb = new THREE.Box3().setFromObject(o);
-    const scale = height / Math.max(0.5, bb.max.y - bb.min.y);
+    o.updateMatrixWorld(true);
+    const bb = new THREE.Box3(); o.traverse((c) => { const m = c as THREE.SkinnedMesh; if (m.isSkinnedMesh) { m.geometry.computeBoundingBox(); bb.union(m.geometry.boundingBox!); } });
+    const scale = BODY_H / Math.max(0.5, bb.max.y - bb.min.y);
     OBJ_SCALE.set(o, scale);
-    // procedural glasses parented to the Head bone, built in a rest-pose world-aligned frame
-    let glasses: THREE.Group | null = null;
-    const head = bone(o, 'Head'), le = bone(o, 'LeftEye'), re = bone(o, 'RightEye');
-    if (head && le && re) {
-      o.updateMatrixWorld(true);
-      const pl = new THREE.Vector3().setFromMatrixPosition(le.matrixWorld), pr = new THREE.Vector3().setFromMatrixPosition(re.matrixWorld);
-      const mid = pl.clone().add(pr).multiplyScalar(0.5), sep = Math.abs(pl.x - pr.x) / 2;
-      const hq = new THREE.Quaternion(); head.getWorldQuaternion(hq);
-      const g = new THREE.Group(); g.quaternion.copy(hq).invert(); g.position.copy(head.worldToLocal(mid.clone().add(new THREE.Vector3(0, 0.002, 0.026))));
-      const frame = new THREE.MeshStandardMaterial({ color: '#15171a', roughness: 0.35, metalness: 0.4 });
-      const lens = new THREE.MeshStandardMaterial({ color: '#cfe6f2', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false });
-      const R = 0.0235;
-      for (const sx of [-1, 1]) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0021, 6, 22), frame); ring.position.set(sx * sep, 0, 0); g.add(ring);
-        const gl = new THREE.Mesh(new THREE.CircleGeometry(R, 16), lens); gl.position.set(sx * sep, 0, 0); g.add(gl);
-        const len = 0.1, arm = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.003, len), frame); arm.position.set(sx * (sep + R + 0.004), 0.004, -len / 2); arm.rotation.y = sx * 0.07; g.add(arm);
-      }
-      const br = new THREE.Mesh(new THREE.BoxGeometry(2 * sep - 2 * R + 0.006, 0.003, 0.003), frame); br.position.set(0, 0.006, 0); g.add(br);
-      g.visible = wantGlasses; head.add(g); glasses = g;
-    }
-    const rig = office ? buildOfficeRig(o, scale, bb.min.y, seed, appearance.accessory === 'headset') : null;
-    return { obj: o, scale, mats, skinned: firstSkinned(o)!, glasses, rig };
+    const hipOff = (wpos(bone(o, 'Hips')!).y - wpos(bone(o, 'LeftUpLeg')!).y) * scale; // metres between the Hips bone and the hip joints
+    const rig = buildRig(o, scale, bb.min.y, seed, !!office);
+    return { obj: o, scale, mats, skinned: firstSkinned(o)!, rig, hipOff };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [body, height, castShadow, office]);
-  useLayoutEffect(() => { if (glasses) glasses.visible = wantGlasses; }, [glasses, wantGlasses]);
-  useLayoutEffect(() => {
-    const t = new THREE.Color(top); if (lum(top) > 0.12) t.lerp(new THREE.Color('#ffffff'), 0.2); mats.top.forEach((m) => { m.userData.tint.value.copy(t); if (office) m.userData.detail.value = 0.3; }); // office shirts: plain fabric, the sneaker-brand print on the RPM tee is flattened
-    const b = new THREE.Color(appearance.bottom); mats.bottom.forEach((m) => m.userData.tint.value.copy(b));
-    const sh = new THREE.Color(appearance.shoes); mats.shoes.forEach((m) => m.userData.tint.value.copy(sh).lerp(new THREE.Color('#ffffff'), 0.06));
-    const hr = new THREE.Color(appearance.hair); mats.hair.forEach((m) => m.userData.tint.value.copy(hr));
-    const sk = realisticSkin(appearance.skin);
-    mats.skin.forEach(({ m, ref }) => {
-      // tint so the mean texel lands on the target skin colour (head and body textures are normalised separately => no neck seam)
-      m.color.setRGB(Math.min(1.9, sk.r / ref.r), Math.min(1.9, sk.g / ref.g), Math.min(1.9, sk.b / ref.b)).lerp(new THREE.Color('#ffffff'), 0.1);
-      m.emissive.copy(sk).multiplyScalar(0.05); // faint warm fill instead of flat grey shadow side
-    });
-  }, [mats, office, top, appearance.bottom, appearance.shoes, appearance.hair, appearance.skin]);
+  }, [body, castShadow, office]);
+  useLayoutEffect(() => { // baked look kept; faint per-person brightness variation only
+    const k = 0.95 + ((seed >>> 3) % 100) / 100 * 0.1;
+    mats.forEach((m) => m.color.setRGB(k, k, k));
+  }, [mats, seed]);
 
-  // subtle body variety (shoulder width / thickness), hips are placed by the clip itself
-  const wScale = useMemo(() => 0.96 + ((seed >>> 8) % 100) / 100 * 0.08, [seed]);
   const group = useRef<THREE.Group>(null);
   const mixer = useMemo(() => new THREE.AnimationMixer(obj), [obj]);
   const cur = useRef<THREE.AnimationAction | null>(null), first = useRef(true), lastPose = useRef<CharacterPose>(pose);
+  const seatCfg = useMemo(() => (office ? OFFICE_SEAT : SEAT), [office]);
   useEffect(() => () => { mixer.stopAllAction(); mixer.uncacheRoot(obj); }, [mixer, obj]);
   useEffect(() => {
-    const clip = clipFor(kind, obj, skinned, ual, pose, seatCfg); if (!clip) return;
+    const clip = clipFor(obj, skinned, ual, pose, seatCfg); if (!clip) return;
     const next = mixer.clipAction(clip, skinned);
     if (next === cur.current) return;
     next.reset().setLoop(THREE.LoopRepeat, Infinity);
@@ -267,12 +210,13 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
     if (first.current) { next.play(); mixer.update(Math.random() * clip.duration); first.current = false; }
     else { next.play(); if (cur.current) cur.current.crossFadeTo(next, fade, false); else next.fadeIn(fade); }
     cur.current = next;
-  }, [pose, mixer, kind, skinned, ual, obj, seatCfg, office]);
+  }, [pose, mixer, skinned, ual, obj, seatCfg, office]);
   useEffect(() => { onReady?.(); }, [onReady]);
   const ik = useMemo(() => {
     const g = (n: string) => bone(obj, n)!;
+    const palm = (h: THREE.Bone, f: THREE.Bone) => handBasis(h, f);
     return { lu: g('LeftArm'), lf: g('LeftForeArm'), lh: g('LeftHand'), ru: g('RightArm'), rf: g('RightForeArm'), rh: g('RightHand'), w: 0, t: Math.random() * 6,
-      luL: g('LeftUpLeg'), llL: g('LeftLeg'), lfL: g('LeftFoot'), ruL: g('RightUpLeg'), rlL: g('RightLeg'), rfL: g('RightFoot'), hips: g('Hips'), lMid: g('LeftHandMiddle1'), lThumb: g('LeftHandThumb1'), rMid: g('RightHandMiddle1'), rThumb: g('RightHandThumb1'), head: g('Head'), neck: g('Neck'), spine: g('Spine1'),
+      luL: g('LeftUpLeg'), llL: g('LeftLeg'), lfL: g('LeftFoot'), ruL: g('RightUpLeg'), rlL: g('RightLeg'), rfL: g('RightFoot'), hips: g('Hips'), lPalm: palm(g('LeftHand'), g('LeftForeArm')), rPalm: palm(g('RightHand'), g('RightForeArm')), head: g('Head'), neck: g('neck'), spine: g('Spine02'),
       legW: 0, hw: 0, yaw: 0, pitch: 0, lean: 0, ph: Math.random() * 100,
       m: { kind: 'none' as MicroKind, t: 0, dur: 1, next: 3 + Math.random() * 8, dir: 1, cupOn: false } };
   }, [obj]);
@@ -293,10 +237,10 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
       ik.w += (want - ik.w) * Math.min(1, step * 6);
       if (ik.w > 0.01 && ik.lu && ik.ru) {
         const t = ik.t, bl = Math.sin(t * 13) * 0.006, br = Math.sin(t * 11 + 2) * 0.006, sx = Math.sin(t * 0.7) * 0.015;
-        g.localToWorld(tgt.l.set(-KEYS.dx + sx, KEYS.y + Math.max(0, bl), KEYS.z));
-        g.localToWorld(tgt.r.set(KEYS.dx + sx, KEYS.y + Math.max(0, br), KEYS.z));
-        tgt.pl.set(-0.55, -1, -0.45).transformDirection(g.matrixWorld);
-        tgt.pr.set(0.55, -1, -0.45).transformDirection(g.matrixWorld);
+        g.localToWorld(tgt.l.set(KEYS.dx + sx, KEYS.y + Math.max(0, bl), KEYS.z));
+        g.localToWorld(tgt.r.set(-KEYS.dx + sx, KEYS.y + Math.max(0, br), KEYS.z));
+        tgt.pl.set(0.55, -1, -0.45).transformDirection(g.matrixWorld);
+        tgt.pr.set(-0.55, -1, -0.45).transformDirection(g.matrixWorld);
         solveArm(ik.lu, ik.lf, ik.lh, tgt.l, tgt.pl, ik.w);
         solveArm(ik.ru, ik.rf, ik.rh, tgt.r, tgt.pr, ik.w);
       }
@@ -329,7 +273,7 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
     tgt.l.set(DESK.kbDx + sx, DESK.kbY + bl, DESK.kbZ + (typing ? 0 : -0.05));
     if (typing) tgt.r.set(-DESK.kbDx + sx, DESK.kbY + br, DESK.kbZ);
     else tgt.r.set(DESK.mouseX + Math.sin(t * 0.5) * 0.02, DESK.kbY - 0.01, DESK.mouseZ + Math.sin(t * 0.37) * 0.015);
-    let lean = typing ? 0.07 : 0, yawT = Math.sin(t * 0.23 + ik.ph) * 0.07 * Math.max(0, Math.sin(t * 0.11 + ik.ph)), pitchT = 0.13 + Math.sin(t * 0.31 + ik.ph) * 0.03; // eyes on the monitor
+    let lean = typing ? 0.0 : 0.05, yawT = Math.sin(t * 0.23 + ik.ph) * 0.07 * Math.max(0, Math.sin(t * 0.11 + ik.ph)), pitchT = 0.13 + Math.sin(t * 0.31 + ik.ph) * 0.03; // eyes on the monitor
     if (m.kind === 'drink') {
       const c = DESK.cup, hold = V0.copy(tgt.r), ph = mp, mx = -0.03, my = R.mouthY - 0.045, mz = R.mouthZ;
       const cx = c[0], cy = c[1] + 0.05, cz = c[2];
@@ -352,7 +296,7 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
     if (ik.legW > 0.01) {
       const hb = ik.hips, par = hb.parent!; par.updateWorldMatrix(true, false); hb.updateWorldMatrix(false, false);
       V2.setFromMatrixPosition(hb.matrixWorld); an.worldToLocal(V2);
-      V3.set(0, 0, 0); V3.x = 0; const dy = (OFFICE_SEAT.hipY - V2.y) * ik.legW, dz = (OFFICE_SEAT.hipZ - V2.z) * ik.legW;
+      V3.set(0, 0, 0); V3.x = 0; const dy = (OFFICE_SEAT.hipY + hipOff - V2.y) * ik.legW, dz = (OFFICE_SEAT.hipZ - V2.z) * ik.legW;
       V2.set(0, dy, dz); V2.applyQuaternion(an.getWorldQuaternion(Q1)); // world-space delta (anchor is only yawed)
       hb.getWorldPosition(V3); const l0 = par.worldToLocal(V3.clone()), l1 = par.worldToLocal(V3.add(V2));
       hb.position.add(l1.sub(l0)); hb.updateWorldMatrix(false, true);
@@ -374,11 +318,11 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
     solveArm(ik.ru, ik.rf, ik.rh, tgt.r, tgt.pr, ik.w);
     { // wrists: fingers forward over the keys, palms down
       const free = m.kind === 'stretch' ? 1 - se : m.kind === 'drink' ? 0.35 : 1;
-      orientHand(ik.lh, ik.lMid, ik.lThumb, 1, ik.w * free); orientHand(ik.rh, ik.rMid, ik.rThumb, -1, ik.w * free);
+      orientHand(ik.lh, ik.lPalm, ik.w * free); orientHand(ik.rh, ik.rPalm, ik.w * free);
     }
     // head + neck turn toward the monitor and look around
-    Q1.setFromEuler(E1.set(ik.pitch * 0.5 * ik.hw, ik.yaw * 0.4 * ik.hw, 0)); ik.neck.quaternion.multiply(Q1);
-    Q1.setFromEuler(E1.set(ik.pitch * 0.5 * ik.hw, ik.yaw * 0.6 * ik.hw, 0)); ik.head.quaternion.multiply(Q1);
+    Q1.setFromEuler(E1.set((ik.pitch * 0.5 - ik.lean * 0.5) * ik.hw, ik.yaw * 0.4 * ik.hw, 0)); ik.neck.quaternion.multiply(Q1);
+    Q1.setFromEuler(E1.set((ik.pitch * 0.5 - ik.lean * 0.4) * ik.hw, ik.yaw * 0.6 * ik.hw, 0)); ik.head.quaternion.multiply(Q1);
     ik.head.updateWorldMatrix(false, true);
     if (import.meta.env?.DEV && seated) { // QA numbers: anchor-local metres (hips, knees, ankles, hands), read via window.__rpmDbg
       const w = window as unknown as { __rpmDbg?: Record<string, number[]> }; w.__rpmDbg ??= {};
@@ -394,7 +338,7 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
   });
   return (
     <group ref={anchor}>
-      <group ref={group} scale={scale}><group scale={[wScale, 1, wScale]}><primitive object={obj} /></group></group>
+      <group ref={group} scale={scale}><primitive object={obj} /></group>
       {office && rig?.hasCup && <group ref={cup} visible={false}>{cupMesh && <primitive object={cupMesh} />}</group>}
     </group>
   );
@@ -402,22 +346,28 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, height, castSh
 
 // ---------------------------------------------------------------- office extras
 const HP = new THREE.Vector3(), HF = new THREE.Vector3(), HT = new THREE.Vector3(), HD = new THREE.Vector3(), HQ = new THREE.Quaternion(), HQ2 = new THREE.Quaternion(), HQP = new THREE.Quaternion();
-/** Point the hand's finger axis forward (+z, slightly down) and twist it so the thumb points to the body centre (palm down). Anchor frame is yaw-only, so world == anchor up to yaw. */
-function orientHand(hand: THREE.Bone, mid: THREE.Bone | undefined, thumb: THREE.Bone | undefined, side: 1 | -1, w: number) {
-  if (!mid || !thumb || w < 0.01) return;
+/** The Meshy hand has no finger bones: finger axis = forearm -> hand direction, palm normal assumed to face down in the bind pose (stored in hand-local axes). */
+interface Palm { f: THREE.Vector3; n: THREE.Vector3 }
+function handBasis(hand: THREE.Bone, fore: THREE.Bone): Palm {
+  hand.updateWorldMatrix(true, false); fore.updateWorldMatrix(true, false);
+  const q = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const f = wpos(hand).sub(wpos(fore)).normalize().applyQuaternion(q), n = new THREE.Vector3(0, -1, 0).applyQuaternion(q);
+  return { f, n };
+}
+/** Point the hand's finger axis forward (+z, slightly down) and twist it so the palm faces down. Anchor frame is yaw-only, so world == anchor up to yaw. */
+function orientHand(hand: THREE.Bone, palm: Palm, w: number) {
+  if (w < 0.01) return;
   const an = hand.userData.anchor as THREE.Object3D | undefined; if (!an) return;
   an.getWorldQuaternion(HQ2);
-  HD.set(0, -0.12, 1).applyQuaternion(HQ2);
-  hand.updateWorldMatrix(true, true); HP.setFromMatrixPosition(hand.matrixWorld);
-  HF.setFromMatrixPosition(mid.matrixWorld).sub(HP).normalize();
-  HQ.setFromUnitVectors(HF, HD.normalize()); // swing
-  hand.matrixWorld.decompose(HP, HQP, HT); HQP.premultiply(HQ); // new world rotation
-  // twist about the new finger axis: thumb (rotated with the swing) -> inward
-  HT.setFromMatrixPosition(thumb.matrixWorld).sub(HP).applyQuaternion(HQ);
-  HT.addScaledVector(HD, -HT.dot(HD)).normalize();
-  HF.set(-side, 0.1, 0).applyQuaternion(HQ2); HF.addScaledVector(HD, -HF.dot(HD)).normalize();
+  HD.set(0, -0.12, 1).applyQuaternion(HQ2).normalize();
+  hand.updateWorldMatrix(true, true);
+  hand.matrixWorld.decompose(HP, HQP, HT);
+  HF.copy(palm.f).applyQuaternion(HQP);
+  HQ.setFromUnitVectors(HF, HD); HQP.premultiply(HQ); // swing: finger axis -> forward
+  HT.copy(palm.n).applyQuaternion(HQP); HT.addScaledVector(HD, -HT.dot(HD)).normalize();
+  HF.set(0, -1, 0).applyQuaternion(HQ2); HF.addScaledVector(HD, -HF.dot(HD)).normalize();
   const ang = Math.atan2(HD.dot(HT.clone().cross(HF)), HT.dot(HF));
-  HQP.premultiply(HQ.setFromAxisAngle(HD, ang));
+  HQP.premultiply(HQ.setFromAxisAngle(HD, ang)); // twist about the finger axis: palm -> down
   hand.parent!.getWorldQuaternion(HQ).invert(); HQP.premultiply(HQ);
   hand.quaternion.slerp(HQP, w); hand.updateWorldMatrix(false, true);
 }
@@ -435,20 +385,24 @@ function buildCup() {
   g.add(body, lid, band);
   return g;
 }
-/** Lanyard + badge on the chest (Spine2), optional headset on the head, and the rest-pose leg numbers the seated IK needs (metres). */
-function buildOfficeRig(o: THREE.Object3D, scale: number, minY: number, seed: number, headset: boolean): OfficeRig {
+const frontCache = new Map<number, number>();
+/** Rest-pose leg numbers the seated IK needs (metres) and, for desk workers, a lanyard + badge on the chest. */
+function buildRig(o: THREE.Object3D, scale: number, minY: number, seed: number, office: boolean): OfficeRig {
   o.updateMatrixWorld(true);
-  const wp = (n: string) => new THREE.Vector3().setFromMatrixPosition(bone(o, n)!.matrixWorld);
-  const lUp = wp('LeftUpLeg'), lKn = wp('LeftLeg'), lFt = wp('LeftFoot'), nk = wp('Neck'), hd = wp('Head'), hp = wp('Hips');
+  const wp = (n: string) => wpos(bone(o, n)!);
+  const lUp = wp('LeftUpLeg'), rUp = wp('RightUpLeg'), lKn = wp('LeftLeg'), lFt = wp('LeftFoot'), nk = wp('neck'), hd = wp('Head');
   const rig: OfficeRig = {
-    hipX: Math.abs(lUp.x) * scale, ankleH: (lFt.y - minY) * scale, thigh: lUp.distanceTo(lKn) * scale,
-    mouthY: OFFICE_SEAT.hipY + (hd.y - hp.y) * scale + 0.02, mouthZ: 0.2, hasCup: (seed >>> 4) % 3 !== 0,
+    hipX: Math.abs(lUp.x - rUp.x) / 2 * scale, ankleH: (lFt.y - minY) * scale, thigh: lUp.distanceTo(lKn) * scale,
+    mouthY: OFFICE_SEAT.hipY + (hd.y + 0.085 - lUp.y) * scale, mouthZ: 0.17, hasCup: (seed >>> 4) % 3 !== 0,
   };
-  let top: THREE.SkinnedMesh | null = null; o.traverse((c) => { const m = c as THREE.SkinnedMesh; if (m.isSkinnedMesh && /outfit_top/i.test(m.name)) top = m; });
-  const spine2 = bone(o, 'Spine2'), head = bone(o, 'Head');
-  if (top && spine2) {
-    const tm = top as THREE.SkinnedMesh, pos = tm.geometry.attributes.position, v = new THREE.Vector3();
-    const frontZ = (y: number) => { let z = -1e9; for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(tm.matrixWorld); if (Math.abs(v.x - nk.x) < 0.045 && Math.abs(v.y - y) < 0.015 && v.z > z) z = v.z; } return z > -1e8 ? z : nk.z + 0.09; };
+  const top = firstSkinned(o), spine = bone(o, 'Spine');
+  if (office && top && spine) {
+    const v = new THREE.Vector3(), n = top.geometry.attributes.position.count;
+    const frontZ = (y: number) => {
+      const key = Math.round(y * 1000), hit = frontCache.get(key); if (hit !== undefined) return hit;
+      let z = -1e9; for (let i = 0; i < n; i++) { top.getVertexPosition(i, v).applyMatrix4(top.matrixWorld); if (Math.abs(v.x - nk.x) < 0.045 && Math.abs(v.y - y) < 0.015 && v.z > z) z = v.z; }
+      z = z > -1e8 ? z : nk.z + 0.09; frontCache.set(key, z); return z;
+    };
     const k = 1 / scale;
     const y0 = nk.y - 0.035 * k, y1 = nk.y - 0.3 * k, z0 = frontZ(y0), z1 = frontZ(y1);
     const colors = ['#1d4ed8', '#be123c', '#0f766e', '#111827', '#7c3aed'], lc = colors[(seed >>> 7) % colors.length];
@@ -465,19 +419,7 @@ function buildOfficeRig(o: THREE.Object3D, scale: number, minY: number, seed: nu
     const band = new THREE.Mesh(new THREE.BoxGeometry(0.056 * k, 0.02 * k, 0.0035 * k), new THREE.MeshStandardMaterial({ color: '#1d4ed8', roughness: 0.4 })); band.position.y = 0.03 * k;
     const photo = new THREE.Mesh(new THREE.BoxGeometry(0.022 * k, 0.026 * k, 0.0036 * k), new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.6 })); photo.position.y = -0.006 * k;
     badge.add(card, band, photo); badge.rotation.x = -0.12; lg.add(badge);
-    lg.applyMatrix4(new THREE.Matrix4().copy(spine2.matrixWorld).invert()); spine2.add(lg);
-  }
-  if (headset && head) {
-    const le = bone(o, 'LeftEye'), re = bone(o, 'RightEye');
-    if (le && re) {
-      const mid = new THREE.Vector3().setFromMatrixPosition(le.matrixWorld).add(new THREE.Vector3().setFromMatrixPosition(re.matrixWorld)).multiplyScalar(0.5);
-      const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: '#1b1f24', roughness: 0.45, metalness: 0.3 });
-      const R = 0.092, c = mid.clone().add(new THREE.Vector3(0, -0.012, -0.075));
-      const arc = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0042, 8, 28, Math.PI), mat); arc.position.copy(c); g.add(arc);
-      for (const sx of [-1, 1]) { const cp = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), mat); cp.rotation.z = Math.PI / 2; cp.position.set(c.x + sx * (R + 0.004), c.y, c.z); g.add(cp); }
-      const boom = new THREE.Mesh(new THREE.BoxGeometry(0.0032, 0.0032, 0.1), mat); boom.position.set(c.x + R + 0.004, c.y - 0.05, c.z + 0.085); boom.rotation.set(0.18, -0.55, 0); g.add(boom);
-      g.applyMatrix4(new THREE.Matrix4().copy(head.matrixWorld).invert()); head.add(g);
-    }
+    lg.applyMatrix4(new THREE.Matrix4().copy(spine.matrixWorld).invert()); spine.add(lg);
   }
   return rig;
 }

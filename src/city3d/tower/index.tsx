@@ -13,7 +13,7 @@ import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
 import { getBrandAtlas, CELLS, ATLAS, ATLAS_H } from './brand';
 import { getFloor, atriumFlights, Furn, FT, CLEAR, CORE, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
-import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, lookOf, type Agent } from './agents';
+import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, officeLookOf, type Agent } from './agents';
 import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor, playerCollidersFor } from './nav';
 import { getProp, usePropsState } from './props';
 import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
@@ -490,7 +490,7 @@ const Team: React.FC<{ sel: number | null; quality: Quality }> = ({ sel, quality
             </div>
           </Html>
         ) : null;
-        return <AgentView key={a.id} a={a} look={lookOf(a.emp ?? a.id, emp?.role)} handlers={handlers} chip={chip} />;
+        return <AgentView key={a.id} a={a} look={officeLookOf(a.emp ?? a.id, emp?.role)} handlers={handlers} chip={chip} office />;
       })}
       {quality === 'high' && mapping.freeSlots.map((s) => <Npc key={s.id} id={`seat-${s.id}`} x={s.x} y={y} z={s.z} rot={s.rot} pose="type" />)}
     </>

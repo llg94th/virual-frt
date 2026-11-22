@@ -26,7 +26,11 @@ export interface Character3DProps {
   rotationY?: number; scale?: number; label?: string;
   /** Internal: always use the rigged model when available (Player). */
   priority?: boolean;
+  /** Desk worker: always the full RPM avatar (no arbiter cap / far LOD) inside OFFICE_RIG_RADIUS, with seat + keyboard IK. */
+  office?: boolean;
 }
+const OFFICE_RIG_RADIUS = 70, OFFICE_RIG_OUT = 80;
+const og = { frame: -1, min: 1e9, minPrev: 1e9, last: 0 };
 
 // ---------------------------------------------------------------- caches
 const geoCache = new Map<string, THREE.BufferGeometry>();
@@ -241,21 +245,21 @@ const ProceduralCharacter: React.FC<Character3DProps> = ({ appearance, pose = 'i
 
 // ---------------------------------------------------------------- Character3D (rigged when near, procedural otherwise)
 export const Character3D: React.FC<Character3DProps> = (props) => {
-  const { appearance, pose = 'idle', position, rotationY = 0, scale = 1, priority = false, label } = props;
+  const { appearance, pose = 'idle', position, rotationY = 0, scale = 1, priority = false, label, office = false } = props;
   const quality = useCity((s) => s.quality);
   const rigStatus = useRigStatus();
   const eligible = !appearance.mascot || appearance.mascot === 'none';
-  const want = eligible && (priority || quality !== 'low');
+  const want = eligible && (priority || office || quality !== 'low');
   useEffect(() => { if (want) ensureRigAsset(); }, [want]);
   const outer = useRef<THREE.Group>(null);
   const entry = useMemo<RigEntry>(() => ({ dist: 1e9, priority, allowed: priority }), [priority]);
   const [on, setOn] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  useEffect(() => (want ? registerRig(entry) : undefined), [want, entry]);
+  useEffect(() => (want && !office ? registerRig(entry) : undefined), [want, office, entry]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
   // far LOD (shared instanced rendering, see far.tsx)
-  const farOk = eligible; // mascots stay procedural
+  const farOk = eligible && !office; // mascots stay procedural
   const token = useMemo(() => ({}), []);
   const fe = useMemo<FarEntry>(() => ({ active: false, pose, dist: 0, k: 1, m: new Float32Array(16), cols: new Float32Array(15) }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const { scene } = useThree();
@@ -278,6 +282,13 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
     }
     if (!want || rigStatus !== 'ready') return;
     entry.dist = priority ? 0 : dist;
+    if (office) {
+      // no arbiter cap for desk workers: everyone inside the radius gets the full avatar; mounting is staggered (nearest first, one per 300 ms) so the main thread is not blocked
+      const fr = state.gl.info.render.frame; if (og.frame !== fr) { og.frame = fr; og.minPrev = og.min; og.min = 1e9; }
+      if (on) { if (dist > OFFICE_RIG_OUT) setOn(false); }
+      else if (dist < OFFICE_RIG_RADIUS) { og.min = Math.min(og.min, dist); const now = performance.now(); if (dist <= og.minPrev + 0.01 && now - og.last > 300) { og.last = now; setOn(true); } }
+      return;
+    }
     rigTick(state.camera, state.gl.info.render.frame, performance.now());
     if (entry.allowed !== on) setOn(entry.allowed);
   });
@@ -305,7 +316,7 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
             <group visible={ready}>
               {NPC_MESHY && !priority ? (
                 <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />}>
-                  <RpmCharacter kind={rpmKindFor(appearance)} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
+                  <RpmCharacter kind={rpmKindFor(appearance)} office={office} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
                 </RigBoundary>
               ) : (
                 <OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}

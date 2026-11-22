@@ -184,6 +184,18 @@ export const lookOf = (id: string, role?: string): CharacterAppearance => {
   l = { ...a, top: lift(a.top, 0.3), bottom: lift(a.bottom, 0.15) }; looks.set(id, l); return l;
 };
 
+/** Business-casual outfit for desk workers: shirt / trousers / shoes picked deterministically per person (skin, hair, accessories kept). */
+const SHIRTS = ['#f2f4f7', '#bcd3ea', '#e6e0d4', '#2f4a73', '#c9d4c3', '#d8c7d9', '#8aa6c1', '#e9d9c4'];
+const TROUSERS = ['#2b2f38', '#1f2b44', '#4a463f', '#555b66', '#3a3328', '#262626'];
+const SHOE = ['#1a1412', '#2a1d16', '#111827', '#3b2a20'];
+const officeLooks = new Map<string, CharacterAppearance>();
+export const officeLookOf = (id: string, role?: string): CharacterAppearance => {
+  let l = officeLooks.get(id); if (l) return l;
+  const a = lookOf(id, role), h = hash(id + '|office');
+  l = { ...a, top: SHIRTS[h % SHIRTS.length], bottom: TROUSERS[(h >>> 5) % TROUSERS.length], shoes: SHOE[(h >>> 9) % SHOE.length], accessory: a.accessory === 'headset' || a.accessory === 'glasses' ? a.accessory : (h >>> 12) % 4 === 0 ? 'glasses' : 'badge' };
+  officeLooks.set(id, l); return l;
+};
+
 // ---- real-employee -> 3D seat mapping (NHÀ THUỐC bay) ----
 const seatAgents = new Map<string, Agent>();
 let empAgent = new Map<string, Agent>();
@@ -337,7 +349,7 @@ export const Effects: React.FC = () => {
 };
 
 // ---------------------------------------------------------------- views
-export const AgentView: React.FC<{ a: Agent; look: CharacterAppearance; handlers?: Record<string, unknown>; chip?: React.ReactNode }> = ({ a, look, handlers, chip }) => {
+export const AgentView: React.FC<{ a: Agent; look: CharacterAppearance; handlers?: Record<string, unknown>; chip?: React.ReactNode; office?: boolean }> = ({ a, look, handlers, chip, office }) => {
   const ref = useRef<THREE.Group>(null!);
   const [pose, setP] = useState<Pose>(a.pose);
   const [carry, setC] = useState(a.carry);
@@ -349,7 +361,7 @@ export const AgentView: React.FC<{ a: Agent; look: CharacterAppearance; handlers
   }, [a]);
   return (
     <group ref={ref} {...(handlers as object)}>
-      <Character3D appearance={look} pose={pose === 'wave' ? 'wave' : pose} />
+      <Character3D appearance={look} pose={pose === 'wave' ? 'wave' : pose} office={office} />
       {chip}
       {carry && (
         <Html position={[0, 2.25, 0]} center distanceFactor={11} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>

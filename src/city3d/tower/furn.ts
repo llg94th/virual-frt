@@ -291,7 +291,7 @@ export class Furn {
     if (L < 0.5) return;
     const alongX = Math.abs(z1 - z0) < 1e-6;
     const n = Math.max(1, Math.round(L / step));
-    for (let i = 0; i <= n; i++) this.b(x0 + ((x1 - x0) * i) / n, 0, z0 + ((z1 - z0) * i) / n, 0.32, CLEAR - 0.9, 0.32, '#9ba2a6');
+    for (let i = 0; i <= n; i++) this.b(x0 + ((x1 - x0) * i) / n, 0, z0 + ((z1 - z0) * i) / n, 0.32, CLEAR - 0.9, 0.32, '#eef1ef');
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     for (const y of [1.0, 0.5]) this.b(cx, y, cz, alongX ? L : 0.04, 0.04, alongX ? 0.04 : L, '#2b3338');
     const posts = Math.round(L / 1.6);
@@ -380,8 +380,28 @@ function shell(F: Furn, f: number) {
       const len = fl.len, a = Math.atan2(FLOOR_H, len), L = Math.hypot(len, FLOOR_H);
       const xx = fl.a[0], dir = fl.dir; // descends toward +z for k=0, toward -z for k=1
       const zmid = c.z;
-      F.boxes.push({ p: [xx, FT - FLOOR_H / 2 - 0.12, zmid], s: [STAIR_W, 0.24, L], c: '#c9cdcc', r: 0, rx: dir * a });
-      for (const o of [-STAIR_W / 2, STAIR_W / 2]) F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.95, zmid], s: [0.04, 0.04, L], c: '#2b3338', r: 0, rx: dir * a });
+      F.boxes.push({ p: [xx, FT - FLOOR_H / 2 - 0.12, zmid], s: [STAIR_W, 0.24, L], c: '#a8442b', r: 0, rx: dir * a });
+      for (const o of [-STAIR_W / 2, STAIR_W / 2]) {
+        F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.95, zmid], s: [0.06, 0.06, L], c: '#6e2c1a', r: 0, rx: dir * a });
+        F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.55, zmid], s: [0.03, 0.03, L], c: '#6e2c1a', r: 0, rx: dir * a });
+        F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.4, zmid], s: [0.04, 0.9, L], c: '#8a3b22', r: 0, rx: dir * a }); // solid red balustrade panel
+      }
+    }
+    // ground-floor Y-shaped rust-red bridge through the garden (real F-Town 3 courtyard): stem lands on the foot of the stair flight
+    if (f === 0) {
+      const sgn = k === 0 ? 1 : -1, wv = 1.5;
+      const hub: [number, number] = [c.x + (xs - c.x) * 0.2, c.z + sgn * 0.5];
+      const legs: [number, number][] = [[xs, c.z + sgn * (c.d / 2 + 0.3)], [c.x - c.w / 2 - 0.3, c.z - sgn * 2.2], [c.x + c.w / 2 + 0.3, c.z - sgn * 4.5]];
+      for (const [lx, lz] of legs) {
+        const dx = lx - hub[0], dz = lz - hub[1], len = Math.hypot(dx, dz), yaw = Math.atan2(dx, dz), mx = hub[0] + dx / 2, mz = hub[1] + dz / 2, cs = Math.cos(yaw), sn = Math.sin(yaw);
+        F.boxes.push({ p: [mx, FT + 0.05, mz], s: [wv, 0.18, len], c: '#a8442b', r: yaw, rx: 0 });
+        for (const o of [-wv / 2, wv / 2]) {
+          F.boxes.push({ p: [mx + cs * o, FT + 0.6, mz - sn * o], s: [0.06, 0.07, len], c: '#6e2c1a', r: yaw, rx: 0 });
+          F.boxes.push({ p: [mx + cs * o, FT + 0.35, mz - sn * o], s: [0.04, 0.55, len], c: '#8a3b22', r: yaw, rx: 0 });
+        }
+        for (const t of [0.5, 0.85]) F.boxes.push({ p: [hub[0] + dx * t, FT - 0.45, hub[1] + dz * t], s: [0.25, 0.9, 0.25], c: '#8a3b22', r: 0, rx: 0 }); // piers into the garden
+      }
+      F.boxes.push({ p: [hub[0], FT + 0.05, hub[1]], s: [wv + 0.5, 0.18, wv + 0.5], c: '#a8442b', r: Math.PI / 4, rx: 0 });
     }
     // red-brown (corten) pedestrian bridge across the atrium at the second storey
     if (f === 1) {
@@ -909,14 +929,16 @@ function basement(F: Furn) {
 
 export function roof(F: Furn, S: Furn) {
   const rnd = mulberry32(777), W = 2 * HX, D = 2 * HZ;
-  S.b(0, 0, -HZ, W + 0.4, 0.9, 0.25, '#f1f4f2'); S.b(0, 0, HZ, W + 0.4, 0.9, 0.25, '#f1f4f2');
-  S.b(-HX, 0, 0, 0.25, 0.9, D + 0.4, '#f1f4f2'); S.b(HX, 0, 0, 0.25, 0.9, D + 0.4, '#f1f4f2');
-  for (const c of COURTYARDS) {
-    const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, z0 = c.z - c.d / 2, z1 = c.z + c.d / 2;
-    S.b(c.x, 0, z0, c.w, 0.9, 0.2, '#f1f4f2'); S.b(c.x, 0, z1, c.w, 0.9, 0.2, '#f1f4f2');
-    S.b(x0, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2'); S.b(x1, 0, c.z, 0.2, 0.9, c.d, '#f1f4f2');
+  // parapet itself is one merged mesh (facade.ts parapetGeo); here: FPT Software sign walls (logo plane added in index.tsx), planter beds, AC units, stair/lift boxes
+  S.b(-9, 0, HZ + 0.3, 9, 3.2, 0.3, '#f4f6f4'); S.b(-HX - 0.3, 0, 9, 0.3, 3.2, 9, '#f4f6f4');
+  for (const [x, z, w, d] of [[-14, -HZ + 1.2, 12, 1.2], [-14, HZ - 1.2, 12, 1.2], [HX - 1.2, -1, 1.2, 8], [HX - 1.2, 9, 1.2, 8]] as [number, number, number, number][]) {
+    S.b(x, 0, z, w, 0.45, d, '#cfd4d1'); S.b(x, 0.45, z, w - 0.2, 0.2, d - 0.2, '#4f8f50');
+    for (let i = 0; i < Math.floor(Math.max(w, d) / 1.6); i++) S.ball(x + (w > d ? -w / 2 + 0.8 + i * 1.6 : 0), 0.95, z + (w > d ? 0 : -d / 2 + 0.8 + i * 1.6), 0.4 + rnd() * 0.15, '#3f9b52');
   }
-  S.label({ t: 'F-TOWN 3', x: 0, y: 1.8, z: HZ - 0.3, w: 14, h: 2.6, rot: 0, fg: '#ffffff', bg: '#0f7a73' });
+  // lift overrun + stair box + AC condensers
+  F.b(-2.5, 2.35, 0, 6.6, 0.2, 8.6, '#f1f4f2');
+  F.b(4.2, 0, 8.5, 3.2, 2.5, 3.2, '#e4e8e5'); F.b(4.2, 2.5, 8.5, 3.5, 0.15, 3.5, '#f1f4f2'); F.b(4.2, 0.2, 10.12, 1.0, 2.0, 0.06, '#3b4a50');
+  for (let i = 0; i < 6; i++) { const x = 8 + i * 2.1; F.b(x, 0, -0.8, 1.8, 1.3, 1.1, '#b9c2c6'); F.b(x, 1.3, -0.8, 1.6, 0.05, 0.9, '#6b767b'); F.b(x, 0.2, -0.22, 1.1, 0.8, 0.04, '#2b3338'); }
   // solar panels
   for (let row = 0; row < 5; row++) for (let i = 0; i < 11; i++) {
     const x = -6 + i * 2.6, z = -23 + row * 3.4;

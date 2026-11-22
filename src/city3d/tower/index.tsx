@@ -16,7 +16,7 @@ import { getFloor, atriumFlights, Furn, FT, CLEAR, CORE, HX, HZ, K, COURTYARDS, 
 import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, officeLookOf, type Agent } from './agents';
 import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor, playerCollidersFor } from './nav';
 import { getProp, usePropsState } from './props';
-import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
+import { fasciaGeo, slabGeo, cortenGeo, carpetGeo, parapetGeo } from './facade';
 import { LongChauGreeter } from './greeter';
 import { FiguresLayer } from './figures';
 export { LongChauModel } from './greeter';
@@ -49,12 +49,17 @@ function useMats() {
     const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
     const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
     const slab = new THREE.MeshStandardMaterial({ color: '#d9dcdb', roughness: 0.7 });
-    const dots = (() => {
+    const dots = (() => { // perforated white concrete: 8x4 staggered round holes per tile (0.4 m pitch), soft stain
       if (typeof document === 'undefined') return null;
-      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
-      g.fillStyle = '#f6f7f5'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#c9cecb';
-      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.beginPath(); g.arc(8 + x * 16 + (y % 2) * 8, 8 + y * 16, 2.2, 0, 7); g.fill(); }
-      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
+      const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d')!; const r = mulberry32(14);
+      g.fillStyle = '#f5f6f4'; g.fillRect(0, 0, 256, 128);
+      for (let i = 0; i < 40; i++) { const v = 228 + ((r() * 22) | 0); g.fillStyle = `rgba(${v},${v},${v},0.45)`; g.beginPath(); g.ellipse(r() * 256, r() * 128, 8 + r() * 30, 4 + r() * 10, 0, 0, 7); g.fill(); }
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 8; x++) {
+        const cx = 16 + x * 32 + (y % 2) * 16, cy = 16 + y * 32;
+        g.fillStyle = '#9aa19e'; g.beginPath(); g.arc(cx, cy, 7.5, 0, 7); g.fill();
+        g.fillStyle = '#4a5250'; g.beginPath(); g.arc(cx + 1, cy + 1.5, 5.4, 0, 7); g.fill();
+      }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
     })();
     const fascia = new THREE.MeshStandardMaterial({ color: '#ffffff', map: dots, roughness: 0.7, side: THREE.DoubleSide });
     const corten = new THREE.MeshStandardMaterial({ color: '#8a3b22', roughness: 0.8, side: THREE.DoubleSide });
@@ -201,6 +206,8 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
         ? <mesh position={[0, FT / 2, 0]} scale={[2 * HX, FT, 2 * HZ]} geometry={BOX_GEO} material={mats.solid} castShadow receiveShadow><meshStandardMaterial attach="material" color="#5c646a" roughness={0.95} /></mesh>
         : <mesh geometry={slabGeo()} material={mats.slab} castShadow receiveShadow />}
       {fascia && <mesh geometry={fascia} material={mats.fascia} castShadow />}
+      {isRoof && <mesh geometry={parapetGeo()} material={mats.fascia} castShadow />}
+      {isRoof && <FptLogos />}
       {FLOOR_DEPARTMENTS.find((d) => d.floor === f)?.role === 'TEAM' && <mesh geometry={carpetGeo()} material={mats.carpet} position={[0, FT + 0.004, 0]} receiveShadow />}
       {f === 0 && <mesh geometry={carpetGeo()} material={mats.marble} position={[0, FT + 0.004, 0]} receiveShadow />}
       {f === 0 && <mesh geometry={cortenGeo()} material={mats.corten} castShadow />}
@@ -215,6 +222,27 @@ const Floor = memo(({ f, visible, cut, quality, mats, interior }: FloorProps) =>
     </group>
   );
 });
+
+/** FPT Software logo (public/brand/fptsoft.svg) on the two roof sign walls: one canvas texture, drawn when the SVG has loaded. */
+const FptLogos: React.FC = () => {
+  const tex = useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas'); c.width = 1260; c.height = 512;
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const im = new Image(); const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
+    im.onload = () => { const g = c.getContext('2d')!; g.clearRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); t.needsUpdate = true; };
+    im.src = `${base}brand/fptsoft.svg`;
+    return t;
+  }, []);
+  if (!tex) return null;
+  const mat = <meshBasicMaterial map={tex} transparent alphaTest={0.05} toneMapped={false} side={THREE.DoubleSide} />;
+  return (
+    <>
+      <mesh position={[-9, FT + 1.6, HZ + 0.47]}><planeGeometry args={[7.4, 3]} />{mat}</mesh>
+      <mesh position={[-HX - 0.47, FT + 1.6, 9]} rotation={[0, -Math.PI / 2, 0]}><planeGeometry args={[7.4, 3]} />{mat}</mesh>
+    </>
+  );
+};
 type V3t = [number, number, number];
 
 /** Instanced content of one Furn. When `on` is false (low quality, uncut) only structural uprights are drawn. */

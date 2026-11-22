@@ -1,6 +1,6 @@
 /** Curved white slab fascia ribbons, rounded slab plate and corten planter walls (shared geometry, built once). */
 import * as THREE from 'three';
-import { FLOOR_H } from '../shared';
+import { FLOOR_H, TOWER_FLOORS } from '../shared';
 import { HX, HZ, COURTYARDS, FT, CLEAR } from './furn';
 
 type P2 = [number, number];
@@ -55,23 +55,34 @@ export function sweep(lines: { pts: P2[]; closed: boolean }[], y0: number, h: nu
 }
 
 const fasciaCache = new Map<number, THREE.BufferGeometry>();
-/** Wavy white ribbon per floor: outer ring bulges outward, atrium rings bulge into the void; phase differs per floor. */
+/** Thick white perforated concrete band per floor (real F-Town 3 "concrete wave"): outer ring only gently undulates, the atrium rings
+ *  step into the void floor by floor (lower floors project further) so the courtyard reads as stacked terraces. */
 export function fasciaGeo(f: number): THREE.BufferGeometry {
   const hit = fasciaCache.get(f); if (hit) return hit;
   const phase = f * 1.35;
-  const ring = (cx: number, cz: number, hw: number, hd: number, r: number, sign: number, k: number, amp: number) => {
+  const ring = (cx: number, cz: number, hw: number, hd: number, r: number, sign: number, k: number, amp: number, base0: number) => {
     const base = rrSample(cx, cz, hw, hd, r);
     const pts = base.map((p, i): P2 => {
       const u = i / base.length, nrm = rrNormal(p, cx, cz, hw, hd, r);
-      const d = sign * (0.4 + amp * (0.5 + 0.5 * Math.sin(u * Math.PI * 2 * k + phase) + 0.25 * Math.sin(u * Math.PI * 2 * k * 2.3 + phase * 2)));
+      const d = sign * (base0 + amp * (0.5 + 0.5 * Math.sin(u * Math.PI * 2 * k + phase)));
       return [p[0] + nrm[0] * d, p[1] + nrm[1] * d];
     });
     return { pts, closed: true };
   };
-  const lines = [ring(0, 0, HX, HZ, R_OUT, 1, 4, 0.9)];
-  COURTYARDS.forEach((c, i) => lines.push(ring(c.x, c.z, c.w / 2, c.d / 2, R_CT, -1, 3, 0.6 + i * 0.1)));
-  const g = sweep(lines, CLEAR - 0.8, FLOOR_H + FT - (CLEAR - 0.8), 0.7, 3.2);
+  const lines = [ring(0, 0, HX, HZ, R_OUT, 1, 4, 0.3, 0.5)];
+  COURTYARDS.forEach((c, i) => lines.push(ring(c.x, c.z, c.w / 2, c.d / 2, R_CT, -1, 3, 0.18 + i * 0.04, 0.3 + Math.max(0, TOWER_FLOORS - 1 - f) * 0.1)));
+  const g = sweep(lines, CLEAR - 1.25, FLOOR_H + FT - (CLEAR - 1.25), 0.85, 3.2);
   fasciaCache.set(f, g); return g;
+}
+
+let parapetG: THREE.BufferGeometry | null = null;
+/** Roof parapet: white rounded-rectangle wall following the outer slab edge and both atrium voids (group-local y 0 = roof slab top). */
+export function parapetGeo(): THREE.BufferGeometry {
+  if (parapetG) return parapetG;
+  const lines = [{ pts: rrSample(0, 0, HX + 0.3, HZ + 0.3, R_OUT + 0.3), closed: true }];
+  for (const c of COURTYARDS) lines.push({ pts: rrSample(c.x, c.z, c.w / 2 - 0.3, c.d / 2 - 0.3, R_CT - 0.3), closed: true });
+  parapetG = sweep(lines, FT, 1.15, 0.3, 3.2);
+  return parapetG;
 }
 
 let slabG: THREE.BufferGeometry | null = null;

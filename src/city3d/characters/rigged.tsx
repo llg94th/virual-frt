@@ -84,7 +84,7 @@ function preloadAll() {
   loadGltf(RIG_URL);
   loadGltf(`${BASE_DIR}Superhero_Male_FullBody.gltf`);
   loadGltf(`${BASE_DIR}Superhero_Female_FullBody.gltf`);
-  for (const k of ['open_arms', 'professional', 'teacher']) loadGltf(`${NPC_DIR}${k}.glb`);
+  for (const k of ['open_arms', 'professional']) loadGltf(`${NPC_DIR}${k}.glb`);
 }
 
 
@@ -271,9 +271,9 @@ export const RiggedCharacter: React.FC<RigProps> = ({ appearance, pose, height, 
 export const NPC_DIR = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/npc/`;
 export type NpcKind = 'open_arms' | 'professional' | 'teacher';
 export const npcKindFor = (a: CharacterAppearance): NpcKind => {
+  // No skirt body (stretches when seated, looked bad): everyone uses the two trouser bodies.
   const seed = hashStr(`${a.skin}${a.hair}${a.top}${a.bottom}${a.hairStyle}`);
-  const female = a.hairStyle === 'long' || a.hairStyle === 'bun' ? true : (seed & 1) === 1;
-  return female ? 'teacher' : ((seed >>> 7) & 1) === 1 ? 'professional' : 'open_arms';
+  return ((seed >>> 7) & 1) === 1 ? 'professional' : 'open_arms';
 };
 interface Ref { top: number; bottom: number }
 const refCache = new WeakMap<THREE.BufferGeometry, Ref>();

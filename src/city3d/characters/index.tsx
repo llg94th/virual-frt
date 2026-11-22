@@ -15,11 +15,8 @@ import { safeTop } from './color';
 import { buildGrid, pushOut, resolveGrid } from './walk';
 import type { Grid } from './walk';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
-import { FarHost, farEntries, joinFar, useFarLeader, makeFarColors, FAR_IN } from './far';
-import type { FarEntry } from './far';
-import { RpmCharacter } from './rpm';
-import { OfficeCharacter, MeshyCharacter, npcKindFor, RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
-import type { RigEntry } from './rigged';
+import { BoyCharacter } from './boy';
+import { RigBoundary, rigTick } from './rigged';
 
 export interface Character3DProps {
   appearance: CharacterAppearance; pose?: CharacterPose; position?: [number, number, number];
@@ -29,7 +26,6 @@ export interface Character3DProps {
   /** Desk worker: always the full RPM avatar (no arbiter cap / far LOD) inside OFFICE_RIG_RADIUS, with seat + keyboard IK. */
   office?: boolean;
 }
-const OFFICE_RIG_RADIUS = 70, OFFICE_RIG_OUT = 80;
 const og = { frame: -1, min: 1e9, minPrev: 1e9, last: 0 };
 
 // ---------------------------------------------------------------- caches
@@ -243,85 +239,42 @@ const ProceduralCharacter: React.FC<Character3DProps> = ({ appearance, pose = 'i
   );
 };
 
-// ---------------------------------------------------------------- Character3D (rigged when near, procedural otherwise)
+// ---------------------------------------------------------------- Character3D (the boy model when near, procedural otherwise)
+const BOY_IN = 60, BOY_OUT = 72;
 export const Character3D: React.FC<Character3DProps> = (props) => {
   const { appearance, pose = 'idle', position, rotationY = 0, scale = 1, priority = false, label, office = false } = props;
   const quality = useCity((s) => s.quality);
-  const rigStatus = useRigStatus();
   const eligible = !appearance.mascot || appearance.mascot === 'none';
-  const want = eligible && (priority || office || quality !== 'low');
-  useEffect(() => { if (want) ensureRigAsset(); }, [want]);
   const outer = useRef<THREE.Group>(null);
-  const entry = useMemo<RigEntry>(() => ({ dist: 1e9, priority, allowed: priority }), [priority]);
   const [on, setOn] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  useEffect(() => (want && !office ? registerRig(entry) : undefined), [want, office, entry]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
-  // far LOD (shared instanced rendering, see far.tsx)
-  const farOk = eligible && !office; // mascots stay procedural
-  const token = useMemo(() => ({}), []);
-  const fe = useMemo<FarEntry>(() => ({ active: false, pose, dist: 0, k: 1, m: new Float32Array(16), cols: new Float32Array(15) }), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const { scene } = useThree();
-  const leader = useFarLeader(token);
-  const [isFar, setFar] = useState(false);
-  const farRef = useRef(false);
-  useEffect(() => { if (!farOk) return; farEntries.add(fe); const un = joinFar(token); return () => { farEntries.delete(fe); un(); }; }, [farOk, fe, token]);
-  useEffect(() => { makeFarColors(appearance, fe.cols); }, [appearance, fe]);
-  fe.pose = pose; fe.k = 1.7 / 1.75; // every character is the 1.7 m open_arms body
-  const rigShown = useRef(false);
   useFrame((state) => {
-    const g = outer.current; if (!g) return;
+    const g = outer.current; if (!g || !eligible || failed) return;
+    rigTick(state.camera, state.gl.info.render.frame);
+    if (priority) { if (!on) setOn(true); return; }
     g.getWorldPosition(tmp);
     const dist = Math.hypot(state.camera.position.x - tmp.x, state.camera.position.z - tmp.z);
-    if (farOk) {
-      const wf = !priority && (farRef.current ? dist > FAR_IN - 3 : dist > FAR_IN);
-      if (wf !== farRef.current) { farRef.current = wf; setFar(wf); }
-      fe.dist = dist; fe.m.set(g.matrixWorld.elements);
-      fe.active = wf && !rigShown.current;
-    }
-    if (!want || rigStatus !== 'ready') return;
-    entry.dist = priority ? 0 : dist;
-    if (office) {
-      // no arbiter cap for desk workers: everyone inside the radius gets the full avatar; mounting is staggered (nearest first, one per 300 ms) so the main thread is not blocked
-      const fr = state.gl.info.render.frame; if (og.frame !== fr) { og.frame = fr; og.minPrev = og.min; og.min = 1e9; }
-      if (on) { if (dist > OFFICE_RIG_OUT) setOn(false); }
-      else if (dist < OFFICE_RIG_RADIUS) { og.min = Math.min(og.min, dist); const now = performance.now(); if (dist <= og.minPrev + 0.01 && now - og.last > 300) { og.last = now; setOn(true); } }
-      return;
-    }
-    rigTick(state.camera, state.gl.info.render.frame, performance.now());
-    if (entry.allowed !== on) setOn(entry.allowed);
+    // everyone inside the radius gets the full model; mounting is staggered (nearest first, one per 300 ms) so the main thread is not blocked
+    const fr = state.gl.info.render.frame; if (og.frame !== fr) { og.frame = fr; og.minPrev = og.min; og.min = 1e9; }
+    if (on) { if (dist > BOY_OUT) setOn(false); }
+    else if (dist < BOY_IN) { og.min = Math.min(og.min, dist); const now = performance.now(); if (dist <= og.minPrev + 0.01 && now - og.last > 300) { og.last = now; setOn(true); } }
   });
-  const useRig = want && rigStatus === 'ready' && on && !failed;
+  const useRig = eligible && on && !failed;
   useEffect(() => { if (!useRig) setReady(false); }, [useRig]);
   const showRig = useRig && ready;
-  rigShown.current = showRig;
   const height = appearance.height ?? 1.75;
   const procProps = { appearance, pose, label, position: undefined, rotationY: 0, scale: 1 };
   return (
     <group ref={outer} position={position} rotation-y={rotationY} scale={scale}>
-      {leader && farOk && createPortal(<FarHost />, scene)}
-      {!showRig && !(isFar && farOk) && <ProceduralCharacter {...procProps} />}
+      {!showRig && <ProceduralCharacter {...procProps} />}
       {useRig && (
-        <RigBoundary fallback={
-          <RigBoundary fatal onError={() => setFailed(true)}>
-            <React.Suspense fallback={null}>
-              <group visible={ready}>
-                <RiggedCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
-                  onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
-              </group>
-            </React.Suspense>
-          </RigBoundary>}>
+        <RigBoundary onError={() => setFailed(true)}>
           <React.Suspense fallback={null}>
             <group visible={ready}>
-              {NPC_MESHY && !priority ? (
-                <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority} onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />}>
-                  <RpmCharacter office={office} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority} onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
-                </RigBoundary>
-              ) : (
-                <OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
-                  onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
-              )}
+              <BoyCharacter office={office} appearance={appearance} pose={pose} height={Math.min(1.8, Math.max(1.6, height))} castShadow={quality !== 'low' || priority}
+                onReady={() => setReady(true)} speed={priority ? live.player.speed : undefined} />
             </group>
           </React.Suspense>
         </RigBoundary>
@@ -485,7 +438,6 @@ export function setObstacles(list: Array<Obstacle | Rect | any>) {
     : { minX: o.x - o.w / 2, maxX: o.x + o.w / 2, minZ: o.z - o.d / 2, maxZ: o.z + o.d / 2 });
 }
 /** Camera orbit hint written by dragging the mouse while walking; CameraRig may read it. */
-const NPC_MESHY = true; // NPCs and desk workers use the Meshy open_arms body (rpm.tsx); the player stays on the Quaternius OfficeCharacter (walk/run/drive not QA'd on open_arms)
 export const playerLook = { yaw: 0, pitch: 0.35, dist: 6 };
 
 // ---------------------------------------------------------------- Crowd

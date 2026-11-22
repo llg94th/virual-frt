@@ -8,12 +8,12 @@ import * as THREE from 'three';
 import { stylize } from '../characters/stylize';
 import { useFrame } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
-import { clone as skeletonClone, retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { FLOOR_H, live, cityStore, type Quality } from '../shared';
 import { FT } from './furn';
 import { FIGURES, moveFigure, findPath, type FigureSpot } from './nav';
 import { figWalk, nearestAgentDist } from './agents';
-import { RIG_URL, readGltf, inView } from '../characters/rigged';
+import { inView } from '../characters/rigged';
+import { BOY_URL, LEGACY_CLIP, useBoy, fadeTo } from '../characters/boy';
 
 const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/`;
 /** Original, untouched Meshy exports (static pose). The auto-rig stretched skirts/hems, so rigging is off by default. */
@@ -59,75 +59,29 @@ const StaticModel: React.FC<{ url: string; height: number; shadow: boolean }> = 
 };
 
 
-/** Meshy's own rig (Mixamo-style names) <- Quaternius UAL clips, retargeted once per clip */
-const MESHY_TO_UE: Record<string, string> = {
-  Hips: 'pelvis', Spine02: 'spine_01', Spine01: 'spine_02', Spine: 'spine_03', neck: 'neck_01', Head: 'Head',
-  LeftShoulder: 'clavicle_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', LeftHand: 'hand_l',
-  RightShoulder: 'clavicle_r', RightArm: 'upperarm_r', RightForeArm: 'lowerarm_r', RightHand: 'hand_r',
-  LeftUpLeg: 'thigh_l', LeftLeg: 'calf_l', LeftFoot: 'foot_l', LeftToeBase: 'ball_l',
-  RightUpLeg: 'thigh_r', RightLeg: 'calf_r', RightFoot: 'foot_r', RightToeBase: 'ball_r',
-};
-const firstSkinned = (o: THREE.Object3D) => { let r: THREE.SkinnedMesh | null = null; o.traverse((c) => { if (!r && (c as THREE.SkinnedMesh).isSkinnedMesh) r = c as THREE.SkinnedMesh; }); return r; };
-function retargeted(target: THREE.Object3D, ual: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, name: string): THREE.AnimationClip | undefined {
-  const src = ual.animations.find((a) => a.name === name) ?? ual.animations.find((a) => a.name === 'Idle_Loop');
-  const tm = firstSkinned(target), sm = firstSkinned(ual.scene);
-  if (!src || !tm || !sm) return undefined;
-  return retargetClip(tm, sm, src, { names: MESHY_TO_UE, hip: 'Hips', preserveBoneMatrix: true, useFirstFramePosition: true });
-}
-
-/** rigged model + mixer playing UAL1 clips by bone name */
-const RigModel: React.FC<{ url: string; height: number; shadow: boolean; api: React.MutableRefObject<Api> }> = ({ url, height, shadow, api }) => {
-  const gltf = useGLTF(url, false, false) as unknown as { scene: THREE.Object3D };
-  const ual = readGltf(RIG_URL); // throws a promise while loading (Suspense) or the error (-> static fallback)
-  const { wrap, mixer } = useMemo(() => {
-    const o = skeletonClone(gltf.scene);
-    const wrap = new THREE.Group(); wrap.add(o); o.updateMatrixWorld(true);
-    const bb = new THREE.Box3().setFromObject(o); const hh = bb.max.y - bb.min.y; wrap.scale.setScalar(hh > 0.5 ? height / hh : height / 1.82); o.position.y -= bb.min.y;
-    prep(o, shadow);
-    return { wrap, mixer: new THREE.AnimationMixer(o) };
-  }, [gltf, height, shadow]);
+/** the boy model + mixer; behaviours still use the old clip names, mapped to the boy's own clips */
+const RigModel: React.FC<{ url: string; height: number; shadow: boolean; api: React.MutableRefObject<Api> }> = ({ height, shadow, api }) => {
+  const rig = useBoy(height, shadow);
   const cur = useRef<THREE.AnimationAction | null>(null);
   const once = useRef(false);
-  const cache = useRef(new Map<string, THREE.AnimationClip>());
-  const extra = useRef(new Map<string, THREE.AnimationClip>());
-  useEffect(() => { // per-figure Mixamo clips (retargeted offline onto this figure's rig); optional
-    const id = /([a-z_]+)_rigged\.glb$/.exec(url)?.[1]; if (!id) return;
-    let alive = true;
-    fetch(`${ROOT}clips/${id}_mixamo.json`).then((r) => (r.ok ? r.json() : [])).then((list: unknown) => {
-      if (!alive || !Array.isArray(list)) return;
-      for (const j of list) { try { extra.current.set(j.name, THREE.AnimationClip.parse({ ...j, uuid: THREE.MathUtils.generateUUID(), tracks: j.tracks.map((t: { name: string; type: string; times: number[]; values: number[] }) => ({ ...t, type: t.type === 'vector' ? 'vector' : 'quaternion' })) })); } catch { /* skip bad clip */ } }
-    }).catch(() => {});
-    return () => { alive = false; };
-  }, [url]);
-  const isMeshy = useMemo(() => { let r = false; wrap.traverse((c) => { if (c.name === 'Hips') r = true; }); return r; }, [wrap]);
   useEffect(() => {
     const onFin = (e: { action: THREE.AnimationAction }) => { if (once.current && e.action === cur.current) { once.current = false; api.current.onFinished?.(); } };
-    mixer.addEventListener('finished', onFin as never);
+    rig.mixer.addEventListener('finished', onFin as never);
     api.current.play = (name, o) => {
-      if (name.startsWith('Mx_')) { // Mixamo clips baked for this rig: use if loaded, otherwise the UAL equivalent
-        const mx = extra.current.get(name);
-        if (!mx) { api.current.play('Interact', o); return; }
-        cache.current.set(name, mx);
-      }
-      const root = wrap.children[0]; const key = name; let clip = cache.current.get(key);
-      if (!clip) { clip = isMeshy ? retargeted(root, ual, name) : (THREE.AnimationClip.findByName(ual.animations, name) ?? THREE.AnimationClip.findByName(ual.animations, 'Idle_Loop')); if (clip) cache.current.set(key, clip); }
-      if (!clip) return;
-      const next = isMeshy ? mixer.clipAction(clip, firstSkinned(wrap.children[0]) ?? undefined) : mixer.clipAction(clip);
-      if (next === cur.current && !o) return;
-      next.reset().setLoop(o ? THREE.LoopOnce : THREE.LoopRepeat, o ? 1 : Infinity); next.clampWhenFinished = o; once.current = o;
-      next.play(); if (cur.current && cur.current !== next) cur.current.crossFadeTo(next, 0.25, false); else next.fadeIn(0.25);
-      cur.current = next;
+      const clip = rig.clips.has(name) ? name : (LEGACY_CLIP[name] ?? 'Idle');
+      once.current = o;
+      fadeTo(rig, cur, clip, o, 1, 0.25);
     };
-    api.current.play('Idle_Loop', false); mixer.update(Math.random() * 3);
-    return () => { mixer.removeEventListener('finished', onFin as never); mixer.stopAllAction(); mixer.uncacheRoot(wrap.children[0]); api.current.play = () => {}; };
-  }, [mixer, ual, wrap, api]);
+    api.current.play('Idle', false); rig.mixer.update(Math.random() * 3);
+    return () => { rig.mixer.removeEventListener('finished', onFin as never); rig.mixer.stopAllAction(); rig.mixer.uncacheRoot(rig.wrap.children[0]); cur.current = null; api.current.play = () => {}; };
+  }, [rig, api]);
   useFrame((state, dt) => {
-    wrap.updateWorldMatrix(true, false);
-    const e = wrap.matrixWorld.elements;
+    rig.wrap.updateWorldMatrix(true, false);
+    const e = rig.wrap.matrixWorld.elements;
     if (!inView(e[12], e[13] + 0.9, e[14])) return; // freeze when off-screen
-    mixer.update(Math.min(dt, 0.1));
+    rig.mixer.update(Math.min(dt, 0.1));
   });
-  return <primitive object={wrap} />;
+  return <primitive object={rig.wrap} />;
 };
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -145,8 +99,8 @@ const LEGS: Record<string, [number, number][]> = {
 };
 
 const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) => {
-  const rigUrl = `${ROOT}rigged/${f.file}_rigged.glb`, staticUrl = USE_RIG ? `${ROOT}${f.file}.glb` : `${ORIGINAL}${f.file}.glb`;
-  const rigExists = useExists(rigUrl), staticOk = useExists(staticUrl); const rigOk = USE_RIG ? rigExists : false;
+  const rigUrl = BOY_URL, staticOk = false;
+  const rigOk = useExists(rigUrl);
   const g = useRef<THREE.Group>(null!);
   const api = useRef<Api>({ play: () => {}, onFinished: null });
   const [chip, setChip] = useState(false);
@@ -241,7 +195,7 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
 
   if (rigOk === null || staticOk === null) return null;
   const shadow = quality !== 'low';
-  const staticFb = staticOk ? <Boundary><Suspense fallback={null}><StaticModel url={staticUrl} height={f.height} shadow={shadow} /></Suspense></Boundary> : null;
+  const staticFb = null;
   return (
     <group ref={g} position={[f.hx, y0, f.hz]} rotation={[0, f.yaw, 0]}
       onPointerOver={(e) => { e.stopPropagation(); hover.current = true; }} onPointerOut={() => { hover.current = false; }}>

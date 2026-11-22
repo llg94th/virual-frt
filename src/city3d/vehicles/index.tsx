@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { stylize } from '../characters/stylize';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -353,6 +354,7 @@ function bakeVariant(scene: THREE.Object3D, targetLen: number, rotY = 0): KitVar
   const sc = targetLen / sz.z;
   geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
   geo.scale(sc, sc, sc);
+  stylize(mat);
   return { geo, mat, len: sz.z * sc, wid: sz.x * sc, h: sz.y * sc };
 }
 

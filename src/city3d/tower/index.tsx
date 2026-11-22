@@ -11,9 +11,9 @@ import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCit
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
-import { getFloor, Furn, FT, CLEAR, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
+import { getFloor, atriumFlights, Furn, FT, CLEAR, CORE, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
 import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, lookOf, type Agent } from './agents';
-import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor } from './nav';
+import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor, playerCollidersFor } from './nav';
 import { getProp, usePropsState } from './props';
 import { fasciaGeo, slabGeo, cortenGeo, carpetGeo } from './facade';
 import { LongChauGreeter } from './greeter';
@@ -282,7 +282,29 @@ const Elevators: React.FC<{ mats: Mats }> = ({ mats }) => {
   const a = useRef<THREE.Group>(null!), b = useRef<THREE.Group>(null!);
   const da = useRef<THREE.Group>(null!), db = useRef<THREE.Group>(null!);
   const open = useRef(0);
+  // floor indicator on the lintel above the player's lift doorway (follows the player's floor, shows "B1"/"F1".."F7")
+  const ind = useMemo(() => {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+    return { cv, tex, mat, last: -99 };
+  }, []);
+  const indRef = useRef<THREE.Mesh>(null!);
   useFrame(({ clock }, dt) => {
+    const pfl = live.playerFloor;
+    if (indRef.current) {
+      indRef.current.visible = pfl !== null;
+      if (pfl !== null) {
+        indRef.current.position.y = FT + pfl * FLOOR_H + 2.78;
+        if (ind.last !== pfl) {
+          ind.last = pfl;
+          const c = ind.cv.getContext('2d')!;
+          c.fillStyle = '#10201f'; c.fillRect(0, 0, 128, 64);
+          c.fillStyle = '#7dffb0'; c.font = 'bold 44px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText(pfl < 0 ? 'B1' : 'F' + (pfl + 1), 64, 34); ind.tex.needsUpdate = true;
+        }
+      }
+    }
     const sel = cityStore.get().selectedFloor;
     const maxF = sel === null ? TOWER_FLOORS - 1 : Math.min(sel, TOWER_FLOORS - 1);
     const pf = live.playerFloor;
@@ -307,7 +329,8 @@ const Elevators: React.FC<{ mats: Mats }> = ({ mats }) => {
       </group>
     </group>
   );
-  return <>{cabin(a, da, -3.75)}{cabin(b, db, -1.25)}</>;
+  return <>{cabin(a, da, -3.75)}{cabin(b, db, -1.25)}
+    <mesh ref={indRef} position={[LIFT_PAD.x, 3, CORE.z + CORE.d / 2 + 0.13]} scale={[0.9, 0.45, 1]} material={ind.mat} visible={false}><planeGeometry args={[1, 1]} /></mesh></>;
 };
 
 // ---------- people ----------
@@ -445,10 +468,10 @@ export const FrtTower: React.FC = () => {
   // interior registry for the Player (walk-in): floor heights, colliders, entrance, lift pad
   useEffect(() => {
     interior.floorY = (f) => f * FLOOR_H + FT;
-    interior.colliders = (f) => collidersFor(f);
+    interior.colliders = (f) => playerCollidersFor(f);
     interior.entrance = { outside: ENTRANCE.outside, inside: ENTRANCE.inside };
     interior.lifts = [{ x: LIFT_PAD.x, z: LIFT_PAD.z, r: LIFT_PAD.r }];
-    interior.stairs = [];
+    interior.stairs = atriumFlights().map((s) => ({ floorA: s.floorA, floorB: s.floorB, a: s.a, b: s.b, width: s.width }));
     interior.ready = true;
     return () => { interior.ready = false; };
   }, []);

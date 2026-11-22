@@ -272,6 +272,21 @@ export class Furn {
 
 // ---------- shared parts ----------
 const R_OUT = 5, R_CT = 3;
+/** Concrete stair flights down the atrium sides: flight (k, f) links floor f (top, `b`) to floor f-1 (bottom, `a`). */
+export const STAIR_W = 1.4;
+export interface AtriumFlight { k: number; floorA: number; floorB: number; a: [number, number]; b: [number, number]; width: number; len: number; dir: number }
+let _flights: AtriumFlight[] | null = null;
+export function atriumFlights(): AtriumFlight[] {
+  if (_flights) return _flights;
+  const out: AtriumFlight[] = [];
+  COURTYARDS.forEach((c, k) => {
+    const dir = k === 0 ? 1 : -1, len = c.d + 0.2; // spans the whole void, 0.1 m onto each slab edge
+    const xx = c.x + (k === 0 ? 1 : -1) * (c.w / 2 - R_CT - 1.0); // inside the straight part of the (rounded) atrium edge
+    for (let f = 1; f <= TOWER_FLOORS - 1; f++)
+      out.push({ k, floorA: f - 1, floorB: f, a: [xx, c.z + (dir * len) / 2], b: [xx, c.z - (dir * len) / 2], width: STAIR_W, len, dir });
+  });
+  return (_flights = out);
+}
 function shell(F: Furn, f: number) {
   const W = 2 * HX, D = 2 * HZ;
   if (F.solid) {
@@ -288,7 +303,15 @@ function shell(F: Furn, f: number) {
   const rc = R_CT;
   COURTYARDS.forEach((c, k) => {
     const x0 = c.x - c.w / 2 - e, x1 = c.x + c.w / 2 + e, z0 = c.z - c.d / 2 - e, z1 = c.z + c.d / 2 + e;
-    F.frame(x0 + rc, z0, x1 - rc, z0, 4); F.frame(x0 + rc, z1, x1 - rc, z1, 4); F.frame(x0, z0 + rc, x0, z1 - rc, 4); F.frame(x1, z0 + rc, x1, z1 - rc, 4);
+    // north/south railings are opened where a stair flight starts (high end of flight f, low end of flight f+1)
+    const hasTop = f >= 1 && f <= TOWER_FLOORS - 1, hasBot = f >= 0 && f <= TOWER_FLOORS - 2;
+    const xs = c.x + (k === 0 ? 1 : -1) * (c.w / 2 - R_CT - 1.0);
+    const edgeZ = (zz: number, open: boolean) => {
+      if (!open) F.frame(x0 + rc, zz, x1 - rc, zz, 4);
+      else { F.frame(x0 + rc, zz, xs - 0.9, zz, 4); F.frame(xs + 0.9, zz, x1 - rc, zz, 4); }
+    };
+    edgeZ(z0, k === 0 ? hasTop : hasBot); edgeZ(z1, k === 0 ? hasBot : hasTop);
+    F.frame(x0, z0 + rc, x0, z1 - rc, 4); F.frame(x1, z0 + rc, x1, z1 - rc, 4);
     // trailing greenery on the atrium railings
     const rnd = mulberry32(f * 31 + k * 7 + 5);
     for (let i = 0; i < 9; i++) {
@@ -296,16 +319,15 @@ function shell(F: Furn, f: number) {
       const px = side < 2 ? c.x + u : side === 2 ? x0 : x1, pz = side < 2 ? (side === 0 ? z0 : z1) : c.z + u;
       F.cover(px, 0.95, pz, rnd(), 0.8);
     }
-    // concrete stair flight cascading down the atrium side (connects this floor to the one below)
-    if (f >= 1) {
-      const len = 6.2, a = Math.atan2(FLOOR_H, len), L = Math.hypot(len, FLOOR_H);
-      const sx = k === 0 ? 1 : -1, xx = c.x + sx * (c.w / 2 - 1.1);
-      const zc = c.z + (k === 0 ? 1 : -1) * (-c.d / 2 + 0.6 + len / 2) * -1 * -1;
-      const dir = k === 0 ? 1 : -1; // descends toward +z for k=0, toward -z for k=1
-      const zmid = c.z - dir * (c.d / 2 - 0.6 - len / 2);
-      void zc;
-      F.boxes.push({ p: [xx, FT - FLOOR_H / 2 - 0.12, zmid], s: [1.4, 0.24, L], c: '#c9cdcc', r: 0, rx: dir * a });
-      for (const o of [-0.7, 0.7]) F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.95, zmid], s: [0.04, 0.04, L], c: '#2b3338', r: 0, rx: dir * a });
+    // concrete stair flight cascading down the atrium side (connects this floor to the one below).
+    // Geometry comes from atriumFlights() so the walkable ramp registered in `interior.stairs` matches this exactly.
+    if (f >= 1 && f <= TOWER_FLOORS - 1) {
+      const fl = atriumFlights().find((q) => q.k === k && q.floorB === f)!;
+      const len = fl.len, a = Math.atan2(FLOOR_H, len), L = Math.hypot(len, FLOOR_H);
+      const xx = fl.a[0], dir = fl.dir; // descends toward +z for k=0, toward -z for k=1
+      const zmid = c.z;
+      F.boxes.push({ p: [xx, FT - FLOOR_H / 2 - 0.12, zmid], s: [STAIR_W, 0.24, L], c: '#c9cdcc', r: 0, rx: dir * a });
+      for (const o of [-STAIR_W / 2, STAIR_W / 2]) F.boxes.push({ p: [xx + o, FT - FLOOR_H / 2 + 0.95, zmid], s: [0.04, 0.04, L], c: '#2b3338', r: 0, rx: dir * a });
     }
     // red-brown (corten) pedestrian bridge across the atrium at the second storey
     if (f === 1) {

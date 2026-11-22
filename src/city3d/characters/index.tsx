@@ -745,6 +745,8 @@ const PlayerInner: React.FC = () => {
     s.onPad = false;
     if (I.ready && inBuilding) {
       for (const L of I.lifts) if (Math.hypot(P.x - L.x, P.z - L.z) < L.r) { s.onPad = true; break; }
+      // flights can overlap in plan (stacked, one storey apart): take the one whose surface is closest to the player's height
+      let best: { y: number; floor: number } | null = null, bestD = 1.0;
       for (const S of I.stairs) {
         if (s.floor !== S.floorA && s.floor !== S.floorB) continue;
         const ax = S.a[0], az = S.a[1], bx = S.b[0], bz = S.b[1], ex = bx - ax, ez = bz - az, el = ex * ex + ez * ez || 1;
@@ -753,10 +755,11 @@ const PlayerInner: React.FC = () => {
         const lx = P.x - (ax + ex * t), lz = P.z - (az + ez * t);
         if (Math.hypot(lx, lz) > S.width / 2) continue;
         const tc = Math.max(0, Math.min(1, t));
-        stairY = I.floorY(S.floorA) + (I.floorY(S.floorB) - I.floorY(S.floorA)) * tc;
-        s.floor = tc < 0.5 ? S.floorA : S.floorB;
-        break;
+        const y = I.floorY(S.floorA) + (I.floorY(S.floorB) - I.floorY(S.floorA)) * tc;
+        const dd = Math.abs(y - s.gy);
+        if (dd < bestD) { bestD = dd; best = { y, floor: tc < 0.5 ? S.floorA : S.floorB }; }
       }
+      if (best) { stairY = best.y; s.floor = best.floor; }
     }
     const hint = s.onPad ? 'Thang máy: phím 0-7 chọn tầng (0 = B1), E/Q lên/xuống' : '';
     if (hint !== s.hint) { s.hint = hint; try { window.dispatchEvent(new CustomEvent('city3d:hint', { detail: { text: hint } })); } catch { /* ignore */ } }

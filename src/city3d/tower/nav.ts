@@ -3,7 +3,7 @@
  * Everything is derived from the same Furn layout data that is instanced (no hand-copied furniture numbers).
  */
 import { FLOOR_DEPARTMENTS, type Rect2 } from '../shared';
-import { getFloor, HX, HZ, K, COURTYARDS, CORE, FT, type Box } from './furn';
+import { getFloor, HX, HZ, K, COURTYARDS, CORE, FT, atriumFlights, type Box } from './furn';
 
 export const CELL = 0.5;
 export const GW = Math.ceil((2 * HX) / CELL);
@@ -66,6 +66,49 @@ export function collidersFor(f: number): Rect2[] {
   for (const fg of FIGURES) if (fg.floor === f) out.push(fg.rect); // live rect: updated in place when the figure walks
   collCache.set(f, out);
   return out;
+}
+
+/**
+ * Colliders for the Player only: same as collidersFor() but with a gap cut through the atrium railing / courtyard
+ * collider along each stair flight (whole strip over the void, plus the railing opening at the open end), so the
+ * flights can be entered and left. Agents keep using collidersFor() and never see these gaps.
+ */
+const playerCache = new Map<number, Rect2[]>();
+export function playerCollidersFor(f: number): Rect2[] {
+  const hit = playerCache.get(f); if (hit) return hit;
+  const cuts: Rect2[] = [];
+  for (const fl of atriumFlights()) {
+    if (fl.floorA !== f && fl.floorB !== f) continue;
+    const c = COURTYARDS[fl.k], hw = fl.width / 2 + 0.1, x = fl.a[0];
+    const north = c.z - c.d / 2, south = c.z + c.d / 2, out = 1.0;
+    const highNorth = fl.dir === 1; // high end (floorB) on the north side for k=0
+    const openNorth = fl.floorB === f ? highNorth : !highNorth;
+    cuts.push({ minX: x - hw, maxX: x + hw, minZ: openNorth ? north - out : north, maxZ: openNorth ? south : south + out });
+  }
+  let res = collidersFor(f);
+  if (cuts.length) {
+    const outR: Rect2[] = [];
+    for (const r of res) {
+      if (figureRects.has(r)) { outR.push(r); continue; } // live figure rects are shared and mutated in place
+      let parts = [r];
+      for (const cu of cuts) {
+        const next: Rect2[] = [];
+        for (const q of parts) {
+          if (q.maxX <= cu.minX || q.minX >= cu.maxX || q.maxZ <= cu.minZ || q.minZ >= cu.maxZ) { next.push(q); continue; }
+          if (q.minX < cu.minX) next.push({ minX: q.minX, maxX: cu.minX, minZ: q.minZ, maxZ: q.maxZ });
+          if (q.maxX > cu.maxX) next.push({ minX: cu.maxX, maxX: q.maxX, minZ: q.minZ, maxZ: q.maxZ });
+          const mx0 = Math.max(q.minX, cu.minX), mx1 = Math.min(q.maxX, cu.maxX);
+          if (q.minZ < cu.minZ) next.push({ minX: mx0, maxX: mx1, minZ: q.minZ, maxZ: cu.minZ });
+          if (q.maxZ > cu.maxZ) next.push({ minX: mx0, maxX: mx1, minZ: cu.maxZ, maxZ: q.maxZ });
+        }
+        parts = next;
+      }
+      outR.push(...parts);
+    }
+    res = outR;
+  }
+  playerCache.set(f, res);
+  return res;
 }
 
 const gridCache = new Map<number, Uint8Array>();

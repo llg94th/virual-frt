@@ -29,12 +29,13 @@ function useMats() {
   return useMemo(() => {
     const glassFull = new THREE.MeshStandardMaterial({ color: '#1d2d33', transparent: true, opacity: 0.55, roughness: 0.15, metalness: 0.5, depthWrite: false, side: THREE.DoubleSide, emissive: '#ffd9a0', emissiveIntensity: 0 });
     const glassCut = new THREE.MeshStandardMaterial({ color: '#9fd8d4', transparent: true, opacity: 0.05, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide });
-    const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 });
+    const grainBox = (() => { if (typeof document === 'undefined') return null; const t = (document.createElement('canvas')); t.width = t.height = 128; const g = t.getContext('2d')!; const r = mulberry32(21); g.fillStyle = '#f8f8f8'; g.fillRect(0, 0, 128, 128); for (let i = 0; i < 90; i++) { const v = 224 + ((r() * 30) | 0); g.fillStyle = `rgba(${v},${v},${v},0.5)`; const s = 6 + r() * 26; g.beginPath(); g.ellipse(r() * 128, r() * 128, s, s * (0.25 + r() * 0.4), 0, 0, 7); g.fill(); } for (let i = 0; i < 700; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'; g.fillRect(r() * 128, r() * 128, 1, 1); } const c = new THREE.CanvasTexture(t); c.colorSpace = THREE.SRGBColorSpace; c.anisotropy = 4; return c; })();
+    const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', map: grainBox, roughness: 0.72, metalness: 0.04 });
     const inner = new THREE.MeshStandardMaterial({ color: '#dfe9e6', transparent: true, opacity: 0.08, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
     const screen = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
     const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
-    const slab = new THREE.MeshStandardMaterial({ color: '#f2f4f3', roughness: 0.8 });
+    const slab = new THREE.MeshStandardMaterial({ color: '#f2f4f3', roughness: 0.7 });
     const dots = (() => {
       if (typeof document === 'undefined') return null;
       const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
@@ -51,10 +52,29 @@ function useMats() {
     };
     // sage carpet tiles (0.5 m tiles) with a faint weave
     const carpetMap = tex((g, n) => {
-      g.fillStyle = '#738c72'; g.fillRect(0, 0, n, n);
-      const r = mulberry32(5); for (let i = 0; i < 1400; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,40,0,0.06)'; g.fillRect(r() * n, r() * n, 2, 2 + r() * 4); }
-      g.strokeStyle = 'rgba(40,80,40,0.35)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, n - 3, n - 3);
+      const h = n / 2, r = mulberry32(5);
+      // 2x2 tiles, each a slightly different dye lot
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { const v = (r() - 0.5) * 16; g.fillStyle = `rgb(${115 + v},${140 + v},${114 + v})`; g.fillRect(x * h, y * h, h, h); }
+      for (let i = 0; i < 9000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.07)' : 'rgba(0,30,0,0.09)'; g.fillRect(r() * n, r() * n, 1.5, 1.5 + r() * 3); }
+      g.strokeStyle = 'rgba(30,60,30,0.45)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, n - 3, n - 3);
+      g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
     }, 2);
+    // greyscale pile bump (shared by carpet): fibre speckle + tile seams
+    const carpetBump = tex((g, n) => {
+      const h = n / 2, r = mulberry32(6);
+      g.fillStyle = '#808080'; g.fillRect(0, 0, n, n);
+      for (let i = 0; i < 14000; i++) { const v = (r() * 255) | 0; g.fillStyle = `rgba(${v},${v},${v},0.55)`; g.fillRect(r() * n, r() * n, 1.5, 1.5 + r() * 2.5); }
+      g.strokeStyle = '#303030'; g.lineWidth = 4; g.strokeRect(2, 2, n - 4, n - 4);
+      g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
+    }, 2);
+    // soft blotchy grain for all instanced furniture boxes / concrete: breaks up flat colour (multiplies instance colour)
+    const grain = (rep: number, grid: boolean, seed: number) => tex((g, n) => {
+      const r = mulberry32(seed);
+      g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, n, n);
+      for (let i = 0; i < 260; i++) { const v = 215 + ((r() * 40) | 0); g.fillStyle = `rgba(${v},${v},${v},0.5)`; const s = 14 + r() * 70; g.beginPath(); g.ellipse(r() * n, r() * n, s, s * (0.3 + r() * 0.5), r() * 3, 0, 7); g.fill(); }
+      for (let i = 0; i < 5000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)'; g.fillRect(r() * n, r() * n, 1.5, 1.5); }
+      if (grid) { g.strokeStyle = 'rgba(120,125,125,0.5)'; g.lineWidth = 3; const q = n / 4; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(i * q, 0); g.lineTo(i * q, n); g.moveTo(0, i * q); g.lineTo(n, i * q); g.stroke(); } }
+    }, rep);
     // marble lobby: 2 m tiles, alternate tone, light veins
     const marbleMap = tex((g, n) => {
       const h = n / 2, r = mulberry32(9);
@@ -63,8 +83,9 @@ function useMats() {
       for (let i = 0; i < 26; i++) { g.beginPath(); let px = r() * n, py = r() * n; g.moveTo(px, py); for (let k = 0; k < 5; k++) { px += (r() - 0.5) * 90; py += (r() - 0.3) * 90; g.lineTo(px, py); } g.stroke(); }
       g.strokeStyle = '#a9a79c'; g.lineWidth = 4; g.strokeRect(2, 2, n - 4, n - 4); g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
     }, 0.25);
-    const carpet = new THREE.MeshStandardMaterial({ color: '#ffffff', map: carpetMap, roughness: 1 });
-    const marble = new THREE.MeshStandardMaterial({ color: '#ffffff', map: marbleMap, roughness: 0.35, metalness: 0.05 });
+    const slabMap = grain(0.25, true, 33); slab.map = slabMap;
+    const carpet = new THREE.MeshStandardMaterial({ color: '#ffffff', map: carpetMap, bumpMap: carpetBump, bumpScale: 1.6, roughness: 0.96, envMapIntensity: 0.6 });
+    const marble = new THREE.MeshStandardMaterial({ color: '#ffffff', map: marbleMap, roughness: 0.22, metalness: 0.05, bumpMap: marbleMap, bumpScale: 0.4 });
     const plate = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     const prop = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.75, metalness: 0.05 });
     const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });

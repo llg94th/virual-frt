@@ -64,7 +64,7 @@ const PostFxInner: React.FC = () => {
   });
 
   const fx: JSX.Element[] = [];
-  if (high) fx.push(<N8AO key="ao" aoRadius={5} distanceFalloff={2} intensity={2.4} quality="medium" halfRes />);
+  if (high) fx.push(<N8AO key="ao" aoRadius={2.2} distanceFalloff={1.2} intensity={3.2} quality="medium" halfRes />);
   fx.push(<Bloom key="bloom" ref={bloom} mipmapBlur luminanceThreshold={low ? 1.0 : 0.85} luminanceSmoothing={0.25} intensity={1} radius={0.75} />);
   fx.push(<primitive key="grade" object={grade} />);
   if (high) fx.push(<ChromaticAberration key="ca" offset={caOffset} radialModulation={false} modulationOffset={0} blendFunction={BlendFunction.NORMAL} />);

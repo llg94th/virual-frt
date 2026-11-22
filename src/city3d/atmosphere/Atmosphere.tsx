@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { cityStore, live, useCity, mulberry32, Quality, Weather } from '../shared';
 import { wx, emitThunder } from './weatherState';
 import { Rain, CloudLayer } from './Weather';
@@ -30,9 +31,9 @@ const MOON_COL = new THREE.Color('#9db4ff');
 const DAWN_PINK = new THREE.Color('#ff9fa0');
 const WHITE = new THREE.Color('#ffffff');
 const NIGHT_CLOUD = new THREE.Color('#0a0e1c');
-const HEMI_SKY_DAY = new THREE.Color('#bcd8ff');
+const HEMI_SKY_DAY = new THREE.Color('#e2ecf8'); // near-neutral so shaded walls are not blue
 const HEMI_SKY_NIGHT = new THREE.Color('#1a2550');
-const HEMI_GROUND_DAY = new THREE.Color('#2f2b25'); // dark ground bounce fakes AO under overhangs
+const HEMI_GROUND_DAY = new THREE.Color('#6f685c'); // warm floor bounce for interiors
 const HEMI_GROUND_NIGHT = new THREE.Color('#0b0d16');
 
 const sstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -141,6 +142,19 @@ export const Atmosphere: React.FC = () => {
   useEffect(() => () => { S.current.timeouts.forEach(clearTimeout); }, []);
   useEffect(() => () => { skyMat.dispose(); starGeo.dispose(); starMat.dispose(); moonTex.dispose(); moonMat.dispose(); }, [skyMat, starGeo, starMat, moonTex, moonMat]);
 
+  // Neutral studio-like environment map (one-off PMREM): soft reflections + interior fill on every PBR material.
+  useEffect(() => {
+    let tex: THREE.Texture | null = null;
+    try {
+      const pm = new THREE.PMREMGenerator(gl);
+      const room = new RoomEnvironment();
+      const rt = pm.fromScene(room, 0.04);
+      tex = rt.texture; scene.environment = tex;
+      room.dispose(); pm.dispose();
+    } catch (e) { console.warn('[city3d] env map skipped', e); }
+    return () => { if (scene.environment === tex) scene.environment = null; tex?.dispose(); };
+  }, [scene, gl]);
+
   // sun target must live in the scene for the directional light direction
   useEffect(() => {
     const l = sunRef.current; if (!l) return;
@@ -244,7 +258,7 @@ export const Atmosphere: React.FC = () => {
       const moonMode = elev < -0.02;
       _dir.copy(moonMode ? _moon : _sun);
       const mode = cityStore.get().cameraMode;
-      const wantS = mode === 'cinematic' ? 120 : mode === 'follow' || mode === 'drive' ? 55 : 95;
+      const wantS = mode === 'cinematic' ? 120 : mode === 'follow' || mode === 'drive' ? 55 : mode === 'cutaway' ? 52 : 95;
       s.shadowS += (wantS - s.shadowS) * (1 - Math.exp(-dt * 2));
       const S2 = s.shadowS;
       // focus point
@@ -270,7 +284,12 @@ export const Atmosphere: React.FC = () => {
     if (hemi) {
       hemi.color.copy(HEMI_SKY_NIGHT).lerp(HEMI_SKY_DAY, dayRaw).lerp(_tmpHor, 0.25 * (1 - Math.abs(elev)));
       hemi.groundColor.copy(HEMI_GROUND_NIGHT).lerp(HEMI_GROUND_DAY, dayRaw);
-      hemi.intensity = (0.26 + 0.62 * dayRaw) * (1 - 0.2 * s.dark) + flash * 4;
+      hemi.intensity = (0.22 + 0.5 * dayRaw) * (1 - 0.2 * s.dark) + flash * 4;
+    }
+    // env map = interior fill + reflections; fades with daylight/weather, never fully black
+    {
+      const sc = scene as THREE.Scene & { environmentIntensity?: number };
+      sc.environmentIntensity = (0.1 + 0.42 * dayRaw) * (1 - 0.35 * s.dark) * (quality === 'low' ? 0.6 : 1) + flash * 0.6;
     }
   });
 

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { stylize } from '../characters/stylize';
 import { useFrame } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
-import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { clone as skeletonClone, retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { FLOOR_H, live, cityStore, type Quality } from '../shared';
 import { FT } from './furn';
 import { FIGURES, moveFigure, findPath, type FigureSpot } from './nav';
@@ -17,7 +17,7 @@ import { RIG_URL, readGltf, inView } from '../characters/rigged';
 
 const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/`;
 /** Original, untouched Meshy exports (static pose). The auto-rig stretched skirts/hems, so rigging is off by default. */
-const USE_RIG = false;
+const USE_RIG = true;
 const ORIGINAL = `${ROOT}original/`;
 const exists = new Map<string, Promise<boolean>>();
 const check = (url: string) => {
@@ -58,25 +58,46 @@ const StaticModel: React.FC<{ url: string; height: number; shadow: boolean }> = 
   return <primitive object={obj} />;
 };
 
+
+/** Meshy's own rig (Mixamo-style names) <- Quaternius UAL clips, retargeted once per clip */
+const MESHY_TO_UE: Record<string, string> = {
+  Hips: 'pelvis', Spine02: 'spine_01', Spine01: 'spine_02', Spine: 'spine_03', neck: 'neck_01', Head: 'Head',
+  LeftShoulder: 'clavicle_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', LeftHand: 'hand_l',
+  RightShoulder: 'clavicle_r', RightArm: 'upperarm_r', RightForeArm: 'lowerarm_r', RightHand: 'hand_r',
+  LeftUpLeg: 'thigh_l', LeftLeg: 'calf_l', LeftFoot: 'foot_l', LeftToeBase: 'ball_l',
+  RightUpLeg: 'thigh_r', RightLeg: 'calf_r', RightFoot: 'foot_r', RightToeBase: 'ball_r',
+};
+const firstSkinned = (o: THREE.Object3D) => { let r: THREE.SkinnedMesh | null = null; o.traverse((c) => { if (!r && (c as THREE.SkinnedMesh).isSkinnedMesh) r = c as THREE.SkinnedMesh; }); return r; };
+function retargeted(target: THREE.Object3D, ual: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }, name: string): THREE.AnimationClip | undefined {
+  const src = ual.animations.find((a) => a.name === name) ?? ual.animations.find((a) => a.name === 'Idle_Loop');
+  const tm = firstSkinned(target), sm = firstSkinned(ual.scene);
+  if (!src || !tm || !sm) return undefined;
+  return retargetClip(tm, sm, src, { names: MESHY_TO_UE, hip: 'Hips', preserveBoneMatrix: true, useFirstFramePosition: true });
+}
+
 /** rigged model + mixer playing UAL1 clips by bone name */
 const RigModel: React.FC<{ url: string; height: number; shadow: boolean; api: React.MutableRefObject<Api> }> = ({ url, height, shadow, api }) => {
   const gltf = useGLTF(url, false, false) as unknown as { scene: THREE.Object3D };
   const ual = readGltf(RIG_URL); // throws a promise while loading (Suspense) or the error (-> static fallback)
   const { wrap, mixer } = useMemo(() => {
     const o = skeletonClone(gltf.scene);
-    const wrap = new THREE.Group(); wrap.add(o); wrap.scale.setScalar(height / 1.82);
+    const wrap = new THREE.Group(); wrap.add(o); o.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(o); const hh = bb.max.y - bb.min.y; wrap.scale.setScalar(hh > 0.5 ? height / hh : height / 1.82); o.position.y -= bb.min.y;
     prep(o, shadow);
     return { wrap, mixer: new THREE.AnimationMixer(o) };
   }, [gltf, height, shadow]);
   const cur = useRef<THREE.AnimationAction | null>(null);
   const once = useRef(false);
+  const cache = useRef(new Map<string, THREE.AnimationClip>());
+  const isMeshy = useMemo(() => { let r = false; wrap.traverse((c) => { if (c.name === 'Hips') r = true; }); return r; }, [wrap]);
   useEffect(() => {
     const onFin = (e: { action: THREE.AnimationAction }) => { if (once.current && e.action === cur.current) { once.current = false; api.current.onFinished?.(); } };
     mixer.addEventListener('finished', onFin as never);
     api.current.play = (name, o) => {
-      const clip = THREE.AnimationClip.findByName(ual.animations, name) ?? THREE.AnimationClip.findByName(ual.animations, 'Idle_Loop');
+      const root = wrap.children[0]; const key = name; let clip = cache.current.get(key);
+      if (!clip) { clip = isMeshy ? retargeted(root, ual, name) : (THREE.AnimationClip.findByName(ual.animations, name) ?? THREE.AnimationClip.findByName(ual.animations, 'Idle_Loop')); if (clip) cache.current.set(key, clip); }
       if (!clip) return;
-      const next = mixer.clipAction(clip);
+      const next = isMeshy ? mixer.clipAction(clip, firstSkinned(wrap.children[0]) ?? undefined) : mixer.clipAction(clip);
       if (next === cur.current && !o) return;
       next.reset().setLoop(o ? THREE.LoopOnce : THREE.LoopRepeat, o ? 1 : Infinity); next.clampWhenFinished = o; once.current = o;
       next.play(); if (cur.current && cur.current !== next) cur.current.crossFadeTo(next, 0.25, false); else next.fadeIn(0.25);
@@ -227,6 +248,6 @@ export const FiguresLayer: React.FC<{ sel: number | null; quality: Quality; near
     if (next.size !== close.size || [...next].some((k) => !close.has(k))) setClose(next);
   });
   if (quality === 'low') return null;
-  return <>{FIGURES.filter((f) => (USE_RIG || close.has(f.id)) && (sel === null || sel >= f.floor) && (sel === f.floor || near)).map((f) => <Figure key={f.id} f={f} quality={quality} />)}</>;
+  return <>{FIGURES.filter((f) => close.has(f.id) && (sel === null || sel >= f.floor) && (sel === f.floor || near)).map((f) => <Figure key={f.id} f={f} quality={quality} />)}</>;
 };
 const MOUNT_IN = 42, MOUNT_OUT = 55;

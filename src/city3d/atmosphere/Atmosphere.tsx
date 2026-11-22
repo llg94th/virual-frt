@@ -258,7 +258,7 @@ export const Atmosphere: React.FC = () => {
       const moonMode = elev < -0.02;
       _dir.copy(moonMode ? _moon : _sun);
       const mode = cityStore.get().cameraMode;
-      const wantS = mode === 'cinematic' ? 120 : mode === 'follow' || mode === 'drive' ? 55 : mode === 'cutaway' ? 52 : 95;
+      const wantS = mode === 'cinematic' ? 120 : mode === 'follow' || mode === 'drive' ? 55 : mode === 'cutaway' || mode === 'office' ? 52 : 95;
       s.shadowS += (wantS - s.shadowS) * (1 - Math.exp(-dt * 2));
       const S2 = s.shadowS;
       // focus point

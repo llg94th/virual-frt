@@ -9,7 +9,7 @@ const LABEL = 'text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400/
 
 const WEATHERS: [Weather, string][] = [['clear', 'Quang đãng'], ['cloudy', 'Nhiều mây'], ['rain', 'Mưa'], ['storm', 'Bão']];
 const QUALITIES: [Quality, string][] = [['low', 'Thấp'], ['medium', 'Vừa'], ['high', 'Cao']];
-const CAMERAS: [CameraMode, string][] = [['orbit', 'Quỹ đạo'], ['follow', 'Bám theo'], ['cutaway', 'Cắt lớp'], ['cinematic', 'Điện ảnh'], ['drive', 'Lái xe']];
+const CAMERAS: [CameraMode, string][] = [['orbit', 'Quỹ đạo'], ['follow', 'Bám theo'], ['cutaway', 'Cắt lớp'], ['cinematic', 'Điện ảnh'], ['drive', 'Lái xe'], ['office', 'Trong văn phòng']];
 const MISSIONS = [
   'giao tài liệu lên F2 (Khoang NHÀ THUỐC)',
   'lái xe một vòng quanh thành phố',

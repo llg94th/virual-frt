@@ -63,7 +63,7 @@ export type AppearanceFor = (id: string, role?: string) => CharacterAppearance;
 
 // ---------- Global city store (no external dep) ----------
 export type Weather = 'clear' | 'cloudy' | 'rain' | 'storm';
-export type CameraMode = 'orbit' | 'follow' | 'cutaway' | 'cinematic' | 'drive';
+export type CameraMode = 'orbit' | 'follow' | 'cutaway' | 'cinematic' | 'drive' | 'office';
 export type Quality = 'low' | 'medium' | 'high';
 export type PlayerMode = 'none' | 'walk' | 'drive';
 export interface CityState {
@@ -81,7 +81,7 @@ export interface CityState {
 const initial: CityState = {
   timeOfDay: 11.5, autoTime: false, timeScale: 6, weather: 'clear', quality: 'medium',
   // default: daytime, office overview (cutaway on F2 where the team sits), no player until the user picks walk/drive in the panel
-  cameraMode: 'cutaway', selectedFloor: 1, playerMode: 'none', muted: true,
+  cameraMode: 'office', selectedFloor: 1, playerMode: 'none', muted: true,
 };
 let state = initial;
 const listeners = new Set<() => void>();

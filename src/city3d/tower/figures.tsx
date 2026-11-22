@@ -166,7 +166,7 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
       if (g.current) {
         g.current.position.set(s.x, y0 + Math.sin(t * 1.6 + f.hx) * 0.006, s.z); g.current.rotation.set(0, s.yaw, Math.sin(t * 0.8 + f.hz) * 0.006);
         const cam = state.camera.position, dd = Math.hypot(cam.x - s.x, cam.y - (y0 + 1), cam.z - s.z);
-        const above = cityStore.get().cameraMode === 'cutaway' && cam.y > y0 + FLOOR_H + 1; // looking down onto a lower floor's ceiling slab
+        const above = (cityStore.get().cameraMode === 'cutaway' || cityStore.get().cameraMode === 'office') && cam.y > y0 + FLOOR_H + 1; // looking down onto a lower floor's ceiling slab
         const vis = !above && (dd < 3 || inView(s.x, y0 + 0.9, s.z)); if (vis !== lod.current.shown) { lod.current.shown = vis; g.current.visible = vis; }
         const sh = dd < 10; if (sh !== lod.current.shadow && shadowOn) { lod.current.shadow = sh; g.current.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = sh; }); }
       }

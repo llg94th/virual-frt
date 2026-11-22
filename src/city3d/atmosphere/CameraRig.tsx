@@ -6,7 +6,21 @@ import { cityStore, live, useCity, CameraMode, CITY_EXTENT, FLOOR_H, TOWER_FLOOR
 import { getFloor } from '../tower/furn';
 import { buildingFootprints } from '../world/layout';
 
-const MODES: CameraMode[] = ['orbit', 'follow', 'cutaway', 'cinematic', 'drive'];
+const MODES: CameraMode[] = ['office', 'orbit', 'follow', 'cutaway', 'cinematic', 'drive'];
+
+// ---- default 'office' tour: slow shots inside floor 2, an occasional overview of the tower, then back ----
+type Shot = { pos: [number, number, number]; target: [number, number, number]; fov: number; sway: number };
+const OFFICE_SHOTS: Shot[] = [
+  { pos: [10, 5.3, 12], target: [8, 4.1, 6], fov: 60, sway: 0.5 },          // desk rows from the aisle
+  { pos: [6.2, 4.9, 5.2], target: [5.9, 4.4, 2.4], fov: 36, sway: 0.15 },   // seated worker, side
+  { pos: [11, 5.1, -11], target: [11, 4.5, -21], fov: 58, sway: 0.4 },      // sprint board wall
+  { pos: [4, 5.3, -9], target: [-3.4, 4.5, -16], fov: 55, sway: 0.4 },      // glass meeting room
+  { pos: [11, 5.3, 9], target: [18.4, 4.5, 20], fov: 55, sway: 0.4 },       // pantry
+  { pos: [-3, 5.3, 14], target: [2.8, 4.4, 19.5], fov: 55, sway: 0.4 },     // lounge
+  { pos: [-5, 7.2, -17], target: [8, 4.0, 5], fov: 55, sway: 0.6 },         // wide, high
+  { pos: [18, 5.5, -4], target: [6, 4.4, 4], fov: 58, sway: 0.5 },          // desks from the east
+];
+const SHOT_SECS = 14, SHOTS_PER_ROUND = 12, OVERVIEW_SECS = 40;
 const V3 = THREE.Vector3;
 const damp = THREE.MathUtils.damp;
 const dampV = (v: THREE.Vector3, to: THREE.Vector3, l: number, dt: number) => {
@@ -73,6 +87,7 @@ export const CameraRig: React.FC = () => {
     mode, look: new V3(0, 20, 0), enterT: 0,
     trans: { active: false, t: 0, pos: new V3(), target: new V3() },
     yawOff: 0, pitchOff: 0, dragging: false, lastDrag: -10, dist: 6.5, fov: 55, cin: 0, time: 0,
+    off: { shot: 0, shotT: 0, count: 0, overview: false, ovT: 0 },
   });
   S.current.mode = mode;
 
@@ -100,6 +115,7 @@ export const CameraRig: React.FC = () => {
       s.trans.active = true; s.trans.t = 0;
     } else {
       s.trans.active = false;
+      if (mode === 'office') { s.off = { shot: 0, shotT: 0, count: 0, overview: false, ovT: 0 }; if (cityStore.get().selectedFloor == null) cityStore.set({ selectedFloor: TEAM_FLOOR }); }
       if (mode === 'cinematic') {
         // start the spline near where the camera currently is
         let best = 0, bd = Infinity;
@@ -206,6 +222,37 @@ export const CameraRig: React.FC = () => {
         const lp = THREE.MathUtils.lerp(2.2, drive ? 6 : 5, blend);
         dampV(cam.position, pos, lp, dt); dampV(s.look, look, lp + 2, dt);
         wantFov = drive ? 60 + Math.min(speed, 45) * 0.5 : 55;
+      } else if (m === 'office') {
+        const o = s.off; const blend2 = THREE.MathUtils.smoothstep(s.enterT, 0, 1.6);
+        o.shotT += dt;
+        if (!o.overview) {
+          if (o.shotT > SHOT_SECS) {
+            o.shotT = 0; o.count++;
+            if (o.count >= SHOTS_PER_ROUND) { o.overview = true; o.ovT = 0; o.count = 0; cityStore.set({ selectedFloor: null }); }
+            else o.shot = (o.shot + 1 + Math.floor(Math.random() * (OFFICE_SHOTS.length - 1))) % OFFICE_SHOTS.length;
+          }
+        } else {
+          o.ovT += dt;
+          if (o.ovT > OVERVIEW_SECS) { o.overview = false; o.shotT = 0; cityStore.set({ selectedFloor: TEAM_FLOOR }); }
+        }
+        const { pos, look } = _p;
+        let lp = 1.5;
+        if (o.overview) {
+          const a = 0.6 + o.ovT * 0.045;
+          look.set(0, 16, 0); pos.set(Math.cos(a) * 125, 62, Math.sin(a) * 125);
+          wantFov = 45; lp = 1.1;
+        } else {
+          const sh = OFFICE_SHOTS[o.shot]; const t = o.shotT;
+          // slow dolly along the view direction plus a gentle sway
+          const dx = sh.target[0] - sh.pos[0], dz = sh.target[2] - sh.pos[2]; const dl = Math.hypot(dx, dz) || 1;
+          const push = Math.min(t, SHOT_SECS) * 0.12 * sh.sway;
+          pos.set(sh.pos[0] + (dx / dl) * push + Math.sin(t * 0.35) * 0.25 * sh.sway, sh.pos[1] + Math.sin(t * 0.5) * 0.06, sh.pos[2] + (dz / dl) * push);
+          look.set(sh.target[0] + Math.sin(t * 0.3) * 0.5 * sh.sway, sh.target[1], sh.target[2]);
+          wantFov = sh.fov;
+        }
+        lp = THREE.MathUtils.lerp(1.2, lp, blend2);
+        dampV(cam.position, pos, lp, dt); dampV(s.look, look, lp + 0.3, dt);
+        cam.lookAt(s.look);
       } else {
         // cinematic
         s.cin = (s.cin + dt / 120) % 1;

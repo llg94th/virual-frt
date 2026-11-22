@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 export interface PropGeo { main: THREE.BufferGeometry; glow: THREE.BufferGeometry | null }
 const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/kenney/`;
 /** names prefixed 'n:' come from the Nature Kit, others from the Furniture Kit */
-const urlOf = (n: string) => (n.startsWith('n:') ? `${ROOT}nature/${n.slice(2)}.glb` : `${ROOT}furniture/${n}.glb`);
+const urlOf = (n: string) => (n.startsWith('o:') ? `${ROOT}../office/${n.slice(2)}.glb` : n.startsWith('n:') ? `${ROOT}nature/${n.slice(2)}.glb` : `${ROOT}furniture/${n}.glb`);
 const store = new Map<string, PropGeo | 'fail' | 'loading'>();
 const listeners = new Set<() => void>();
 let version = 0;

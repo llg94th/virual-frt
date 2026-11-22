@@ -553,6 +553,12 @@ function teamFloor(F: Furn, S: Furn) {
   S.label({ t: 'LOUNGE', x: 2.8, y: 0.03, z: 21.2, w: 3.4, h: 0.7, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
   S.label({ t: 'PANTRY • CÀ PHÊ', x: 18.4, y: 0.03, z: 15.2, w: 5, h: 0.8, rot: 0, flat: true, fg: '#9a4a14', bg: 'rgba(0,0,0,0)' });
   S.b(18.4, 0.012, 17.4, 6, 0.01, 4.2, '#d9c9a8');
+  // Office Pack props (flat-colour GLBs in public/models/office): amenities, greenery, wall art
+  S.prop('o:cooler', 14.4, 0, HZ - 1.6, Math.PI, 1); S.prop('o:vending', 12.9, 0, HZ - 1.6, Math.PI, 1);
+  for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'o:plant_white' : 'o:plant_a', px, 0, pz, px * 3.1, 1);
+  S.prop('o:floor_light', 4.7, 0, 17.2, 0, 1); S.prop('o:floor_light', 0.9, 0, 21, 0, 1);
+  S.prop('o:coat_rack', -1.2, 0, -HZ + 1.0, 0, 1);
+  [['o:art2', 5.2], ['o:art3', 7.0], ['o:art5', 8.8]].forEach(([m, x]) => S.prop(m as string, x as number, 1.3, HZ - 0.25, Math.PI, 1));
   // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
   for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) S.scr(px, CLEAR - 0.05, pz, 1.1, 0.04, 0.4, '#8f927e');
 }

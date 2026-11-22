@@ -13,3 +13,5 @@ All third-party models below are CC0 / public domain (no attribution required, c
 | `longchau.glb` | Generated with Meshy (image-to-3D) from the Long Châu mascot reference photo in `public/mascot-refs/` – brand mascot belongs to FPT Retail / Long Châu | internal demo use |
 
 Photo reference of the real F-Town 3 atrium (SGGP, 2019) was used only as a visual guide for the procedural facade; no image is redistributed.
+
+| `office/*.glb` | "Office Pack" provided by the project owner (OBJ/FBX converted by `tools/props/convert.mjs`, flat material colours only) – licence stated by the owner as free to use | owner-provided |

@@ -89,11 +89,26 @@ const RigModel: React.FC<{ url: string; height: number; shadow: boolean; api: Re
   const cur = useRef<THREE.AnimationAction | null>(null);
   const once = useRef(false);
   const cache = useRef(new Map<string, THREE.AnimationClip>());
+  const extra = useRef(new Map<string, THREE.AnimationClip>());
+  useEffect(() => { // per-figure Mixamo clips (retargeted offline onto this figure's rig); optional
+    const id = /([a-z_]+)_rigged\.glb$/.exec(url)?.[1]; if (!id) return;
+    let alive = true;
+    fetch(`${ROOT}clips/${id}_mixamo.json`).then((r) => (r.ok ? r.json() : [])).then((list: unknown) => {
+      if (!alive || !Array.isArray(list)) return;
+      for (const j of list) { try { extra.current.set(j.name, THREE.AnimationClip.parse({ ...j, uuid: THREE.MathUtils.generateUUID(), tracks: j.tracks.map((t: { name: string; type: string; times: number[]; values: number[] }) => ({ ...t, type: t.type === 'vector' ? 'vector' : 'quaternion' })) })); } catch { /* skip bad clip */ } }
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [url]);
   const isMeshy = useMemo(() => { let r = false; wrap.traverse((c) => { if (c.name === 'Hips') r = true; }); return r; }, [wrap]);
   useEffect(() => {
     const onFin = (e: { action: THREE.AnimationAction }) => { if (once.current && e.action === cur.current) { once.current = false; api.current.onFinished?.(); } };
     mixer.addEventListener('finished', onFin as never);
     api.current.play = (name, o) => {
+      if (name.startsWith('Mx_')) { // Mixamo clips baked for this rig: use if loaded, otherwise the UAL equivalent
+        const mx = extra.current.get(name);
+        if (!mx) { api.current.play('Interact', o); return; }
+        cache.current.set(name, mx);
+      }
       const root = wrap.children[0]; const key = name; let clip = cache.current.get(key);
       if (!clip) { clip = isMeshy ? retargeted(root, ual, name) : (THREE.AnimationClip.findByName(ual.animations, name) ?? THREE.AnimationClip.findByName(ual.animations, 'Idle_Loop')); if (clip) cache.current.set(key, clip); }
       if (!clip) return;
@@ -193,13 +208,17 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
       if (s.legs.length === 0) { // at home
         if (f.id === 'open_arms' && pd < 3) { // greeter turns to the player and gestures once
           targetYaw = Math.atan2(live.player.x - s.x, live.player.z - s.z);
-          if (s.mode === 'idle' && s.cooldown <= 0) { s.mode = 'act'; s.cooldown = 14; setClip('Interact', true); }
+          if (s.mode === 'idle' && s.cooldown <= 0) { s.mode = 'act'; s.cooldown = 14; setClip('Mx_Greeting', true); }
         }
         s.tExcursion -= dt;
         const react = f.id === 'professional' && s.cooldown <= 0 && (pd < 4 || nearestAgentDist(f.floor, s.x, s.z) < 4) && s.tExcursion < 20;
         if (s.mode === 'idle' && (s.tExcursion <= 0 || react)) {
           if (react) s.cooldown = 25;
           if (!(f.id === 'open_arms' && pd < 3)) { startExcursion(); s.tExcursion = f.id === 'teacher' ? rnd(60, 90) : f.id === 'open_arms' ? rnd(20, 40) : rnd(30, 60); }
+        }
+        if (f.id === 'open_arms' && pd >= 3) { // ambient: wave / sip / clap now and then while waiting at the desk
+          s.tAct -= dt;
+          if (s.mode === 'idle' && s.tAct <= 0) { s.mode = 'act'; s.tAct = rnd(12, 25); setClip(['Mx_Waving', 'Mx_Drinking', 'Mx_Clapping'][Math.floor(Math.random() * 3)], true); }
         }
         if (f.id === 'teacher') { s.tAct -= dt; if (s.mode === 'idle' && s.tAct <= 0) { s.mode = 'act'; s.tAct = rnd(15, 25); setClip('Interact', true); } }
       } else if (s.mode === 'idle') { // pause between legs

@@ -262,7 +262,7 @@ const PropMesh: React.FC<{ name: string; items: Prop[]; mats: Mats; shadow: bool
   if (!geo) return null;
   return (
     <>
-      <instancedMesh ref={a} args={[geo.main, mats.prop, items.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />
+      <instancedMesh ref={a} args={[geo.main, geo.mat ?? mats.prop, items.length]} frustumCulled={false} castShadow={shadow} receiveShadow={shadow} />
       {geo.glow && <instancedMesh ref={g} args={[geo.glow, mats.screen, items.length]} frustumCulled={false} />}
     </>
   );

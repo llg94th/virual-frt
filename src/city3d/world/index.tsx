@@ -9,6 +9,7 @@ import {
 } from './layout';
 import { buildBlockGeometry, buildProps } from './geometry';
 import { Life } from './life';
+import { Vegetation } from './trees';
 import { useModels, getModel } from './models';
 import { buildPlacements, MODEL_KEYS } from './decor';
 import { createWindowMaterial, winUniforms, makePavingTexture, makeAsphaltTexture, makeSignAtlas, patchWetRoad, roadUniforms, makeWaterNormal } from './materials';
@@ -182,28 +183,6 @@ const Street: React.FC<{ m: Mats; quality: Quality; glb: boolean }> = ({ m, qual
     });
     pools.name = 'pools'; pools.visible = false;
     out.push(poles, arms, heads, pools);
-    const tl = glb ? [] : trees.filter((t) => quality !== 'low' || t.lod === 0);
-    const CH = 3, SPAN = (CITY_EXTENT + H_ROAD) * 2 / CH;
-    const groups: typeof tl[] = Array.from({ length: CH * CH }, () => []);
-    for (const t of tl) {
-      const cx = Math.max(0, Math.min(CH - 1, Math.floor((t.x + CITY_EXTENT + H_ROAD) / SPAN)));
-      const cz = Math.max(0, Math.min(CH - 1, Math.floor((t.z + CITY_EXTENT + H_ROAD) / SPAN)));
-      groups[cz * CH + cx].push(t);
-    }
-    const trunkG = new THREE.CylinderGeometry(0.15, 0.22, 3, 5).translate(0, 1.5, 0);
-    const geoLeaf = new THREE.IcosahedronGeometry(1.7, quality === 'low' ? 0 : 1).translate(0, 4.2, 0);
-    groups.forEach((gl, gi) => {
-      if (!gl.length) return;
-      const trunk = instanced(trunkG, m.trunk, gl.length, (i, o) => { o.position.set(gl[i].x, 0.18, gl[i].z); o.scale.setScalar(gl[i].s); });
-      const leaf = instanced(geoLeaf, m.leaf, gl.length, (i, o, c) => {
-        o.position.set(gl[i].x, 0.18, gl[i].z); o.scale.set(gl[i].s, gl[i].s * 1.1, gl[i].s); c.setRGB(...gl[i].c);
-      }, true);
-      leaf.castShadow = trunk.castShadow = quality !== 'low';
-      const box = new THREE.Box3().setFromCenterAndSize(
-        new THREE.Vector3(-CITY_EXTENT - H_ROAD + SPAN * ((gi % CH) + 0.5), 5, -CITY_EXTENT - H_ROAD + SPAN * (Math.floor(gi / CH) + 0.5)), new THREE.Vector3(SPAN, 12, SPAN));
-      for (const x of [trunk, leaf]) { x.frustumCulled = false; x.userData.box = box; x.userData.lod = true; }
-      out.push(trunk, leaf);
-    });
     const gp = new THREE.CylinderGeometry(0.12, 0.14, 0.55, 6).translate(0, 0.45, 0);
     out.push(instanced(gp, m.garden, gardenLights.length, (i, o) => o.position.set(gardenLights[i].x, 0.18, gardenLights[i].z)));
     return out;
@@ -296,6 +275,7 @@ export const CityWorld: React.FC = () => {
       <Buildings m={m} quality={quality} />
       <Street m={m} quality={quality} glb={kn === 'ready'} />
       {kn === 'ready' && <Decor m={m} quality={quality} />}
+      <Vegetation quality={quality} />
       <Life win={m.win} quality={quality} />
       <Dynamics m={m} />
     </group>

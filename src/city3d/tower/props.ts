@@ -7,8 +7,9 @@ import { useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { loadVegProp } from './vegProps';
 
-export interface PropGeo { main: THREE.BufferGeometry; glow: THREE.BufferGeometry | null }
+export interface PropGeo { main: THREE.BufferGeometry; glow: THREE.BufferGeometry | null; /** own (textured) material, e.g. vegetation; default is the shared flat-colour prop material */ mat?: THREE.Material | THREE.Material[] }
 const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/kenney/`;
 /** names prefixed 'n:' come from the Nature Kit, others from the Furniture Kit */
 const urlOf = (n: string) => (n.startsWith('o:') ? `${ROOT}../office/${n.slice(2)}.glb` : n.startsWith('n:') ? `${ROOT}nature/${n.slice(2)}.glb` : `${ROOT}furniture/${n}.glb`);
@@ -53,6 +54,10 @@ function build(name: string, scene: THREE.Object3D): PropGeo {
 export function requestProps(names: string[]) {
   for (const n of names) {
     if (store.has(n)) continue;
+    if (n.startsWith('v:')) { // textured vegetation (procedural leaf cards or plant GLBs), see ./vegProps.ts
+      const sync = loadVegProp(n, (g) => { store.set(n, g ?? 'fail'); bump(); });
+      store.set(n, sync ?? 'loading'); continue;
+    }
     store.set(n, 'loading');
     loader ??= new GLTFLoader();
     loader.load(urlOf(n), (g) => { try { store.set(n, build(n, g.scene)); } catch { store.set(n, 'fail'); } bump(); }, undefined, () => { store.set(n, 'fail'); bump(); });

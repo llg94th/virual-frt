@@ -14,7 +14,8 @@ const FLOWERS = ['flower_redA', 'flower_purpleA', 'flower_yellowA', 'flower_redB
 const ROCKS = ['rock_smallA', 'rock_smallB', 'rock_smallC', 'rock_largeA', 'rock_largeB'];
 
 export const MODEL_KEYS: string[] = [
-  ...[...TREES, ...PALMS, ...BUSH, ...FLOWERS, ...ROCKS, 'lily_large', 'lily_small', 'path_stone', 'bridge_wood', 'fence_simple', 'fence_planks'].map(N),
+  // trees / palms / bushes / flowers are drawn by ./trees.tsx (procedural leaf-card vegetation), so their Kenney models are not loaded
+  ...[...ROCKS, 'lily_large', 'lily_small', 'path_stone', 'bridge_wood', 'fence_simple', 'fence_planks'].map(N),
   U('detail-bench'), U('detail-dumpster-closed'),
 ];
 

@@ -114,13 +114,18 @@ export class Furn {
   }
 
   tree(x: number, z: number, h = 4, r = 1.6, c = '#3f9a5a') {
-    this.b(x, 0, z, 0.22, h * 0.6, 0.22, '#6b4a2f');
-    this.ball(x, h * 0.6 + r * 0.5, z, r, c);
-    this.ball(x + r * 0.45, h * 0.6 + r * 0.2, z + r * 0.2, r * 0.7, '#4fae6a');
+    this.alt(() => {
+      this.b(x, 0, z, 0.22, h * 0.6, 0.22, '#6b4a2f');
+      this.ball(x, h * 0.6 + r * 0.5, z, r, c);
+      this.ball(x + r * 0.45, h * 0.6 + r * 0.2, z + r * 0.2, r * 0.7, '#4fae6a');
+    });
+    const k = Math.abs(Math.sin(x * 4.7 + z * 9.1) * 1000) % 1; // leaf-card tree (textured), nominal ~6.2 m tall / 2.2 m crown radius
+    this.prop(`v:tree_${Math.floor(k * 3) % 3}`, x, 0, z, k * 6.28, [r / 2.2, (h * 0.6 + r * 1.2) / 6.2, r / 2.2]);
   }
   plant(x: number, z: number, s = 1) {
     this.alt(() => { this.b(x, 0, z, 0.4 * s, 0.4 * s, 0.4 * s, '#e8e4dc'); this.ball(x, 0.4 * s + 0.35 * s, z, 0.4 * s, '#3e9b55'); });
-    this.prop('pottedPlant', x, 0, z, (x * 7.3 + z) % 6.28, 1.2 * s);
+    const k = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; // Poly Haven scanned plants (~1.1 m at s=1)
+    this.prop(k < 0.3 ? 'v:ficus' : k < 0.55 ? 'v:pachira' : k < 0.8 ? 'v:alocasia' : 'v:calathea', x, 0, z, (x * 7.3 + z) % 6.28, 0.95 * s);
   }
   /** local-frame box: centre at (lx,lz) of a frame rotated by th at (cx,cz), extra yaw dth, pitch rx */
   lb(cx: number, cz: number, th: number, lx: number, lz: number, y: number, w: number, h: number, d: number, c: string, dth = 0, rx = 0) {
@@ -192,7 +197,7 @@ export class Furn {
         L(-dw / 2 + 0.12, 0.25, 0.75, 0.13, 0.015, 0.13, '#25282b'); L(-dw / 2 + 0.12, 0.25, 0.765, 0.02, 0.3, 0.02, '#25282b'); L(-dw / 2 + 0.12, 0.2, 1.05, 0.05, 0.025, 0.22, '#e6e8e8');
       } else if (h < 0.18) { // small plant
         L(-dw / 2 + 0.14, 0.2, 0.75, 0.1, 0.1, 0.1, '#e8e8e4');
-        const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2); this.ball(px, 0.93, pz, 0.1, '#3e9b55');
+        const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2); this.ball(px, 0.93, pz, 0.1, '#3e9b55'); this.prop('v:haworthia', px, 0.75, pz, h * 40, 0.6);
       }
       if (o.brand && on) { // lanyard badge + strap on the desk, in front of the keyboard
         const [bx, bz] = this.lp(x, z, th, 0.02, -0.31); this.decal('badge', bx, 0.762, bz, 0.07, 0.105, face, true);
@@ -304,19 +309,18 @@ export class Furn {
       this.ball(x, h + 0.1, z, 0.3, '#4a8a3a');
     });
     const k = Math.abs(Math.sin(x * 3.1 + z * 5.7) * 1000) % 1;
-    const m = k < 0.3 ? 'n:tree_palmDetailedTall' : k < 0.6 ? 'n:tree_palmTall' : k < 0.8 ? 'n:tree_palmBend' : 'n:tree_palm';
-    const base = m === 'n:tree_palmDetailedTall' ? 1.42 : m === 'n:tree_palmTall' ? 1.36 : m === 'n:tree_palmBend' ? 1.38 : 1.51;
-    this.prop(m, x, 0, z, k * 6.28, [h / base * 0.75, h / base, h / base * 0.75]);
+    this.prop(`v:palm_${Math.floor(k * 3) % 3}`, x, 0, z, k * 6.28, h / 8.5); // leaf-card palm, ~8.5 m tall at scale 1
   }
   banana(x: number, z: number) {
     this.alt(() => { for (let i = 0; i < 5; i++) this.frond(x, 0.25, z, i * 1.26 + x, -0.9 + (i % 2) * 0.3, 1.7, 0.65, i % 2 ? '#4fb05a' : '#3c9c4c'); });
-    for (let i = 0; i < 3; i++) this.prop('n:plant_flatTall', x + Math.cos(i * 2.1 + x) * 0.35, 0, z + Math.sin(i * 2.1 + x) * 0.35, i * 2.1 + z, 4 + (i % 2));
+    for (let i = 0; i < 2; i++) this.prop('v:alocasia', x + Math.cos(i * 2.1 + x) * 0.3, 0, z + Math.sin(i * 2.1 + x) * 0.3, i * 2.1 + z, 1.5 + (i % 2) * 0.4);
   }
   /** ground cover (bush / grass / flower) from the Nature Kit; procedural green ball as fallback */
   cover(x: number, y: number, z: number, k: number, s = 1) {
     this.alt(() => this.ball(x, y + 0.4, z, 0.45 + (k % 0.4), k < 0.2 ? '#e87aa0' : '#5ab86a'));
-    const names = ['n:plant_bush', 'n:plant_bushLarge', 'n:grass_large', 'n:plant_bushDetailed', 'n:flower_redA', 'n:flower_purpleB', 'n:flower_yellowA', 'n:plant_flatShort'];
-    this.prop(names[Math.floor(k * names.length) % names.length], x, y, z, k * 40, (k > 0.62 ? 3 : 3.8) * s);
+    const names = ['v:bush_0', 'v:bush_1', 'v:grass_0', 'v:bush_1', 'v:flower_0', 'v:flower_0', 'v:fern', 'v:grass_0'], sc = [0.9, 0.8, 1.6, 0.7, 1.5, 1.2, 1.1, 1.8];
+    const i = Math.floor(k * names.length) % names.length;
+    this.prop(names[i], x, y, z, k * 40, sc[i] * s);
   }
 }
 
@@ -428,18 +432,24 @@ function garden(F: Furn) {
       F.altBoxes.push({ p: [sx2, 0.03, sz2], s: [0.9, 0.08, 0.9], c: '#c9c3b5', r: 0, rx: 0 });
       F.prop('n:path_stone', sx2, -FT, sz2, Math.PI / 2, 1.1);
     }
-    for (let i = 0; i < 5; i++) F.tree(c.x + (rnd() - 0.5) * (c.w - 3), c.z + (rnd() - 0.5) * (c.d - 3), 4 + rnd() * 7, 1.8 + rnd() * 1.5, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 9; i++) F.tree(c.x + (rnd() - 0.5) * (c.w - 3), c.z + (rnd() - 0.5) * (c.d - 3), 4 + rnd() * 7, 1.8 + rnd() * 1.5, rnd() < 0.5 ? '#2f8a4a' : '#3da35a');
+    for (let i = 0; i < 16; i++) {
       const tx = c.x + (rnd() - 0.5) * (c.w - 2.5), tz = c.z + (rnd() - 0.5) * (c.d - 2.5);
       if (Math.hypot(tx - px, tz - pz) < 3.3) continue;
       F.palm(tx, tz, 5 + rnd() * 5);
     }
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 16; i++) {
       const tx = c.x + (rnd() - 0.5) * (c.w - 1.5), tz = c.z + (rnd() - 0.5) * (c.d - 1.5);
       if (Math.hypot(tx - px, tz - pz) < 3) continue;
       F.banana(tx, tz);
     }
-    for (let i = 0; i < 26; i++) F.cover(c.x + (rnd() - 0.5) * (c.w - 1), -FT, c.z + (rnd() - 0.5) * (c.d - 1), rnd());
+    for (let i = 0; i < 70; i++) F.cover(c.x + (rnd() - 0.5) * (c.w - 1), -FT, c.z + (rnd() - 0.5) * (c.d - 1), rnd());
+    // clipped hedge + trailing plants along the planter rim (real garden: dense green edge around every void)
+    for (let t = 0; t < 1; t += 1.3 / (2 * (c.w + c.d))) {
+      const a = t * 4, e = Math.min(3, Math.floor(a)), u = a - e, ix = c.w / 2 - 0.9, iz = c.d / 2 - 0.9;
+      const hx = e === 0 ? -ix + u * 2 * ix : e === 2 ? ix - u * 2 * ix : e === 1 ? ix : -ix, hz = e === 1 ? -iz + u * 2 * iz : e === 3 ? iz - u * 2 * iz : e === 0 ? -iz : iz;
+      F.prop(rnd() < 0.5 ? 'v:bush_1' : 'v:bush_0', c.x + hx, -FT, c.z + hz, rnd() * 6.28, 0.8 + rnd() * 0.4);
+    }
   });
 }
 
@@ -608,7 +618,7 @@ function teamDetail(S: Furn, c: TeamCtx) {
   S.prop('o:paper_stack', -3.4, 0.74, -16, 0.3, 1.1); S.b(-3.0, 0.74, -16.05, 0.2, 0.05, 0.2, '#1b2228');
   S.prop('o:whiteboard', -6.33, 0.45, -16, Math.PI / 2, 1);
   S.b(-3.4, 0.95, -18.34, 2.4, 1.4, 0.05, '#1b2228');
-  S.prop('o:plant_a', -6.0, 0, -18.1, 1, 1); S.prop('o:cabinet', -0.9, 0, -17.2, -Math.PI / 2, 1);
+  S.prop('v:ficus', -6.0, 0, -18.1, 1, 1); S.prop('o:cabinet', -0.9, 0, -17.2, -Math.PI / 2, 1);
   // --- ceiling services: AC diffusers, sprinkler heads, long supply ducts ---
   for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) {
     S.b(px + 3, CLEAR - 0.05, pz + 3, 0.6, 0.03, 0.6, '#d9dee0'); S.b(px + 3, CLEAR - 0.065, pz + 3, 0.44, 0.015, 0.44, '#b9c1c5'); S.b(px, CLEAR - 0.12, pz + 1.5, 0.04, 0.12, 0.04, '#c0392b');
@@ -780,7 +790,7 @@ function teamFloor(F: Furn, S: Furn) {
   S.b(18.4, 0.012, 17.4, 6, 0.01, 4.2, '#a7acaf'); // polished concrete pantry floor
   // Office Pack props (flat-colour GLBs in public/models/office): amenities, greenery, wall art
   S.prop('o:cooler', 14.4, 0, HZ - 1.6, Math.PI, 1); S.prop('o:vending', 12.9, 0, HZ - 1.6, Math.PI, 1);
-  for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'o:plant_white' : 'o:plant_a', px, 0, pz, px * 3.1, 1);
+  for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'v:alocasia' : 'v:ficus', px, 0, pz, px * 3.1, 1);
   S.prop('o:floor_light', 4.7, 0, 17.2, 0, 1); S.prop('o:floor_light', 0.9, 0, 21, 0, 1);
   S.prop('o:coat_rack', -1.2, 0, -HZ + 1.0, 0, 1);
   teamDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });

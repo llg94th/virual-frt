@@ -176,10 +176,6 @@ export class Furn {
     const dual = !!o.rich && h >= 0.35, tintA = on ? '#cfe4ff' : '#0b0e10';
     if (dual) { for (const sx of [-1, 1]) this.monitor(x, z, th, sx * 0.29, 0.2, sx * 0.2, on, sx < 0 ? '#d6e6ff' : '#bfd7f5'); }
     else this.monitor(x, z, th, 0, 0.2, 0, on, tintA, 1.1);
-    if (o.brand && on) {
-      if (dual) for (const sx of [-1, 1]) { const [sx2, sz2] = this.lp(x, z, th + sx * 0.2, sx * 0.29, 0.2 - SCR_Z * 1.35); this.decal(sx < 0 ? 'scr0' : 'scr2', sx2, 0.75 + SCR_Y * 1.35, sz2, SCR_W * 1.35, SCR_H * 1.35, th + Math.PI + sx * 0.2); }
-      else { const [sx2, sz2] = this.lp(x, z, th, 0, 0.2 - SCR_Z * 1.5); this.decal(`scr${Math.floor(h * 3) % 3}`, sx2, 0.75 + SCR_Y * 1.5, sz2, SCR_W * 1.5, SCR_H * 1.5, th + Math.PI); }
-    }
     L(0, -0.15, 0.75, 0.43, 0.015, 0.14, '#24272b'); L(0, -0.145, 0.765, 0.4, 0.005, 0.115, '#3b4046'); // keyboard
     L(0.34, -0.14, 0.75, 0.22, 0.004, 0.18, '#202326'); L(0.34, -0.14, 0.754, 0.06, 0.028, 0.1, '#2e3236'); // mouse pad + mouse
     if (o.rich) {

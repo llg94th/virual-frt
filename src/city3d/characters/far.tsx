@@ -13,7 +13,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CharacterPose } from '../shared';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
-import { inView, rigTick } from './rigged';
+import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { inView, rigTick, readGltf, ensureRegions, sampleRef, NPC_DIR, RIG_URL, CLIP, RigBoundary } from './rigged';
 import { safeTop } from './color';
 
 export const FAR_IN = 20; // metres from camera: beyond -> far LOD (hysteresis handled by caller)
@@ -88,6 +89,72 @@ function buildPosed(pose: CharacterPose): THREE.BufferGeometry {
   return g;
 }
 
+// ---------------------------------------------------------------- Meshy far body: the rigged ~3k-tri NPC body baked per pose (clip frame -> static geometry)
+const meshyGeo = new Map<CharacterPose, THREE.BufferGeometry>();
+let meshyRef = { top: 0.5, bottom: 0.3 };
+const lin = (v: number) => Math.pow(v / 255, 2.2);
+function buildPosedMeshy(pose: CharacterPose): THREE.BufferGeometry {
+  const hit = meshyGeo.get(pose); if (hit) return hit;
+  const body = readGltf(`${NPC_DIR}far.glb`), anim = readGltf(RIG_URL);
+  const o = skeletonClone(body.scene) as THREE.Object3D;
+  let sm: THREE.SkinnedMesh | null = null; o.traverse((c) => { if (!sm && (c as THREE.SkinnedMesh).isSkinnedMesh) sm = c as THREE.SkinnedMesh; });
+  const m = sm as THREE.SkinnedMesh | null; if (!m) throw new Error('far body has no mesh');
+  ensureRegions(m); meshyRef = sampleRef(m);
+  m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox!; const k0 = 1.75 / Math.max(0.5, bb.max.y - bb.min.y);
+  // base colours from the texture
+  const g0 = m.geometry, uv = g0.getAttribute('uv'), reg = g0.getAttribute('aReg'), n = uv.count;
+  const tex = (m.material as THREE.MeshStandardMaterial).map; const base = new Float32Array(n * 3).fill(0.5);
+  try {
+    const img = tex?.image as CanvasImageSource | undefined;
+    if (img) {
+      const w = 256, cv = document.createElement('canvas'); cv.width = w; cv.height = w; const cx = cv.getContext('2d', { willReadFrequently: true })!; cx.drawImage(img, 0, 0, w, w);
+      const px = cx.getImageData(0, 0, w, w).data;
+      for (let v = 0; v < n; v++) {
+        const x = Math.min(w - 1, Math.max(0, Math.floor(uv.getX(v) * w))), y = Math.min(w - 1, Math.max(0, Math.floor((tex!.flipY ? 1 - uv.getY(v) : uv.getY(v)) * w))), i = (y * w + x) * 4;
+        base[v * 3] = lin(px[i]); base[v * 3 + 1] = lin(px[i + 1]); base[v * 3 + 2] = lin(px[i + 2]);
+      }
+    }
+  } catch { /* grey fallback */ }
+  const mixer = new THREE.AnimationMixer(o);
+  const clip = THREE.AnimationClip.findByName(anim.animations, CLIP[pose]) ?? THREE.AnimationClip.findByName(anim.animations, 'Idle_Loop');
+  if (clip) { mixer.clipAction(clip).play(); mixer.setTime(clip.duration * 0.25); }
+  o.updateMatrixWorld(true); m.skeleton.update();
+  const pos = new Float32Array(n * 3), regionAttr = new Float32Array(n), t = new THREE.Vector3();
+  for (let v = 0; v < n; v++) {
+    m.getVertexPosition(v, t); t.applyMatrix4(m.matrixWorld).multiplyScalar(k0);
+    pos[v * 3] = t.x; pos[v * 3 + 1] = t.y; pos[v * 3 + 2] = t.z;
+    let r = 0; for (let q = 1; q < 4; q++) if (reg.getComponent(v, q) > reg.getComponent(v, r)) r = q;
+    regionAttr[v] = r === 0 ? 0 : r === 1 ? 1 : r === 2 ? 2 : 4;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aRegion', new THREE.BufferAttribute(regionAttr, 1)); g.setAttribute('aBase', new THREE.BufferAttribute(base, 3));
+  if (g0.index) g.setIndex(g0.index.clone());
+  g.computeVertexNormals();
+  mixer.stopAllAction(); mixer.uncacheRoot(o);
+  meshyGeo.set(pose, g);
+  return g;
+}
+let meshyMat: THREE.MeshStandardMaterial | null = null;
+function getMeshyMat() {
+  if (meshyMat) return meshyMat;
+  meshyMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, metalness: 0 });
+  meshyMat.customProgramCacheKey = () => 'city3d-far-meshy-v1';
+  meshyMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uRefTop = { value: meshyRef.top }; sh.uniforms.uRefBottom = { value: meshyRef.bottom };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aRegion; attribute vec3 aBase; attribute vec3 iTop; attribute vec3 iBottom; varying vec3 vInst; varying vec3 vBase; varying float vRegF;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInst = aRegion < 0.5 ? iTop : iBottom; vBase = aBase; vRegF = aRegion;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vInst; varying vec3 vBase; varying float vRegF; uniform float uRefTop; uniform float uRefBottom;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float fL = dot(vBase, vec3(0.299, 0.587, 0.114));
+        if (vRegF < 0.5) diffuseColor.rgb = vInst * clamp(fL / uRefTop, 0.25, 1.7);
+        else if (vRegF < 1.5) diffuseColor.rgb = vInst * clamp(fL / uRefBottom, 0.25, 1.7);
+        else diffuseColor.rgb = vBase;`);
+  };
+  return meshyMat;
+}
+
 let farMat: THREE.MeshStandardMaterial | null = null;
 function getMat() {
   if (farMat) return farMat;
@@ -106,21 +173,21 @@ function getMat() {
 
 const NAMES = ['iTop', 'iBottom', 'iSkin', 'iHair', 'iShoes'];
 interface Bucket { mesh: THREE.InstancedMesh; pose: CharacterPose; shadow: boolean; attrs: THREE.InstancedBufferAttribute[] }
-function makeBucket(pose: CharacterPose, shadow: boolean): Bucket {
-  const g = buildPosed(pose).clone();
+function makeBucket(pose: CharacterPose, shadow: boolean, meshy: boolean): Bucket {
+  const g = (meshy ? buildPosedMeshy(pose) : buildPosed(pose)).clone();
   const attrs = NAMES.map((n) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 3), 3); a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(n, a); return a; });
-  const mesh = new THREE.InstancedMesh(g, getMat(), CAP);
+  const mesh = new THREE.InstancedMesh(g, meshy ? getMeshyMat() : getMat(), CAP);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false; mesh.castShadow = shadow; mesh.count = 0;
   return { mesh, pose, shadow, attrs };
 }
 
-export const FarHost: React.FC = () => {
+export const FarHost: React.FC<{ meshy?: boolean }> = ({ meshy = false }) => {
   const buckets = useMemo(() => {
     const m = new Map<string, Bucket>();
-    for (const p of POSES) for (const s of [true, false]) m.set(`${p}${s ? 1 : 0}`, makeBucket(p, s));
+    for (const p of POSES) for (const s of [true, false]) m.set(`${p}${s ? 1 : 0}`, makeBucket(p, s, meshy));
     return m;
-  }, []);
+  }, [meshy]);
   useEffect(() => () => { buckets.forEach((b) => { b.mesh.geometry.dispose(); b.mesh.dispose(); }); }, [buckets]);
   const camera = useThree((s) => s.camera);
   useFrame((state) => {
@@ -154,3 +221,10 @@ export const FarHost: React.FC = () => {
   return <>{[...buckets.values()].map((b) => <primitive key={`${b.pose}${b.shadow}`} object={b.mesh} />)}</>;
 };
 
+
+/** Meshy-bodied far LOD with the procedural capsule host as fallback while loading / if the asset is missing. */
+export const FarHostAuto: React.FC = () => (
+  <RigBoundary fallback={<FarHost />}>
+    <React.Suspense fallback={<FarHost />}><FarHost meshy /></React.Suspense>
+  </RigBoundary>
+);

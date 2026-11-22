@@ -11,9 +11,9 @@ import type { CharacterAppearance, CharacterPose } from '../shared';
 import { safeTop } from './color';
 
 export const RIG_URL = `${(import.meta as any).env?.BASE_URL ?? '/'}models/quaternius/UAL1_Standard.glb`;
-export const RIG_RADIUS = 22; // metres: rigged only inside this distance
-export const RIG_RADIUS_OUT = 27; // hysteresis
-export const RIG_MAX = 12;
+export const RIG_RADIUS = 26; // metres: rigged only inside this distance
+export const RIG_RADIUS_OUT = 31; // hysteresis
+export const RIG_MAX = 18;
 const FADE = 0.25;
 
 export const CLIP: Record<CharacterPose, string> = {
@@ -84,6 +84,7 @@ function preloadAll() {
   loadGltf(RIG_URL);
   loadGltf(`${BASE_DIR}Superhero_Male_FullBody.gltf`);
   loadGltf(`${BASE_DIR}Superhero_Female_FullBody.gltf`);
+  for (const k of ['open_arms', 'professional', 'teacher']) loadGltf(`${NPC_DIR}${k}.glb`);
 }
 
 
@@ -263,6 +264,84 @@ export const RiggedCharacter: React.FC<RigProps> = ({ appearance, pose, height, 
   }, [gltf, height, castShadow]);
   useLayoutEffect(() => { for (const m of mats) setUniforms(m, { ...appearance, top: safeTop(appearance.top, appearance.skin) }); }, [mats, appearance]);
   const group = useRigPlayback(obj, gltf.animations, pose, speed, onReady);
+  return <group ref={group} scale={scale}><primitive object={obj} /></group>;
+};
+
+// ---------------------------------------------------------------- Meshy NPC bodies (textured, auto-rigged to the Quaternius skeleton, clothes tinted by region)
+export const NPC_DIR = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/npc/`;
+export type NpcKind = 'open_arms' | 'professional' | 'teacher';
+export const npcKindFor = (a: CharacterAppearance): NpcKind => {
+  const seed = hashStr(`${a.skin}${a.hair}${a.top}${a.bottom}${a.hairStyle}`);
+  const female = a.hairStyle === 'long' || a.hairStyle === 'bun' ? true : (seed & 1) === 1;
+  return female ? 'teacher' : ((seed >>> 7) & 1) === 1 ? 'professional' : 'open_arms';
+};
+interface Ref { top: number; bottom: number }
+const refCache = new WeakMap<THREE.BufferGeometry, Ref>();
+const toLin = (v: number) => Math.pow(v / 255, 2.2);
+/** mean linear luminance of the baseColor texture under the top / bottom regions (so a tint keeps the cloth's own shading) */
+export function sampleRef(mesh: THREE.SkinnedMesh): Ref {
+  const g = mesh.geometry, hit = refCache.get(g); if (hit) return hit;
+  const out: Ref = { top: 0.5, bottom: 0.3 };
+  try {
+    const tex = (mesh.material as THREE.MeshStandardMaterial).map; const img = tex?.image as ImageBitmap | HTMLImageElement | undefined;
+    if (img) {
+      const w = 256, h = 256, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const cx = cv.getContext('2d', { willReadFrequently: true })!; cx.drawImage(img as CanvasImageSource, 0, 0, w, h);
+      const px = cx.getImageData(0, 0, w, h).data, uv = g.getAttribute('uv'), reg = g.getAttribute('aReg');
+      const sum = [0, 0, 0, 0], n = [0, 0, 0, 0];
+      for (let v = 0; v < uv.count; v += 1) {
+        let r = 0; for (let k = 1; k < 4; k++) if (reg.getComponent(v, k) > reg.getComponent(v, r)) r = k;
+        const x = Math.min(w - 1, Math.max(0, Math.floor(uv.getX(v) * w))), y = Math.min(h - 1, Math.max(0, Math.floor((tex!.flipY ? 1 - uv.getY(v) : uv.getY(v)) * h))), i = (y * w + x) * 4;
+        sum[r] += 0.299 * toLin(px[i]) + 0.587 * toLin(px[i + 1]) + 0.114 * toLin(px[i + 2]); n[r]++;
+      }
+      if (n[0]) out.top = Math.max(0.02, sum[0] / n[0]);
+      if (n[1]) out.bottom = Math.max(0.02, sum[1] / n[1]);
+    }
+  } catch { /* keep defaults */ }
+  refCache.set(g, out); return out;
+}
+function npcMaterial(src: THREE.Material, look: { top: string; bottom: string }, ref: Ref, tintBottom: boolean) {
+  const m = (src as THREE.MeshStandardMaterial).clone() as THREE.MeshStandardMaterial;
+  m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null; m.metalness = 0; m.roughness = 0.85; m.envMapIntensity = 0.5;
+  const u = { uTop: { value: new THREE.Color(look.top) }, uBottom: { value: new THREE.Color(look.bottom) }, uRefTop: { value: ref.top }, uRefBottom: { value: ref.bottom }, uBottomOn: { value: tintBottom ? 1 : 0 } };
+  m.userData.npc = u;
+  m.customProgramCacheKey = () => 'city3d-npc-tint-v1';
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aReg; varying vec4 vReg;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvReg = aReg;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec4 vReg; uniform vec3 uTop; uniform vec3 uBottom; uniform float uRefTop; uniform float uRefBottom; uniform float uBottomOn;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        {
+          float mx = max(max(vReg.x, vReg.y), max(vReg.z, vReg.w));
+          float L = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          if (vReg.x >= mx) diffuseColor.rgb = uTop * clamp(L / uRefTop, 0.25, 1.7);
+          else if (vReg.y >= mx && uBottomOn > 0.5) diffuseColor.rgb = uBottom * clamp(L / uRefBottom, 0.25, 1.7);
+        }`);
+  };
+  return m;
+}
+export const MeshyCharacter: React.FC<RigProps & { kind: NpcKind }> = ({ appearance, pose, height, castShadow, onReady, speed, kind }) => {
+  const body = readGltf(`${NPC_DIR}${kind}.glb`);
+  const anim = readGltf(RIG_URL);
+  // lift the tint towards a clean office palette (white shirts keep their shading; dark roles stay dark)
+  const look = useMemo(() => { const t = new THREE.Color(safeTop(appearance.top, appearance.skin)); if (lum(appearance.top) > 0.12) t.lerp(new THREE.Color('#ffffff'), 0.22); return { top: '#' + t.getHexString(), bottom: appearance.bottom }; }, [appearance.top, appearance.skin, appearance.bottom]);
+  const { obj, scale, mats } = useMemo(() => {
+    const o = skeletonClone(body.scene) as THREE.Object3D;
+    const mats: THREE.Material[] = []; let bb: THREE.Box3 | null = null;
+    o.traverse((c) => {
+      const m = c as THREE.SkinnedMesh; if (!m.isSkinnedMesh) return;
+      ensureRegions(m);
+      const mm = npcMaterial(m.material as THREE.Material, look, sampleRef(m), kind !== 'teacher'); mats.push(mm);
+      m.material = mm; m.frustumCulled = false; m.castShadow = castShadow; m.receiveShadow = false;
+      m.geometry.computeBoundingBox(); bb = m.geometry.boundingBox;
+    });
+    const b = bb as THREE.Box3 | null; if (!b) throw new Error('no npc mesh');
+    return { obj: o, scale: height / Math.max(0.5, b.max.y - b.min.y), mats };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, height, castShadow]);
+  useLayoutEffect(() => { for (const m of mats) { const u = m.userData.npc; u.uTop.value.set(look.top); u.uBottom.value.set(look.bottom); } }, [mats, look.top, look.bottom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const group = useRigPlayback(obj, anim.animations, pose, speed, onReady);
   return <group ref={group} scale={scale}><primitive object={obj} /></group>;
 };
 

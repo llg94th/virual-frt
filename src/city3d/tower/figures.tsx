@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { FLOOR_H, live, type Quality } from '../shared';
+import { FLOOR_H, live, cityStore, type Quality } from '../shared';
 import { FT } from './furn';
 import { FIGURES, moveFigure, findPath, type FigureSpot } from './nav';
 import { figWalk, nearestAgentDist } from './agents';
@@ -144,7 +144,8 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
       if (g.current) {
         g.current.position.set(s.x, y0 + Math.sin(t * 1.6 + f.hx) * 0.006, s.z); g.current.rotation.set(0, s.yaw, Math.sin(t * 0.8 + f.hz) * 0.006);
         const cam = state.camera.position, dd = Math.hypot(cam.x - s.x, cam.y - (y0 + 1), cam.z - s.z);
-        const vis = dd < 3 || inView(s.x, y0 + 0.9, s.z); if (vis !== lod.current.shown) { lod.current.shown = vis; g.current.visible = vis; }
+        const above = cityStore.get().cameraMode === 'cutaway' && cam.y > y0 + FLOOR_H + 1; // looking down onto a lower floor's ceiling slab
+        const vis = !above && (dd < 3 || inView(s.x, y0 + 0.9, s.z)); if (vis !== lod.current.shown) { lod.current.shown = vis; g.current.visible = vis; }
         const sh = dd < 10; if (sh !== lod.current.shadow && shadowOn) { lod.current.shadow = sh; g.current.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = sh; }); }
       }
       return;

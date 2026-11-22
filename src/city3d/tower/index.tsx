@@ -11,6 +11,7 @@ import { FLOOR_H, TOWER_FLOORS, TEAM_FLOOR, FLOOR_DEPARTMENTS, cityStore, useCit
 import { Character3D, appearanceFor } from '../characters';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
 import { officeSimulationEngine } from '../../engine/simulationStore';
+import { getBrandAtlas, CELLS, ATLAS, ATLAS_H } from './brand';
 import { getFloor, atriumFlights, Furn, FT, CLEAR, CORE, HX, HZ, K, COURTYARDS, type Box, type Label, type Walker, type Prop } from './furn';
 import { AgentView, FloorPeople, Effects, stepAgents, remap, syncTransfers, lookOf, type Agent } from './agents';
 import { DOOR, GLAZE_INSET, LIFT_PAD, ENTRANCE, collidersFor, playerCollidersFor } from './nav';
@@ -221,6 +222,7 @@ const FloorStuff: React.FC<{ furn: Furn; mats: Mats; shadow: boolean; on: boolea
       {on && <InstBoxes list={screens} material={mats.screen} />}
       {on && <InstBoxes list={furn.leds} material={mats.led} />}
       {on && furn.plates.length > 0 && <Plates furn={furn} mat={mats.plate} />}
+      {on && furn.decals.length > 0 && <BrandDecals furn={furn} />}
       {on && usingProps && <PropInstances list={furn.props} mats={mats} shadow={shadow} />}
       <InstBalls balls={on ? balls : furn.balls} material={mats.leaf} shadow={shadow} />
       {on && furn.labels.map((l, i) => <LabelMesh key={i} l={l} />)}
@@ -275,6 +277,29 @@ const Plates: React.FC<{ furn: Furn; mat: THREE.MeshBasicMaterial }> = ({ furn, 
     return { geo, tex };
   }, [furn]);
   useLayoutEffect(() => { mat.map = tex; mat.side = THREE.DoubleSide; mat.needsUpdate = true; }, [mat, tex]);
+  return <mesh geometry={geo} material={mat} frustumCulled={false} />;
+};
+
+/** All FPT Retail brand decals of a Furn merged into ONE mesh sharing ONE atlas texture (1 draw call, alpha-tested so no sorting). */
+const BrandDecals: React.FC<{ furn: Furn }> = ({ furn }) => {
+  const { geo, mat } = useMemo(() => {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [], nrm: number[] = [];
+    for (const d of furn.decals) {
+      const c = CELLS[d.id]; if (!c) continue;
+      const base = pos.length / 3, cs = Math.cos(d.rot), sn = Math.sin(d.rot);
+      for (const [lx, ly] of [[-d.w / 2, -d.h / 2], [d.w / 2, -d.h / 2], [d.w / 2, d.h / 2], [-d.w / 2, d.h / 2]]) {
+        if (d.flat) { pos.push(d.x + lx * cs - ly * sn, FT + d.y, d.z - (lx * sn + ly * cs)); nrm.push(0, 1, 0); }
+        else { pos.push(d.x + lx * cs, FT + d.y + ly, d.z - lx * sn); nrm.push(sn, 0, cs); }
+      }
+      const u0 = (c.x + 0.5) / ATLAS, u1 = (c.x + c.w - 0.5) / ATLAS, v1 = 1 - (c.y + 0.5) / ATLAS_H, v0 = 1 - (c.y + c.h - 0.5) / ATLAS_H;
+      uv.push(u0, v0, u1, v0, u1, v1, u0, v1); idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    const mat = new THREE.MeshBasicMaterial({ map: getBrandAtlas(), alphaTest: 0.4, toneMapped: false, color: '#f4f4f4', polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    return { geo, mat };
+  }, [furn]);
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
   return <mesh geometry={geo} material={mat} frustumCulled={false} />;
 };
 

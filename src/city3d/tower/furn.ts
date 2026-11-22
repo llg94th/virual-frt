@@ -5,6 +5,7 @@
 import { FLOOR_H, TOWER_FLOORS, TOWER_FOOTPRINT, FLOOR_DEPARTMENTS, mulberry32 } from '../shared';
 import { NHA_THUOC_SEAT_SLOTS } from '../../data/officeLayout';
 import { EMPLOYEE_BY_ID } from '../../data/employees';
+import { teamSignId, type Decal } from './brand';
 
 export const FT = 0.3; // slab thickness
 export const CLEAR = FLOOR_H - FT; // clear height 3.3
@@ -12,6 +13,8 @@ export const HX = TOWER_FOOTPRINT.w / 2;
 export const HZ = TOWER_FOOTPRINT.d / 2;
 export const HALF = Math.max(HX, HZ);
 /** Layout items were authored for a 52 m plate; the layout group is squashed horizontally by K (axis-aligned only, so no shear). */
+/** computerScreen GLB display face (model units, bottom-centre origin): centre height, width, height, and depth in front of the model centre */
+const SCR_Y = 0.2, SCR_W = 0.3, SCR_H = 0.19, SCR_Z = 0.052;
 export const K = Math.min(TOWER_FOOTPRINT.w, TOWER_FOOTPRINT.d) / 52;
 export type V3 = [number, number, number];
 export interface Prop { m: string; p: V3; r: number; s: V3; c?: string; t?: string }
@@ -49,6 +52,8 @@ export class Furn {
   leds: Box[] = [];
   balls: Ball[] = [];
   labels: Label[] = [];
+  /** brand-atlas decals (logo wall, signs, posters, screensavers): rendered as ONE merged mesh. y = height above the walking surface */
+  decals: Decal[] = [];
   plates: { x: number; y: number; z: number; rot: number; text: string }[] = [];
   seats: Seat[] = []; // generic 'type' desks available to NPC workers
   sitSeats: Seat[] = []; // bench / lounge seats ('sit')
@@ -90,6 +95,13 @@ export class Furn {
   led(x: number, y: number, z: number, c: string) { this.mk(this.leds, x, y, z, 0.05, 0.05, 0.02, c); }
   ball(x: number, y: number, z: number, r: number, c: string) { (this.altMode ? this.altBalls : this.balls).push({ p: [x, FT + y, z], r, c }); }
   label(l: Label) { this.labels.push(l); }
+  /** brand decal. Vertical: faces (sin rot, cos rot), upright. flat: lies on the surface, top edge points to (-sin rot, -cos rot). */
+  decal(id: string, x: number, y: number, z: number, w: number, h: number, rot = 0, flat = false) { this.decals.push({ id, x, y, z, w, h, rot, flat }); }
+  /** tiled manifestation stripe (4:1 cells), vertical, centred on (x,y,z) running along the wall direction of `rot` */
+  stripe(x: number, y: number, z: number, len: number, h: number, rot: number) {
+    const n = Math.max(1, Math.round(len / (h * 4))), w = len / n, dx = Math.cos(rot), dz = -Math.sin(rot);
+    for (let i = 0; i < n; i++) { const o = -len / 2 + (i + 0.5) * w; this.decal('manif', x + dx * o, y, z + dz * o, w, h, rot); }
+  }
 
   /** local (lx,lz) in a frame rotated by th at (cx,cz) */
   lp(cx: number, cz: number, th: number, lx: number, lz: number): [number, number] {
@@ -118,7 +130,7 @@ export class Furn {
     this.prop('chairDesk', x, 0, z, th, 1.5);
   }
   /** Desk with monitor, keyboard and chair. Occupant sits at the chair looking along dir=(sin th,cos th). */
-  workstation(x: number, z: number, th: number, o: { dw?: number; dd?: number; on?: boolean; top?: string; chair?: string; rich?: boolean; plate?: string; tint?: string } = {}): Seat {
+  workstation(x: number, z: number, th: number, o: { dw?: number; dd?: number; on?: boolean; top?: string; chair?: string; rich?: boolean; plate?: string; tint?: string; brand?: boolean } = {}): Seat {
     const dw = o.dw ?? 1.4, dd = o.dd ?? 0.7;
     const h = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; // stable per-desk variety
     const on = o.on !== false;
@@ -133,7 +145,7 @@ export class Furn {
     });
     this.prop('desk', x, 0, z, face, [dw / 0.73, 1.97, dd / 0.39], undefined, o.tint);
     const single = !(o.rich && h < 0.45);
-    if (single) { const [mx, mz] = this.lp(x, z, th, 0, 0.14); this.prop('computerScreen', mx, 0.75, mz, face, 1.5, on ? '#4fd1ff' : '#16262b'); }
+    if (single) { const [mx, mz] = this.lp(x, z, th, 0, 0.14); this.prop('computerScreen', mx, 0.75, mz, face, 1.5, on ? '#4fd1ff' : '#16262b'); if (o.brand && on) { const [sx2, sz2] = this.lp(x, z, th, 0, 0.14 - SCR_Z * 1.5); this.decal(`scr${Math.floor(h * 3) % 3}`, sx2, 0.75 + SCR_Y * 1.5, sz2, SCR_W * 1.5, SCR_H * 1.5, face); } }
     { const [kx, kz] = this.lp(x, z, th, 0, -0.14); this.prop('computerKeyboard', kx, 0.75, kz, face, 1.6); }
     if (o.rich) {
       if (!single) { // dual monitor
@@ -141,6 +153,7 @@ export class Furn {
           const [mx, mz] = this.lp(x, z, th + sx * 0.18, sx * 0.3, 0.14);
           this.alt(() => this.scr(mx, 0.9, mz, 0.5, 0.3, 0.03, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b', th + sx * 0.18));
           this.prop('computerScreen', mx, 0.75, mz, face + sx * 0.18, 1.35, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b');
+          if (o.brand && on) { const [sx2, sz2] = this.lp(x, z, th + sx * 0.18, sx * 0.3, 0.14 - SCR_Z * 1.35); this.decal(sx < 0 ? 'scr0' : 'scr2', sx2, 0.75 + SCR_Y * 1.35, sz2, SCR_W * 1.35, SCR_H * 1.35, face + sx * 0.18); }
         }
       }
       { const [ox, oz] = this.lp(x, z, th, 0.34, -0.12); this.prop('computerMouse', ox, 0.75, oz, face, 2); this.alt(() => this.b(ox, 0.75, oz, 0.06, 0.025, 0.1, '#2a2d30', th)); }
@@ -158,6 +171,10 @@ export class Furn {
         const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2);
         this.alt(() => { this.b(px, 0.75, pz, 0.1, 0.1, 0.1, '#e8e4dc', th); this.ball(px, 0.93, pz, 0.1, '#3e9b55'); });
         this.prop('plantSmall1', px, 0.75, pz, h * 40, 1.8);
+      }
+      if (o.brand && on) { // lanyard badge + strap on the desk, in front of the keyboard
+        const [bx, bz] = this.lp(x, z, th, 0.02, -0.31); this.decal('badge', bx, 0.762, bz, 0.07, 0.105, face, true);
+        const [lx2, lz2] = this.lp(x, z, th, 0.02, -0.385); this.decal('lanyard', lx2, 0.761, lz2, 0.12, 0.025, face, true);
       }
       if (o.plate) { const [px, pz] = this.lp(x, z, th, 0, -dd / 2 + 0.06); this.plates.push({ x: px, y: FT + 0.8, z: pz, rot: th + Math.PI, text: o.plate }); this.b(px, 0.75, pz, 0.3, 0.02, 0.05, '#555'); }
     }
@@ -521,13 +538,15 @@ function teamDetail(S: Furn, c: TeamCtx) {
   S.prop('o:exit_sign', doorX, 2.3, zN + 0.04, 0, 1);
   S.b(doorX, 0.012, zN + 1.0, gr - gl + 0.4, 0.012, 1.3, '#3d4b50'); // entrance mat
   for (let i = 0; i < 5; i++) S.b(doorX, 0.024, zN + 0.55 + i * 0.2, gr - gl + 0.2, 0.004, 0.05, '#566a70');
+  S.decal('mat', doorX, 0.034, zN + 1.0, 2.4, 1.2, 0, true); // logo entrance mat, readable from inside the bay
+  S.b(doorX, 2.62, zN, 1.64, 0.4, 0.05, '#e9eef5'); // door header sign, both faces
+  S.decal('hdr', doorX, 2.82, zN + 0.03, 1.6, 0.4, 0); S.decal('hdr', doorX, 2.82, zN - 0.03, 1.6, 0.4, Math.PI);
   // --- solid back wall behind the north service strip ---
   const wz = -HZ + 0.5, wx0 = 1.0, wx1 = 21.4, wcx = (wx0 + wx1) / 2, wl = wx1 - wx0;
   S.b(wcx, 0, wz, wl, 3.0, 0.12, '#ece8dd'); S.b(wcx, 0, wz + 0.07, wl, 0.12, 0.03, '#7b868b'); S.b(wcx, 1.05, wz + 0.065, wl, 0.05, 0.012, '#2e8f8a');
   // storage: filing cabinets + archive boxes + sign
   for (const cx of [4.8, 5.45, 6.1]) S.prop('o:cabinet', cx, 0, wz + 0.06 + 0.29, 0, 1);
   S.prop('o:box', 4.95, 1.3, wz + 0.4, 0.2, 0.7); S.prop('o:box', 5.7, 1.3, wz + 0.4, -0.1, 0.6); S.prop('o:box', 5.35, 1.6, wz + 0.4, 0.5, 0.5);
-  S.label({ t: 'KHO • LƯU TRỮ', x: 5.45, y: 2.3, z: wz + 0.075, w: 1.9, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
   // safety point beside the print corner
   S.prop('o:extinguisher', 18.0, 0.9, wz + 0.2, 0, 1); S.b(18.0, 1.65, wz + 0.07, 0.32, 0.32, 0.012, '#c0392b'); S.b(18.0, 1.71, wz + 0.08, 0.06, 0.2, 0.006, '#fff'); S.b(18.0, 1.78, wz + 0.08, 0.2, 0.06, 0.006, '#fff');
   S.prop('o:clock', 9.0, 2.45, wz + 0.07, 0, 1); S.prop('o:calendar', 17.2, 1.4, wz + 0.07, 0, 1);
@@ -563,6 +582,40 @@ function teamDetail(S: Furn, c: TeamCtx) {
   }
   for (const dx of [7, 13, 19]) S.b(dx, CLEAR - 0.3, 0, 0.5, 0.22, 27, '#c4ccd0');
 }
+
+/** FPT Retail branding for the floor-2 office: reception logo wall, room plates, glass graphics, slogan wall, whiteboard/TV graphics */
+function brandDetail(S: Furn, c: TeamCtx) {
+  const { doorX, zN } = c;
+  void doorX; void zN;
+  // --- reception: lit logo wall on the west glass beside the lift opening, with a branded desk in front ---
+  const zc = -6.5, gx = 0.9;
+  S.scr(gx + 0.1, 0.4, zc, 0.12, 2.55, 4.9, '#0c1330'); // dark backing / frame
+  S.scr(gx + 0.17, 0.33, zc, 0.04, 0.05, 4.9, '#bfe0ff'); S.scr(gx + 0.17, 2.95, zc, 0.04, 0.05, 4.9, '#bfe0ff'); // LED edge lines
+  S.decal('wall', gx + 0.17, 1.675, zc, 4.4, 2.3, Math.PI / 2);
+  S.b(2.3, 0, zc, 0.55, 1.0, 2.8, '#eef1f5'); S.b(2.3, 1.0, zc, 0.75, 0.05, 3.0, '#2b3338');
+  S.decal('hdr', 2.58, 0.54, zc, 2.0, 0.5, Math.PI / 2);
+  S.b(2.3, 1.05, zc, 0.03, 0.2, 0.55, '#ffffff'); S.decal('pl_welcome', 2.318, 1.16, zc, 0.5, 0.156, Math.PI / 2); S.decal('pl_welcome', 2.282, 1.16, zc, 0.5, 0.156, -Math.PI / 2);
+  S.prop('o:plant_white', 1.6, 0, zc - 2.0, 0.3, 1); S.prop('o:plant_a', 1.6, 0, zc + 2.0, 1.2, 1);
+  // --- meeting room (-3.4,-16, 6x5): glass logo + manifestation stripes, TV welcome screen, door plate ---
+  const rx = -3.4, rz = -16, hw = 3, hd = 2.5;
+  S.decal('glass', rx + hw + 0.04, 1.65, rz, 1.7, 0.64, Math.PI / 2); S.decal('glass', rx + hw - 0.04, 1.65, rz, 1.7, 0.64, -Math.PI / 2);
+  S.stripe(rx + hw + 0.036, 1.1, rz, 4.0, 0.2, Math.PI / 2); S.stripe(rx + hw - 0.036, 1.1, rz, 4.0, 0.2, -Math.PI / 2);
+  S.decal('glass', rx - hw + 0.04, 1.65, rz, 1.7, 0.64, Math.PI / 2); S.decal('glass', rx - hw - 0.04, 1.65, rz, 1.7, 0.64, -Math.PI / 2);
+  for (const sx of [-1, 1]) { const cx = rx + sx * 1.85; S.stripe(cx, 1.1, rz + hd + 0.036, 2.2, 0.2, 0); S.stripe(cx, 1.1, rz + hd - 0.036, 2.2, 0.2, Math.PI); }
+  S.decal('glass', rx + 1.85, 1.65, rz + hd + 0.04, 1.5, 0.56, 0); S.decal('glass', rx + 1.85, 1.65, rz + hd - 0.04, 1.5, 0.56, Math.PI);
+  S.decal('scr1', rx, 1.65, rz - hd + 0.19, 2.08, 1.3, 0); // TV
+  S.decal('pl_meet', rx, 2.7, rz + hd + 0.045, 1.92, 0.6, 0);
+  S.decal('pl_meet', rx, 2.7, rz + hd - 0.045, 1.92, 0.6, Math.PI);
+  // --- north service strip back wall (z -21.44): storage / network / sprint plates, whiteboard graphic ---
+  const wf = -HZ + 0.56;
+  S.decal('pl_kho', 5.45, 2.35, wf + 0.012, 1.28, 0.4, 0); S.decal('pl_net', 19.7, 2.42, wf + 0.012, 1.28, 0.4, 0); S.decal('pl_sprint', 11, 2.97, wf + 0.012, 1.09, 0.34, 0);
+  S.decal('wb', 2.9, 1.5, -HZ + 0.62 + 0.035, 1.9, 1.19, 0);
+  S.decal('pl_print', 16.6, 1.35, wf + 0.012, 0.8, 0.25, 0);
+  // --- lounge / pantry south wall (front face z 20.95, facing north) ---
+  S.decal('slogan', 7.2, 1.55, 20.94, 5.6, 1.75, Math.PI);
+  S.b(7.2, 0.6, 20.93, 5.7, 0.05, 0.04, '#2b3338'); S.b(7.2, 2.45, 20.93, 5.7, 0.05, 0.04, '#2b3338');
+  S.decal('pl_pantry', 18.4, 2.75, 20.93, 1.92, 0.6, Math.PI);
+}
 function teamFloor(F: Furn, S: Furn) {
   void F;
   // The bay fills the east block (x 1.6..21, z +-14), authored directly in world metres (S = unsquashed structure group).
@@ -584,10 +637,15 @@ function teamFloor(F: Furn, S: Furn) {
   const islands = new Map<string, typeof NHA_THUOC_SEAT_SLOTS>();
   for (const q of NHA_THUOC_SEAT_SLOTS) { const a = islands.get(q.islandId) ?? []; a.push(q); islands.set(q.islandId, a); }
   const cols = new Set<number>(), rows = new Set<number>();
+  let teamIdx = 0;
   islands.forEach((slots) => {
     const xs = slots.map((q) => mx(q.wx)), zs = slots.map((q) => mz(q.wy));
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
     const d = Math.max(...zs) - Math.min(...zs) + 1.4;
+    { // per-cluster team sign on a short post at each end of the divider (readable from the aisles)
+      const sid = teamSignId(teamIdx++);
+      for (const sd of [-1, 1]) { S.b(cx, 1.2, cz + sd * (d / 2 - 0.05), 0.04, 0.3, 0.04, '#2b3338'); S.decal(sid, cx, 1.64, cz + sd * (d / 2 - 0.05 + 0.03), 0.84, 0.2625, sd < 0 ? Math.PI : 0); }
+    }
     cols.add(Math.round(cx * 100) / 100); rows.add(Math.round(cz * 100) / 100);
     S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#5f7d62'); // island rug
     S.g(cx, 0.75, cz, 0.04, 0.45, d);
@@ -602,12 +660,15 @@ function teamFloor(F: Furn, S: Furn) {
   let pi = 0;
   for (const q of NHA_THUOC_SEAT_SLOTS) {
     const x = mx(q.wx), z = mz(q.wy);
-    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); pillarKit(S, x, z, pi++); continue; }
+    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); pillarKit(S, x, z, pi);
+      // 'values' poster set on the other three column faces
+      S.decal(`poster${(pi * 3) % 6}`, x, 1.55, z - 0.356, 0.5, 0.75, Math.PI); S.decal(`poster${(pi * 3 + 1) % 6}`, x + 0.356, 1.55, z, 0.5, 0.75, Math.PI / 2); S.decal(`poster${(pi * 3 + 2) % 6}`, x - 0.356, 1.55, z, 0.5, 0.75, -Math.PI / 2);
+      pi++; continue; }
     const th = q.side === 'LEFT' ? Math.PI / 2 : -Math.PI / 2;
     const emp = q.assignedEmployeeId && EMPLOYEE_BY_ID[q.assignedEmployeeId] ? q.assignedEmployeeId : undefined;
     const occupied = q.kind === 'OCCUPIED';
     const seat = S.workstation(x, z, th, {
-      dw: 1.25, dd: 0.85, on: occupied, rich: true, plate: q.account || undefined,
+      dw: 1.25, dd: 0.85, on: occupied, rich: true, brand: true, plate: q.account || undefined,
       top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
       tint: q.highlight === 'red' ? '#ff7a7a' : q.highlight === 'yellow' ? '#ffd84a' : undefined,
     });
@@ -621,7 +682,6 @@ function teamFloor(F: Furn, S: Furn) {
   // --- north strip: kanban wall, whiteboard, network cabinets, printer ---
   const zk = -HZ + 0.62;
   S.b(11, 0.8, zk, 9, 2.0, 0.08, '#f5f5f2');
-  S.label({ t: 'SPRINT BOARD', x: 11, y: 3.05, z: zk + 0.06, w: 4.2, h: 0.5, rot: 0, fg: '#ffffff', bg: '#2e8f8a' });
   const stick = ['#f7d154', '#7ac7f0', '#b6e07a', '#f29bbb'], cnt = [5, 4, 3, 6], kr = mulberry32(88);
   ['TO DO', 'DOING', 'REVIEW', 'DONE'].forEach((t, i) => {
     const cx = 11 - 3.3 + i * 2.2;
@@ -638,13 +698,11 @@ function teamFloor(F: Furn, S: Furn) {
     S.b(cx, 0, -HZ + 1.05, 0.8, 2.1, 0.9, '#1b2228');
     for (let k = 0; k < 10; k++) S.led(cx - 0.28 + (k % 5) * 0.14, 0.4 + Math.floor(k / 5) * 0.6 + lr() * 0.5, -HZ + 1.05 + 0.46, lr() < 0.7 ? '#33ff88' : '#3aa0ff');
   }
-  S.label({ t: 'NETWORK', x: 19.7, y: 2.4, z: -HZ + 0.58, w: 1.8, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
   // --- south strip: lounge + pantry ---
   S.sofa(2.8, 17.4, Math.PI, 2.6); S.sofa(2.8, 20, 0, 2.6); S.table(2.8, 18.7, 1.4, 0.7, '#e9e2d3', 0.4);
   S.counter(18.4, HZ - 1.6, 5, 0.75, '#f1ede4', '#2e8f8a', Math.PI);
   S.prop('kitchenCoffeeMachine', 16.4, 1.0, HZ - 1.6, Math.PI, 2); S.prop('kitchenMicrowave', 19.4, 1.0, HZ - 1.6, Math.PI, 2); S.bookcase(-6.7, -12, Math.PI / 2); S.bookcase(-6.7, 12, Math.PI / 2); S.bookcase(-4.5, -HZ + 0.6, 0); S.bookcase(-3.6, -HZ + 0.6, 0);
   S.b(16.4, 1.05, HZ - 1.6, 0.5, 0.4, 0.5, '#b9c1c5'); S.fridge(21, HZ - 1.6, Math.PI);
-  S.label({ t: 'PANTRY', x: 18.4, y: 2.75, z: 20.9, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
   for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
   for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
   // points of interest for the living office
@@ -654,7 +712,6 @@ function teamFloor(F: Furn, S: Furn) {
     { x: 2.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 3.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 2.3, z: 20, rot: 0, pose: 'sit' }, { x: 3.3, z: 20, rot: 0, pose: 'sit' });
   // glass meeting room + clearer lounge / pantry zones
   S.room(-3.4, -16, 6, 5, '#d9c7a8');
-  S.label({ t: 'PHÒNG HỌP', x: -3.4, y: 2.7, z: -13.45, w: 3.4, h: 0.6, rot: 0, fg: '#fff', bg: '#2e8f8a' });
   S.prop('rugRectangle', 2.8, 0.012, 18.7, 0, [3.2, 1, 4.3]);
   S.label({ t: 'LOUNGE', x: 2.8, y: 0.03, z: 21.2, w: 3.4, h: 0.7, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
   S.label({ t: 'PANTRY • CÀ PHÊ', x: 18.4, y: 0.03, z: 15.2, w: 5, h: 0.8, rot: 0, flat: true, fg: '#9a4a14', bg: 'rgba(0,0,0,0)' });
@@ -664,13 +721,8 @@ function teamFloor(F: Furn, S: Furn) {
   for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'o:plant_white' : 'o:plant_a', px, 0, pz, px * 3.1, 1);
   S.prop('o:floor_light', 4.7, 0, 17.2, 0, 1); S.prop('o:floor_light', 0.9, 0, 21, 0, 1);
   S.prop('o:coat_rack', -1.2, 0, -HZ + 1.0, 0, 1);
-  // framed abstract prints (the pack's wall-art models render near-black, so they are drawn from boxes instead)
-  { const ar = mulberry32(515), pal = [['#e07a3a', '#2e8f8a', '#f2c14e'], ['#c0392b', '#34495e', '#ecf0f1'], ['#59b36a', '#2c3e50', '#f29bbb']];
-    [5.2, 7.0, 8.8].forEach((x, k) => {
-      S.b(x, 1.2, 20.94, 0.72, 1.1, 0.02, '#2b3338'); S.b(x, 1.25, 20.92, 0.62, 1.0, 0.02, '#f6f3ea');
-      for (let n = 0; n < 4; n++) { const w = 0.12 + ar() * 0.3, h = 0.15 + ar() * 0.4; S.b(x + (ar() - 0.5) * (0.5 - w), 1.3 + ar() * (0.9 - h), 20.9, w, h, 0.012, pal[k][n % 3]); }
-    }); }
   teamDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });
+  brandDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });
   // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
   for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) S.scr(px, CLEAR - 0.05, pz, 1.1, 0.04, 0.4, '#8f927e');
 }

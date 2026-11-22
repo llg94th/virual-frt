@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
@@ -304,6 +304,7 @@ function bikeLights(len: number, h: number): G {
   return merge([box(0.22, 0.16, 0.08, 0, h * 0.5, len / 2 + 0.02, HEAD), box(0.2, 0.12, 0.06, 0, h * 0.42, -len / 2 - 0.02, TAIL)]);
 }
 const SHIPPER_URL = `${import.meta.env.BASE_URL || '/'}models/meshy/shipper.glb`;
+const SHIPPER_HQ_URL = `${import.meta.env.BASE_URL || '/'}models/meshy/original/shipper.glb`;
 /** Rotation about Y mapping the GLB's length axis (X) onto +Z so the front faces forward. -PI/2: front is +X; +PI/2: front is -X. */
 const SHIPPER_ROT = -Math.PI / 2;
 function useShipper(): KitVariant | null {
@@ -777,6 +778,32 @@ const KitTier: React.FC<{ n: number; quality: string; shipper: KitVariant | null
 };
 const ShipperScene: React.FC<{ n: number; quality: string }> = ({ n, quality }) => <KitTier n={n} quality={quality} shipper={useShipper()} />;
 
+/** Original (undecimated) shipper for the single parked/ridden bike; the 13k-tri one stays for the instanced traffic and as placeholder. */
+const ShipperHQ: React.FC = () => {
+  const g = useGLTF(SHIPPER_HQ_URL) as unknown as { scene: THREE.Object3D };
+  const v = useMemo(() => bakeVariant(g.scene.clone(true), 1.85, SHIPPER_ROT), [g]);
+  if (!v) throw new Error('shipper HQ bake failed');
+  return <mesh geometry={v.geo} material={v.mat} castShadow={false} />;
+};
+const ShipperBody: React.FC<{ low: KitVariant }> = ({ low }) => {
+  const [hq, setHq] = useState(false);
+  const ref = useRef<THREE.Group>(null);
+  const acc = useRef(0);
+  useFrame((state, dt) => {
+    acc.current += dt; if (acc.current < 0.5) return; acc.current = 0;
+    const p = ref.current; if (!p) return;
+    const d = state.camera.position.distanceTo(p.getWorldPosition(new THREE.Vector3()));
+    const want = rides.active === 'scooter' || d < (hq ? 45 : 32);
+    if (want !== hq) setHq(want);
+  });
+  const lowMesh = <mesh geometry={low.geo} material={low.mat} castShadow />;
+  return (
+    <group ref={ref}>
+      {hq ? <KitBoundary fallback={lowMesh}><Suspense fallback={lowMesh}><ShipperHQ /></Suspense></KitBoundary> : lowMesh}
+    </group>
+  );
+};
+
 /** GHN shipper bike parked near the F1 door; becomes the ridden vehicle when rides.active==='scooter'. */
 const ShipperProp: React.FC<{ shipper: KitVariant | null }> = ({ shipper }) => {
   const root = useRef<THREE.Group>(null);
@@ -802,7 +829,7 @@ const ShipperProp: React.FC<{ shipper: KitVariant | null }> = ({ shipper }) => {
   return (
     <group ref={root}>
       <group ref={tilt}>
-        {shipper ? <mesh geometry={shipper.geo} material={shipper.mat} castShadow /> : res.proc && (
+        {shipper ? <ShipperBody low={shipper} /> : res.proc && (
           <>
             <mesh geometry={res.proc.body} material={res.body!} castShadow />
             <mesh geometry={res.proc.dark} material={res.dark!} />

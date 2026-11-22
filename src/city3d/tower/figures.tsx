@@ -15,6 +15,9 @@ import { figWalk, nearestAgentDist } from './agents';
 import { RIG_URL, readGltf, inView } from '../characters/rigged';
 
 const ROOT = `${(import.meta as any).env?.BASE_URL ?? '/'}models/meshy/`;
+/** Original, untouched Meshy exports (static pose). The auto-rig stretched skirts/hems, so rigging is off by default. */
+const USE_RIG = false;
+const ORIGINAL = `${ROOT}original/`;
 const exists = new Map<string, Promise<boolean>>();
 const check = (url: string) => {
   let p = exists.get(url);
@@ -105,8 +108,8 @@ const LEGS: Record<string, [number, number][]> = {
 };
 
 const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) => {
-  const rigUrl = `${ROOT}rigged/${f.file}_rigged.glb`, staticUrl = `${ROOT}${f.file}.glb`;
-  const rigOk = useExists(rigUrl), staticOk = useExists(staticUrl);
+  const rigUrl = `${ROOT}rigged/${f.file}_rigged.glb`, staticUrl = USE_RIG ? `${ROOT}${f.file}.glb` : `${ORIGINAL}${f.file}.glb`;
+  const rigExists = useExists(rigUrl), staticOk = useExists(staticUrl); const rigOk = USE_RIG ? rigExists : false;
   const g = useRef<THREE.Group>(null!);
   const api = useRef<Api>({ play: () => {}, onFinished: null });
   const [chip, setChip] = useState(false);
@@ -134,6 +137,18 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
     const want = pd < 4 || hover.current;
     if (want !== shown.current) { shown.current = want; setChip(want); }
     s.cooldown -= dt;
+    if (!USE_RIG) { // static original model: face the player when greeting, gentle breathing sway, no walking
+      let ty = f.yaw; if (f.id === 'open_arms' && pd < 3) ty = Math.atan2(live.player.x - s.x, live.player.z - s.z);
+      let dy = ty - s.yaw; dy -= Math.PI * 2 * Math.round(dy / (Math.PI * 2)); s.yaw += dy * Math.min(1, dt * 3);
+      const t = state.clock.elapsedTime;
+      if (g.current) {
+        g.current.position.set(s.x, y0 + Math.sin(t * 1.6 + f.hx) * 0.006, s.z); g.current.rotation.set(0, s.yaw, Math.sin(t * 0.8 + f.hz) * 0.006);
+        const cam = state.camera.position, dd = Math.hypot(cam.x - s.x, cam.y - (y0 + 1), cam.z - s.z);
+        const vis = dd < 3 || inView(s.x, y0 + 0.9, s.z); if (vis !== lod.current.shown) { lod.current.shown = vis; g.current.visible = vis; }
+        const sh = dd < 10; if (sh !== lod.current.shadow && shadowOn) { lod.current.shadow = sh; g.current.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = sh; }); }
+      }
+      return;
+    }
     if (s.mode === 'walk' && s.path) {
       const p = s.path, n = p.length >> 1, dx = p[s.pi * 2] - s.x, dz = p[s.pi * 2 + 1] - s.z, d = Math.hypot(dx, dz), last = s.pi === n - 1;
       if (d < (last ? 0.08 : 0.25)) {
@@ -200,6 +215,16 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
 
 /** Mount only figures on visible/near floors; hidden on low quality. Unmounted = frozen (no mixer cost). */
 export const FiguresLayer: React.FC<{ sel: number | null; quality: Quality; near: boolean }> = ({ sel, quality, near }) => {
+  // the original models are heavy (~450k tris, 4x2048 textures each): only mount a figure while the camera is within MOUNT_IN metres
+  const [close, setClose] = useState<Set<string>>(() => new Set());
+  const acc = useRef(0);
+  useFrame((state, dt) => {
+    acc.current += dt; if (acc.current < 0.4) return; acc.current = 0;
+    const c = state.camera.position; const next = new Set<string>();
+    for (const f of FIGURES) { const d = Math.hypot(c.x - f.x, c.y - (f.floor * FLOOR_H + FT), c.z - f.z); if (d < (close.has(f.id) ? MOUNT_OUT : MOUNT_IN)) next.add(f.id); }
+    if (next.size !== close.size || [...next].some((k) => !close.has(k))) setClose(next);
+  });
   if (quality === 'low') return null;
-  return <>{FIGURES.filter((f) => (sel === null || sel >= f.floor) && (sel === f.floor || near)).map((f) => <Figure key={f.id} f={f} quality={quality} />)}</>;
+  return <>{FIGURES.filter((f) => (USE_RIG || close.has(f.id)) && (sel === null || sel >= f.floor) && (sel === f.floor || near)).map((f) => <Figure key={f.id} f={f} quality={quality} />)}</>;
 };
+const MOUNT_IN = 42, MOUNT_OUT = 55;

@@ -16,6 +16,7 @@ import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { inView, rigTick, readGltf, ensureRegions, sampleRef, NPC_DIR, RIG_URL, CLIP, RigBoundary } from './rigged';
 import { safeTop } from './color';
+import { realisticSkin } from './rpm';
 
 export const FAR_IN = 20; // metres from camera: beyond -> far LOD (hysteresis handled by caller)
 export const SHADOW_DIST = 60; // beyond: no shadow casting
@@ -38,8 +39,11 @@ export const useFarLeader = (token: object) =>
   useSyncExternalStore(sub, () => farUsers.values().next().value === token);
 
 export function makeFarColors(a: { top: string; bottom: string; skin: string; hair: string; shoes: string; hairStyle: string }, out: Float32Array) {
-  const c = new THREE.Color();
-  [safeTop(a.top, a.skin), a.bottom, a.skin, a.hairStyle === 'bald' ? a.skin : a.hair, a.shoes].forEach((col, i) => { c.set(col); out[i * 3] = c.r; out[i * 3 + 1] = c.g; out[i * 3 + 2] = c.b; });
+  // same colour rules as the near RPM bodies (realistic skin range, lightened top, bald = skin) so the LOD switch does not pop
+  const c = new THREE.Color(), skin = realisticSkin(a.skin), top = new THREE.Color(safeTop(a.top, a.skin));
+  if (0.2126 * top.r + 0.7152 * top.g + 0.0722 * top.b > 0.12) top.lerp(new THREE.Color('#ffffff'), 0.2);
+  const cols: THREE.Color[] = [top, c.set(a.bottom).clone(), skin, a.hairStyle === 'bald' ? skin : c.set(a.hair).clone(), c.set(a.shoes).clone()];
+  cols.forEach((col, i) => { out[i * 3] = col.r; out[i * 3 + 1] = col.g; out[i * 3 + 2] = col.b; });
 }
 
 // ---------------------------------------------------------------- pre-posed merged geometry
@@ -67,6 +71,7 @@ function buildPosed(pose: CharacterPose): THREE.BufferGeometry {
   const capG = (r: number, l: number) => new THREE.CapsuleGeometry(r, l, 2, 6);
   add(capG(0.14, 0.3), REGION.top, mul(spine, T(0, 0.27, 0), S(1.15, 1, 0.78)));
   const head = mul(spine, T(0, 0.58, 0), Ry(t[J.HDY]), Rx(t[J.HDX]), T(0, 0.13, 0));
+  add(new THREE.CylinderGeometry(0.045, 0.052, 0.1, 6), REGION.skin, mul(spine, T(0, 0.6, 0.005)));
   add(new THREE.SphereGeometry(0.12, 8, 6), REGION.skin, mul(head, S(0.95, 1.05, 1)));
   add(new THREE.SphereGeometry(0.13, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.58), REGION.hair, mul(head, T(0, 0.005, -0.005)));
   for (const sd of [1, -1]) {

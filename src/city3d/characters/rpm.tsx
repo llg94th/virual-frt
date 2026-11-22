@@ -259,7 +259,7 @@ export const RpmCharacter: React.FC<Props> = ({ appearance, pose, castShadow, on
     if (seated) {
       m.next -= step;
       if (m.kind === 'none' && m.next <= 0) {
-        const r = Math.random(); m.kind = r < 0.55 ? 'look' : 'drink'; // stretch/lean disabled: the Meshy spine axes are arbitrary and they threw people backwards m.t = 0; m.dir = Math.random() < 0.5 ? -1 : 1;
+        const r = Math.random(); m.kind = (r < 0.55 ? 'look' : 'drink') as MicroKind; // stretch/lean disabled: the Meshy spine axes are arbitrary and they threw people backwards m.t = 0; m.dir = Math.random() < 0.5 ? -1 : 1;
         if (m.kind === 'drink' && !R.hasCup) m.kind = 'look';
         m.dur = m.kind === 'drink' ? 6 : m.kind === 'stretch' ? 4.5 : m.kind === 'look' ? 4 : 3.5;
       }

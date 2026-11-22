@@ -4,6 +4,7 @@
  */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
+import { STYLE_MAP } from './stylize';
 import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -311,7 +312,7 @@ function npcMaterial(src: THREE.Material, look: { top: string; bottom: string },
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aReg; varying vec4 vReg;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvReg = aReg;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec4 vReg; uniform vec3 uTop; uniform vec3 uBottom; uniform float uRefTop; uniform float uRefBottom; uniform float uBottomOn;')
-      .replace('#include <map_fragment>', `#include <map_fragment>
+      .replace('#include <map_fragment>', `${STYLE_MAP}
         {
           float mx = max(max(vReg.x, vReg.y), max(vReg.z, vReg.w));
           float L = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));

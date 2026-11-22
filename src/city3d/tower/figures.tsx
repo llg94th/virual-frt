@@ -5,6 +5,7 @@
  */
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { stylize } from '../characters/stylize';
 import { useFrame } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -41,7 +42,7 @@ interface Api { play: (clip: string, once: boolean) => void; onFinished: (() => 
 const prep = (o: THREE.Object3D, shadow: boolean) => o.traverse((m) => {
   const me = m as THREE.Mesh; if (!me.isMesh) return;
   me.castShadow = shadow; me.receiveShadow = true; me.frustumCulled = false; // skinned bounds are unreliable
-  const mat = me.material as THREE.MeshStandardMaterial; if (mat) { mat.envMapIntensity = 0.35; mat.needsUpdate = true; }
+  const mat = me.material as THREE.MeshStandardMaterial; if (mat) { mat.envMapIntensity = 0.35; stylize(mat); }
 });
 
 /** static fallback (no skeleton) */

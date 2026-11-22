@@ -17,6 +17,7 @@ import type { Grid } from './walk';
 import { J, HIP_Y, tgt, computeTarget } from './pose';
 import { FarHost, farEntries, joinFar, useFarLeader, makeFarColors, FAR_IN } from './far';
 import type { FarEntry } from './far';
+import { RpmCharacter, rpmKindFor } from './rpm';
 import { OfficeCharacter, MeshyCharacter, npcKindFor, RiggedCharacter, RigBoundary, ensureRigAsset, useRigStatus, registerRig, rigTick } from './rigged';
 import type { RigEntry } from './rigged';
 
@@ -302,9 +303,9 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
           </RigBoundary>}>
           <React.Suspense fallback={null}>
             <group visible={ready}>
-              {NPC_MESHY && !priority && pose !== 'walk' && pose !== 'run' ? (
+              {NPC_MESHY && !priority ? (
                 <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />}>
-                  <MeshyCharacter kind={npcKindFor(appearance)} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
+                  <RpmCharacter kind={rpmKindFor(appearance)} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
                 </RigBoundary>
               ) : (
                 <OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low' || priority}
@@ -473,7 +474,7 @@ export function setObstacles(list: Array<Obstacle | Rect | any>) {
     : { minX: o.x - o.w / 2, maxX: o.x + o.w / 2, minZ: o.z - o.d / 2, maxZ: o.z + o.d / 2 });
 }
 /** Camera orbit hint written by dragging the mouse while walking; CameraRig may read it. */
-const NPC_MESHY = false; // NPCs use the Quaternius office worker (reliable animation, skin/hair/beard variants); Meshy bodies kept for named figures
+const NPC_MESHY = true; // NPCs use the Quaternius office worker (reliable animation, skin/hair/beard variants); Meshy bodies kept for named figures
 export const playerLook = { yaw: 0, pitch: 0.35, dist: 6 };
 
 // ---------------------------------------------------------------- Crowd

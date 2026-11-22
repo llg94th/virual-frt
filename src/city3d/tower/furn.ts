@@ -50,6 +50,7 @@ export class Furn {
   glass: Box[] = [];
   screens: Box[] = [];
   leds: Box[] = [];
+  disp: Box[] = [];
   balls: Ball[] = [];
   labels: Label[] = [];
   /** brand-atlas decals (logo wall, signs, posters, screensavers): rendered as ONE merged mesh. y = height above the walking surface */
@@ -121,56 +122,77 @@ export class Furn {
     this.alt(() => { this.b(x, 0, z, 0.4 * s, 0.4 * s, 0.4 * s, '#e8e4dc'); this.ball(x, 0.4 * s + 0.35 * s, z, 0.4 * s, '#3e9b55'); });
     this.prop('pottedPlant', x, 0, z, (x * 7.3 + z) % 6.28, 1.2 * s);
   }
-  chair(x: number, z: number, th: number, c = '#2f3b44') {
-    this.alt(() => {
-      this.rb(x, z, th, 0, 0, 0, 0.06, 0.42, 0.06, '#333');
-      this.rb(x, z, th, 0, 0, 0.42, 0.46, 0.06, 0.46, c);
-      this.rb(x, z, th, 0, -0.23, 0.5, 0.46, 0.42, 0.05, c);
-    });
-    this.prop('chairDesk', x, 0, z, th, 1.5);
+  /** local-frame box: centre at (lx,lz) of a frame rotated by th at (cx,cz), extra yaw dth, pitch rx */
+  lb(cx: number, cz: number, th: number, lx: number, lz: number, y: number, w: number, h: number, d: number, c: string, dth = 0, rx = 0) {
+    const [x, z] = this.lp(cx, cz, th, lx, lz); this.b(x, y, z, w, h, d, c, th + dth, rx);
   }
-  /** Desk with monitor, keyboard and chair. Occupant sits at the chair looking along dir=(sin th,cos th). */
+  /** flat-panel display (textured desktop wallpaper, tinted by `c`) */
+  display(x: number, y: number, z: number, w: number, h: number, c: string, r = 0, rx = 0) { this.mk(this.disp, x, y, z, w, h, 0.004, c, r, rx); }
+  /** thin-bezel monitor on a stand; (lx,lz) local to the desk frame (cx,cz,th), screen faces -lz (the user). */
+  monitor(cx: number, cz: number, th: number, lx: number, lz: number, dth: number, on: boolean, tint: string, k = 1) {
+    const yaw = th + dth, [mx, mz] = this.lp(cx, cz, th, lx, lz), P = (a: number, b: number) => this.lp(mx, mz, yaw, a, b);
+    let [px, pz] = P(0, 0); this.b(px, 0.75, pz, 0.24, 0.012, 0.17, '#17191c', yaw);
+    [px, pz] = P(0, 0.05); this.b(px, 0.76, pz, 0.05, 0.17 * k, 0.025, '#1d1f22', yaw);
+    [px, pz] = P(0, 0.04); this.b(px, 0.9, pz, 0.56 * k, 0.33 * k, 0.03, '#0f1113', yaw);
+    [px, pz] = P(0, 0.021); this.display(px, 0.905, pz, 0.545 * k, 0.318 * k, on ? tint : '#0b0e10', yaw);
+  }
+  chair(x: number, z: number, th: number, c = '#2a2e33') {
+    const L = (lx: number, lz: number, y: number, w: number, h: number, d: number, col: string, dth = 0, rx = 0) => this.lb(x, z, th, lx, lz, y, w, h, d, col, dth, rx);
+    const dk = '#17191c';
+    for (let i = 0; i < 5; i++) { // five-star base + castors
+      const a = (i * Math.PI * 2) / 5 + 0.3, s = Math.sin(a), co = Math.cos(a);
+      L(0.12 * s, 0.12 * co, 0.05, 0.04, 0.025, 0.26, dk, a); L(0.25 * s, 0.25 * co, 0, 0.05, 0.05, 0.05, '#0c0d0e', a);
+    }
+    L(0, 0, 0.075, 0.05, 0.33, 0.05, '#34373a'); L(0, 0, 0.4, 0.15, 0.04, 0.15, dk); // gas lift + mechanism
+    L(0, 0.02, 0.44, 0.5, 0.07, 0.48, c); // seat
+    L(0, -0.2, 0.47, 0.06, 0.17, 0.04, dk); // spine
+    L(0, -0.25, 0.58, 0.46, 0.48, 0.04, dk, 0, -0.1); L(0, -0.255, 0.61, 0.37, 0.4, 0.046, '#363c42', 0, -0.1); // frame + mesh back
+    L(0, -0.285, 1.06, 0.04, 0.1, 0.03, dk, 0, -0.1); L(0, -0.3, 1.13, 0.26, 0.12, 0.05, dk, 0, -0.1); // headrest
+    for (const s of [-1, 1]) { L(s * 0.27, -0.02, 0.5, 0.03, 0.18, 0.03, dk); L(s * 0.27, -0.02, 0.67, 0.065, 0.025, 0.27, '#0e0f10'); } // armrests
+  }
+  /** Desk with dual monitors, peripherals and an ergonomic chair. Occupant sits at the chair looking along dir=(sin th,cos th). */
   workstation(x: number, z: number, th: number, o: { dw?: number; dd?: number; on?: boolean; top?: string; chair?: string; rich?: boolean; plate?: string; tint?: string; brand?: boolean } = {}): Seat {
     const dw = o.dw ?? 1.4, dd = o.dd ?? 0.7;
     const h = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; // stable per-desk variety
     const on = o.on !== false;
-    const face = th + Math.PI; // objects that face the user
-    this.alt(() => {
-      this.rb(x, z, th, 0, 0, 0.7, dw, 0.05, dd, o.top ?? '#e9e2d3');
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.rb(x, z, th, sx * (dw / 2 - 0.04), sz * (dd / 2 - 0.04), 0, 0.04, 0.7, 0.04, '#8a949b');
-      this.rb(x, z, th, 0, 0.12, 0.75, 0.06, 0.16, 0.06, '#222');
-      const [mx, mz] = this.lp(x, z, th, 0, 0.12);
-      this.scr(mx, 0.9, mz, 0.55, 0.32, 0.03, on ? '#4fd1ff' : '#16262b', th);
-      this.rb(x, z, th, 0, -0.12, 0.75, 0.4, 0.02, 0.14, '#202428');
-    });
-    this.prop('desk', x, 0, z, face, [dw / 0.73, 1.97, dd / 0.39], undefined, o.tint);
-    const single = !(o.rich && h < 0.45);
-    if (single) { const [mx, mz] = this.lp(x, z, th, 0, 0.14); this.prop('computerScreen', mx, 0.75, mz, face, 1.5, on ? '#4fd1ff' : '#16262b'); if (o.brand && on) { const [sx2, sz2] = this.lp(x, z, th, 0, 0.14 - SCR_Z * 1.5); this.decal(`scr${Math.floor(h * 3) % 3}`, sx2, 0.75 + SCR_Y * 1.5, sz2, SCR_W * 1.5, SCR_H * 1.5, face); } }
-    { const [kx, kz] = this.lp(x, z, th, 0, -0.14); this.prop('computerKeyboard', kx, 0.75, kz, face, 1.6); }
+    const face = th + Math.PI;
+    const L = (lx: number, lz: number, y: number, w: number, hh: number, d: number, c: string, dth = 0, rx = 0) => this.lb(x, z, th, lx, lz, y, w, hh, d, c, dth, rx);
+    // white laminate top, panel legs, modesty panel, drawer pedestal, under-desk cable tray
+    L(0, 0, 0.72, dw, 0.03, dd, o.top ?? '#e6e8e8');
+    L(0, dd / 2 - 0.01, 0.74, dw, 0.012, 0.02, '#3a3e42'); // back edge strip
+    for (const sx of [-1, 1]) L(sx * (dw / 2 - 0.03), 0, 0, 0.035, 0.72, dd - 0.12, '#d3d6d8');
+    L(0, dd / 2 - 0.08, 0.34, dw - 0.1, 0.36, 0.02, '#dfe2e3');
+    L(0, dd / 2 - 0.15, 0.6, 0.7, 0.025, 0.1, '#25282b');
+    L(dw / 2 - 0.3, dd / 2 - 0.1, 0.752, 0.05, 0.006, 0.05, '#1b1d1f'); // cable grommet
+    if (h < 0.6) {
+      L(-dw / 2 + 0.28, 0.0, 0, 0.4, 0.7, 0.5, '#e2e5e6');
+      for (const y of [0.18, 0.4, 0.58]) { L(-dw / 2 + 0.28, -0.255, y, 0.36, 0.004, 0.006, '#8e959a'); L(-dw / 2 + 0.28, -0.258, y - 0.07, 0.14, 0.012, 0.012, '#2b2e31'); }
+    }
+    const dual = !!o.rich && h >= 0.35, tintA = on ? '#cfe4ff' : '#0b0e10';
+    if (dual) { for (const sx of [-1, 1]) this.monitor(x, z, th, sx * 0.29, 0.2, sx * 0.2, on, sx < 0 ? '#d6e6ff' : '#bfd7f5'); }
+    else this.monitor(x, z, th, 0, 0.2, 0, on, tintA, 1.1);
+    if (o.brand && on) {
+      if (dual) for (const sx of [-1, 1]) { const [sx2, sz2] = this.lp(x, z, th + sx * 0.2, sx * 0.29, 0.2 - SCR_Z * 1.35); this.decal(sx < 0 ? 'scr0' : 'scr2', sx2, 0.75 + SCR_Y * 1.35, sz2, SCR_W * 1.35, SCR_H * 1.35, th + Math.PI + sx * 0.2); }
+      else { const [sx2, sz2] = this.lp(x, z, th, 0, 0.2 - SCR_Z * 1.5); this.decal(`scr${Math.floor(h * 3) % 3}`, sx2, 0.75 + SCR_Y * 1.5, sz2, SCR_W * 1.5, SCR_H * 1.5, th + Math.PI); }
+    }
+    L(0, -0.15, 0.75, 0.43, 0.015, 0.14, '#24272b'); L(0, -0.145, 0.765, 0.4, 0.005, 0.115, '#3b4046'); // keyboard
+    L(0.34, -0.14, 0.75, 0.22, 0.004, 0.18, '#202326'); L(0.34, -0.14, 0.754, 0.06, 0.028, 0.1, '#2e3236'); // mouse pad + mouse
     if (o.rich) {
-      if (!single) { // dual monitor
-        for (const sx of [-1, 1]) {
-          const [mx, mz] = this.lp(x, z, th + sx * 0.18, sx * 0.3, 0.14);
-          this.alt(() => this.scr(mx, 0.9, mz, 0.5, 0.3, 0.03, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b', th + sx * 0.18));
-          this.prop('computerScreen', mx, 0.75, mz, face + sx * 0.18, 1.35, on ? (sx < 0 ? '#4fd1ff' : '#7be0a8') : '#16262b');
-          if (o.brand && on) { const [sx2, sz2] = this.lp(x, z, th + sx * 0.18, sx * 0.3, 0.14 - SCR_Z * 1.35); this.decal(sx < 0 ? 'scr0' : 'scr2', sx2, 0.75 + SCR_Y * 1.35, sz2, SCR_W * 1.35, SCR_H * 1.35, face + sx * 0.18); }
-        }
-      }
-      { const [ox, oz] = this.lp(x, z, th, 0.34, -0.12); this.prop('computerMouse', ox, 0.75, oz, face, 2); this.alt(() => this.b(ox, 0.75, oz, 0.06, 0.025, 0.1, '#2a2d30', th)); }
       if (h > 0.5 && h < 0.8) { // laptop
-        const [lx, lz] = this.lp(x, z, th, -dw / 2 + 0.28, -0.02);
-        this.alt(() => { this.b(lx, 0.75, lz, 0.32, 0.015, 0.22, '#b9c0c6', th); this.scr(lx, 0.8, lz, 0.32, 0.2, 0.012, on ? '#9ad7ff' : '#16262b', th); });
-        this.prop('laptop', lx, 0.75, lz, face, 1.4);
+        L(-dw / 2 + 0.55, -0.04, 0.75, 0.32, 0.015, 0.22, '#b4bac0', 0.25);
+        const [lx, lz] = this.lp(x, z, th, -dw / 2 + 0.55, 0.07);
+        this.b(lx, 0.765, lz, 0.32, 0.2, 0.01, '#aab0b6', th + 0.25, 0.3);
+        const [dx, dz] = this.lp(lx, lz, th + 0.25, 0, -0.009); this.display(dx, 0.77, dz, 0.29, 0.17, on ? '#cfe4ff' : '#0b0e10', th + 0.25, 0.3);
       }
-      this.rb(x, z, th, dw / 2 - 0.12, 0.2, 0.75, 0.08, 0.1, 0.08, ['#e0a64b', '#e8e8e8', '#2e8f8a', '#c0392b'][Math.floor(h * 4) % 4]); // mug
+      const mc = ['#e0a64b', '#f0f0f0', '#2e8f8a', '#c0392b', '#2c5aa0'][Math.floor(h * 5) % 5];
+      L(dw / 2 - 0.14, 0.2, 0.75, 0.075, 0.09, 0.075, mc); L(dw / 2 - 0.09, 0.2, 0.78, 0.015, 0.05, 0.02, mc); // mug
+      L(dw / 2 - 0.2, -0.28, 0.75, 0.07, 0.008, 0.145, '#1a1b1d', 0.35); // phone
+      if (h > 0.25 && h < 0.45) { for (const s of [-1, 1]) L(0.5 + s * 0.06, -0.3, 0.75, 0.05, 0.045, 0.05, '#202326'); L(0.5, -0.3, 0.795, 0.17, 0.012, 0.03, '#202326'); } // headset
       if (h > 0.8) { // desk lamp
-        const [lx, lz] = this.lp(x, z, th, -dw / 2 + 0.12, 0.25);
-        this.alt(() => { this.b(lx, 0.75, lz, 0.14, 0.02, 0.14, '#333'); this.b(lx, 0.77, lz, 0.02, 0.38, 0.02, '#333'); this.b(lx, 1.13, lz, 0.16, 0.04, 0.1, '#e0a64b', th); });
-        this.prop(h > 0.9 ? 'lampSquareTable' : 'lampRoundTable', lx, 0.75, lz, face, 1.1);
-      } else if (h < 0.18) {
-        const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2);
-        this.alt(() => { this.b(px, 0.75, pz, 0.1, 0.1, 0.1, '#e8e4dc', th); this.ball(px, 0.93, pz, 0.1, '#3e9b55'); });
-        this.prop('plantSmall1', px, 0.75, pz, h * 40, 1.8);
+        L(-dw / 2 + 0.12, 0.25, 0.75, 0.13, 0.015, 0.13, '#25282b'); L(-dw / 2 + 0.12, 0.25, 0.765, 0.02, 0.3, 0.02, '#25282b'); L(-dw / 2 + 0.12, 0.2, 1.05, 0.05, 0.025, 0.22, '#e6e8e8');
+      } else if (h < 0.18) { // small plant
+        L(-dw / 2 + 0.14, 0.2, 0.75, 0.1, 0.1, 0.1, '#e8e8e4');
+        const [px, pz] = this.lp(x, z, th, -dw / 2 + 0.14, 0.2); this.ball(px, 0.93, pz, 0.1, '#3e9b55');
       }
       if (o.brand && on) { // lanyard badge + strap on the desk, in front of the keyboard
         const [bx, bz] = this.lp(x, z, th, 0.02, -0.31); this.decal('badge', bx, 0.762, bz, 0.07, 0.105, face, true);
@@ -184,12 +206,10 @@ export class Furn {
     return { x: cx, z: cz, rot: th };
   }
   table(x: number, z: number, w: number, d: number, c = '#d9c7a8', h = 0.74) {
-    this.alt(() => {
-      this.b(x, h - 0.05, z, w, 0.05, d, c);
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.b(x + sx * (w / 2 - 0.1), 0, z + sz * (d / 2 - 0.1), 0.06, h - 0.05, 0.06, '#7a838a');
-    });
-    if (h < 0.55) this.prop('tableCoffee', x, 0, z, 0, [w / 0.66, h / 0.23, d / 0.4]);
-    else this.prop('table', x, 0, z, 0, [w / 0.84, h / 0.33, d / 0.45]);
+    this.b(x, h - 0.04, z, w, 0.04, d, c);
+    const lg = w > 2.2 ? [-1, 1].map((sx) => [sx * (w / 2 - 0.15)] as number[]) : null;
+    if (lg) for (const [ox] of lg) this.b(x + ox, 0, z, 0.05, h - 0.04, d * 0.7, '#2d3135');
+    else for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.b(x + sx * (w / 2 - 0.08), 0, z + sz * (d / 2 - 0.08), 0.045, h - 0.04, 0.045, '#2d3135');
   }
   sofa(x: number, z: number, th: number, len = 2.2, c = '#2e8f8a') {
     this.alt(() => {
@@ -229,7 +249,20 @@ export class Furn {
     const seg = (w - 1.4) / 2;
     this.g(cx - w / 2 + seg / 2, 0, cz + d / 2, seg, CLEAR - 0.4, 0.05);
     this.g(cx + w / 2 - seg / 2, 0, cz + d / 2, seg, CLEAR - 0.4, 0.05);
-    this.b(cx, 0, cz, w - 0.4, 0.015, d - 0.4, '#c9d8cc');
+    this.b(cx, 0, cz, w - 0.4, 0.015, d - 0.4, '#6c7176'); // room carpet
+    const al = '#2a2d30', hh = CLEAR - 0.4;
+    this.b(cx, 0, cz - d / 2, w, 0.08, 0.07, al); this.b(cx, hh - 0.05, cz - d / 2, w, 0.05, 0.07, al); this.b(cx, 0.85, cz - d / 2, w, 0.5, 0.052, '#eef1f1');
+    { const sg = (w - 1.4) / 2; for (const ox of [-(1.4 + sg) / 2, (1.4 + sg) / 2]) { this.b(cx + ox, 0, cz + d / 2, sg, 0.08, 0.07, al); this.b(cx + ox, hh - 0.05, cz + d / 2, sg, 0.05, 0.07, al); this.b(cx + ox, 0.85, cz + d / 2, sg, 0.5, 0.052, '#eef1f1'); } }
+    for (const xx of [cx - w / 2, cx + w / 2]) { this.b(xx, 0, cz, 0.07, 0.08, d, al); this.b(xx, hh - 0.05, cz, 0.07, 0.05, d, al); this.b(xx, 0.85, cz, 0.052, 0.5, d, '#eef1f1'); }
+    for (const xx of [cx - w / 2, cx - 0.7, cx + 0.7, cx + w / 2]) this.b(xx, 0, cz + d / 2, 0.06, hh, 0.07, al);
+    for (const zz of [cz - d / 2, cz + d / 2]) for (const xx of [cx - w / 2, cx + w / 2]) this.b(xx, 0, zz, 0.07, hh, 0.07, al);
+    for (let i = 1; i < Math.round(w / 1.5); i++) this.b(cx - w / 2 + (i * w) / Math.round(w / 1.5), 0, cz - d / 2, 0.04, hh, 0.06, al);
+    this.b(cx, hh, cz + d / 2, 1.4, 0.06, 0.07, al); // door header
+    this.b(cx - 0.7 + 0.03, 0, cz + d / 2 - 0.5, 0.04, 2.0, 0.9, '#b6d4d8'); // door leaf (open 90 deg)
+    this.b(cx - 0.7 + 0.03, 0.9, cz + d / 2 - 0.92, 0.03, 0.3, 0.03, '#c9ced1'); // handle
+    this.b(cx - 0.7 + 0.03, 1.95, cz + d / 2 - 0.5, 0.05, 0.05, 0.9, al);
+    this.b(cx + 0.78, 1.25, cz + d / 2 + 0.05, 0.1, 0.14, 0.03, '#1c1f22'); // door reader
+    this.led(cx + 0.78, 1.28, cz + d / 2 + 0.07, '#33ff88');
     this.table(cx, cz, w * 0.55, d * 0.3, tableTone);
     const n = Math.max(2, Math.round((w * 0.55) / 0.9));
     for (let i = 0; i < n; i++) {
@@ -237,7 +270,7 @@ export class Furn {
       this.chair(px, cz - d * 0.15 - 0.45, 0); this.chair(px, cz + d * 0.15 + 0.45, Math.PI);
       this.sitSeats.push({ x: px, z: cz - d * 0.15 - 0.45, rot: 0 }, { x: px, z: cz + d * 0.15 + 0.45, rot: Math.PI });
     }
-    this.scr(cx, 1.0, cz - d / 2 + 0.2, 2.2, 1.2, 0.05, '#2a7fb8');
+    this.b(cx, 0.95, cz - d / 2 + 0.2, 2.3, 1.3, 0.05, '#101214'); this.display(cx, 1.0, cz - d / 2 + 0.223, 2.2, 1.2, '#cfe4ff'); // wall display
   }
   /** Islands of 4 workstations (2 rows face to face) */
   island(cx: number, cz: number, top?: string) {
@@ -543,7 +576,7 @@ function teamDetail(S: Furn, c: TeamCtx) {
   S.decal('hdr', doorX, 2.82, zN + 0.03, 1.6, 0.4, 0); S.decal('hdr', doorX, 2.82, zN - 0.03, 1.6, 0.4, Math.PI);
   // --- solid back wall behind the north service strip ---
   const wz = -HZ + 0.5, wx0 = 1.0, wx1 = 21.4, wcx = (wx0 + wx1) / 2, wl = wx1 - wx0;
-  S.b(wcx, 0, wz, wl, 3.0, 0.12, '#ece8dd'); S.b(wcx, 0, wz + 0.07, wl, 0.12, 0.03, '#7b868b'); S.b(wcx, 1.05, wz + 0.065, wl, 0.05, 0.012, '#2e8f8a');
+  S.b(wcx, 0, wz, wl, 3.0, 0.12, '#eef0ef'); S.b(wcx, 0, wz + 0.07, wl, 0.12, 0.03, '#454a4f'); S.b(wcx, 1.05, wz + 0.065, wl, 0.05, 0.012, '#2e8f8a');
   // storage: filing cabinets + archive boxes + sign
   for (const cx of [4.8, 5.45, 6.1]) S.prop('o:cabinet', cx, 0, wz + 0.06 + 0.29, 0, 1);
   S.prop('o:box', 4.95, 1.3, wz + 0.4, 0.2, 0.7); S.prop('o:box', 5.7, 1.3, wz + 0.4, -0.1, 0.6); S.prop('o:box', 5.35, 1.6, wz + 0.4, 0.5, 0.5);
@@ -553,7 +586,7 @@ function teamDetail(S: Furn, c: TeamCtx) {
   S.prop('o:bin_small', 15.7, 0, -HZ + 1.3, 0, 1); S.prop('o:box', 15.6, 0, -HZ + 2.0, 0.4, 0.8);
   // --- south strip: back wall behind lounge art + pantry ---
   const sz = 21.05, sx0 = 4.2, sx1 = 21.4, scx = (sx0 + sx1) / 2, sl = sx1 - sx0, wf = sz - 0.1; // wf = wall front face
-  S.b(scx, 0, sz, sl, 2.9, 0.2, '#ece8dd'); S.b(scx, 0, wf - 0.015, sl, 0.12, 0.03, '#7b868b'); S.b(scx, 1.05, wf - 0.006, sl, 0.05, 0.012, '#e07a3a');
+  S.b(scx, 0, sz, sl, 2.9, 0.2, '#eef0ef'); S.b(scx, 0, wf - 0.015, sl, 0.12, 0.03, '#454a4f'); S.b(scx, 1.05, wf - 0.006, sl, 0.05, 0.012, '#e07a3a');
   // pantry wall units, backsplash
   S.b(18.4, 1.07, wf - 0.006, 5.0, 0.5, 0.012, '#dfe7e6');
   S.b(18.4, 1.65, 20.78, 5.0, 0.7, 0.36, '#f1ede4');
@@ -580,7 +613,15 @@ function teamDetail(S: Furn, c: TeamCtx) {
   for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) {
     S.b(px + 3, CLEAR - 0.05, pz + 3, 0.6, 0.03, 0.6, '#d9dee0'); S.b(px + 3, CLEAR - 0.065, pz + 3, 0.44, 0.015, 0.44, '#b9c1c5'); S.b(px, CLEAR - 0.12, pz + 1.5, 0.04, 0.12, 0.04, '#c0392b');
   }
-  for (const dx of [7, 13, 19]) S.b(dx, CLEAR - 0.3, 0, 0.5, 0.22, 27, '#c4ccd0');
+  for (const dx of [7, 13, 19]) { // galvanised supply ducts with flanged joints + hangers
+    S.b(dx, CLEAR - 0.3, 0, 0.5, 0.22, 27, '#c4ccd0');
+    for (let k = -4; k <= 4; k++) { S.b(dx, CLEAR - 0.32, k * 3, 0.54, 0.26, 0.04, '#9aa3a8'); for (const o of [-0.22, 0.22]) S.b(dx + o, CLEAR - 0.08, k * 3 + 1.5, 0.012, 0.08, 0.012, '#5b6368'); }
+  }
+  S.b(10, CLEAR - 0.16, 0, 0.32, 0.012, 27, '#8d9599'); for (const o of [-0.16, 0.16]) S.b(10 + o, CLEAR - 0.1, 0, 0.012, 0.06, 27, '#8d9599'); // cable tray
+  for (let k = -13; k <= 13; k++) S.b(10, CLEAR - 0.158, k, 0.3, 0.008, 0.02, '#6f777b');
+  S.b(4.2, CLEAR - 0.15, 0, 0.06, 0.06, 27, '#b5362a'); // fire-sprinkler main
+  for (const pz of [-12, -4, 4, 12]) S.b((4.2 + 10) / 2, CLEAR - 0.15, pz, 5.8, 0.04, 0.04, '#b5362a');
+  for (let px = 4; px <= 16; px += 6) for (let pz = -17; pz <= 19; pz += 6) S.b(px + 3.5, CLEAR - 0.04, pz + 3, 0.11, 0.03, 0.11, '#f4f4f1'); // smoke detectors
 }
 
 /** FPT Retail branding for the floor-2 office: reception logo wall, room plates, glass graphics, slogan wall, whiteboard/TV graphics */
@@ -629,6 +670,23 @@ function teamFloor(F: Furn, S: Furn) {
   S.g(CX, 0, zS, bw, 1.4, 0.05); S.g(x1, 0, 0, 0.05, 1.4, bd);
   S.g(x0, (-bd / 2 - 1.2) / 2 * 0, (zN + -1.2) / 2, 0.05, 1.4, -1.2 - zN); S.g(x0, 0, (1.2 + zS) / 2, 0.05, 1.4, zS - 1.2);
   S.b(CX, 1.4, zS, bw, 0.05, 0.08, '#2e8f8a');
+  // entrance: double glass doors swung open (aluminium frame, push-bar handles) + card reader
+  for (const [px, sd] of [[gl, 1], [gr, -1]] as [number, number][]) {
+    const lw = 1.0;
+    S.g(px, 0, zN + lw / 2, 0.03, 2.1, lw); S.b(px, 0, zN + lw / 2, 0.05, 0.12, lw, '#2a2d30'); S.b(px, 2.05, zN + lw / 2, 0.05, 0.08, lw, '#2a2d30');
+    S.b(px, 0, zN + lw, 0.05, 2.1, 0.05, '#2a2d30'); S.b(px, 0, zN + 0.02, 0.05, 2.1, 0.05, '#2a2d30');
+    S.b(px - sd * 0.04, 0.95, zN + lw - 0.1, 0.025, 0.4, 0.025, '#cfd4d7');
+  }
+  S.b(gl - 0.35, 1.2, zN + 0.06, 0.09, 0.13, 0.03, '#1c1f22'); S.led(gl - 0.35, 1.25, zN + 0.08, '#33ff88');
+  // curtain-wall mullions + transom + skirting along the recessed glazing (all four sides)
+  {
+    const mi = 0.9, sh = 5, al = '#3a3f44', mL = (x0: number, z0: number, x1: number, z1: number) => {
+      const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / 1.5), ax = Math.abs(z1 - z0) < 1e-6;
+      for (let i = 0; i <= n; i++) S.b(x0 + ((x1 - x0) * i) / n, 0, z0 + ((z1 - z0) * i) / n, ax ? 0.06 : 0.1, CLEAR, ax ? 0.1 : 0.06, al);
+      for (const y of [0, 2.3, CLEAR - 0.06]) S.b((x0 + x1) / 2, y, (z0 + z1) / 2, ax ? L : 0.08, y === 0 ? 0.12 : 0.06, ax ? 0.08 : L, y === 0 ? '#9aa1a5' : al);
+    };
+    mL(-HX + sh, -HZ + mi, HX - sh, -HZ + mi); mL(-HX + sh, HZ - mi, HX - sh, HZ - mi); mL(-HX + mi, -HZ + sh, -HX + mi, HZ - sh); mL(HX - mi, -HZ + sh, HX - mi, HZ - sh);
+  }
   S.label({ t: 'CỬA RA VÀO', x: doorX, y: 0.05, z: zN + 1.0, w: 3.2, h: 0.55, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(255,255,255,0.0)' });
   // embossed floor title: dark drop shadow, mid body, bright highlight on top
   S.label({ t: 'NHÀ THUỐC', x: CX + 0.07, y: 0.03, z: mz(418) + 0.07, w: 10, h: 1.8, rot: 0, flat: true, fg: '#1c4a38', bg: 'rgba(0,0,0,0)' });
@@ -647,7 +705,7 @@ function teamFloor(F: Furn, S: Furn) {
       for (const sd of [-1, 1]) { S.b(cx, 1.2, cz + sd * (d / 2 - 0.05), 0.04, 0.3, 0.04, '#2b3338'); S.decal(sid, cx, 1.64, cz + sd * (d / 2 - 0.05 + 0.03), 0.84, 0.2625, sd < 0 ? Math.PI : 0); }
     }
     cols.add(Math.round(cx * 100) / 100); rows.add(Math.round(cz * 100) / 100);
-    S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#5f7d62'); // island rug
+    S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#3a3e43'); // island rug
     S.g(cx, 0.75, cz, 0.04, 0.45, d);
     S.b(cx, 1.2, cz, 0.05, 0.03, d, '#2b3338'); // cable tray / partition top rail
     S.b(cx, 0.92, cz, 0.052, 0.12, d - 0.1, '#f3f6f6'); // frosted privacy band on the glass divider
@@ -655,8 +713,8 @@ function teamFloor(F: Furn, S: Furn) {
   });
   // lighter aisle strips between island columns / rows
   const cs = [...cols].sort((a, b) => a - b), rs = [...rows].sort((a, b) => a - b);
-  for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.4, 0.01, bd - 1.0, '#859e83');
-  for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 1.0, 0.01, 1.4, '#859e83');
+  for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.4, 0.01, bd - 1.0, '#70767c');
+  for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 1.0, 0.01, 1.4, '#70767c');
   let pi = 0;
   for (const q of NHA_THUOC_SEAT_SLOTS) {
     const x = mx(q.wx), z = mz(q.wy);
@@ -669,7 +727,7 @@ function teamFloor(F: Furn, S: Furn) {
     const occupied = q.kind === 'OCCUPIED';
     const seat = S.workstation(x, z, th, {
       dw: 1.25, dd: 0.85, on: occupied, rich: true, brand: true, plate: q.account || undefined,
-      top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
+      top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#e3e5e5',
       tint: q.highlight === 'red' ? '#ff7a7a' : q.highlight === 'yellow' ? '#ffd84a' : undefined,
     });
     deskItems(S, x, z, th, mulberry32(Math.floor(Math.abs(x * 131 + z * 17) * 100) + 7));
@@ -699,11 +757,11 @@ function teamFloor(F: Furn, S: Furn) {
     for (let k = 0; k < 10; k++) S.led(cx - 0.28 + (k % 5) * 0.14, 0.4 + Math.floor(k / 5) * 0.6 + lr() * 0.5, -HZ + 1.05 + 0.46, lr() < 0.7 ? '#33ff88' : '#3aa0ff');
   }
   // --- south strip: lounge + pantry ---
-  S.sofa(2.8, 17.4, Math.PI, 2.6); S.sofa(2.8, 20, 0, 2.6); S.table(2.8, 18.7, 1.4, 0.7, '#e9e2d3', 0.4);
-  S.counter(18.4, HZ - 1.6, 5, 0.75, '#f1ede4', '#2e8f8a', Math.PI);
+  S.sofa(2.8, 17.4, Math.PI, 2.6); S.sofa(2.8, 20, 0, 2.6); S.table(2.8, 18.7, 1.4, 0.7, '#a9794c', 0.4);
+  S.counter(18.4, HZ - 1.6, 5, 0.75, '#e9ebec', '#3b3f43', Math.PI);
   S.prop('kitchenCoffeeMachine', 16.4, 1.0, HZ - 1.6, Math.PI, 2); S.prop('kitchenMicrowave', 19.4, 1.0, HZ - 1.6, Math.PI, 2); S.bookcase(-6.7, -12, Math.PI / 2); S.bookcase(-6.7, 12, Math.PI / 2); S.bookcase(-4.5, -HZ + 0.6, 0); S.bookcase(-3.6, -HZ + 0.6, 0);
   S.b(16.4, 1.05, HZ - 1.6, 0.5, 0.4, 0.5, '#b9c1c5'); S.fridge(21, HZ - 1.6, Math.PI);
-  for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
+  for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#c29a6b', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
   for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
   // points of interest for the living office
   S.poi.push({ x: 18.4, z: HZ - 2.9, rot: 0, pose: 'idle' }, { x: 20, z: HZ - 2.9, rot: 0, pose: 'idle' }, { x: 16.6, z: -HZ + 3.1, rot: Math.PI, pose: 'idle' },
@@ -712,10 +770,14 @@ function teamFloor(F: Furn, S: Furn) {
     { x: 2.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 3.3, z: 17.4, rot: Math.PI, pose: 'sit' }, { x: 2.3, z: 20, rot: 0, pose: 'sit' }, { x: 3.3, z: 20, rot: 0, pose: 'sit' });
   // glass meeting room + clearer lounge / pantry zones
   S.room(-3.4, -16, 6, 5, '#d9c7a8');
-  S.prop('rugRectangle', 2.8, 0.012, 18.7, 0, [3.2, 1, 4.3]);
+  { // oak plank lounge floor + charcoal rug
+    const tones = ['#b98d5f', '#a9794c', '#c29a6b', '#b0804f'], pr = mulberry32(77);
+    for (let i = 0; i < 26; i++) S.b(2.8, 0.012, 16.4 + i * 0.19, 5.4, 0.008, 0.185, tones[Math.floor(pr() * 4)]);
+    S.b(2.8, 0.02, 18.7, 3.2, 0.012, 4.3, '#3d4650');
+  }
   S.label({ t: 'LOUNGE', x: 2.8, y: 0.03, z: 21.2, w: 3.4, h: 0.7, rot: 0, flat: true, fg: '#1d5a4c', bg: 'rgba(0,0,0,0)' });
   S.label({ t: 'PANTRY • CÀ PHÊ', x: 18.4, y: 0.03, z: 15.2, w: 5, h: 0.8, rot: 0, flat: true, fg: '#9a4a14', bg: 'rgba(0,0,0,0)' });
-  S.b(18.4, 0.012, 17.4, 6, 0.01, 4.2, '#d9c9a8');
+  S.b(18.4, 0.012, 17.4, 6, 0.01, 4.2, '#a7acaf'); // polished concrete pantry floor
   // Office Pack props (flat-colour GLBs in public/models/office): amenities, greenery, wall art
   S.prop('o:cooler', 14.4, 0, HZ - 1.6, Math.PI, 1); S.prop('o:vending', 12.9, 0, HZ - 1.6, Math.PI, 1);
   for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'o:plant_white' : 'o:plant_a', px, 0, pz, px * 3.1, 1);
@@ -724,7 +786,11 @@ function teamFloor(F: Furn, S: Furn) {
   teamDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });
   brandDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });
   // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
-  for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) S.scr(px, CLEAR - 0.05, pz, 1.1, 0.04, 0.4, '#8f927e');
+  // suspended linear LED luminaires (housing + diffuser strip)
+  for (const px of [2.5, 7.8, 13, 18.2]) for (let pz = -19; pz <= 20; pz += 3.9) {
+    S.b(px, CLEAR - 0.24, pz, 1.2, 0.05, 0.1, '#e8eaeb'); S.scr(px, CLEAR - 0.25, pz, 1.12, 0.012, 0.07, '#aeb1a0');
+    for (const o of [-0.5, 0.5]) S.b(px + o, CLEAR - 0.2, pz, 0.008, 0.2, 0.008, '#8b9296');
+  }
 }
 function openPlan(F: Furn, f: number, tag: string) {
   const rnd = mulberry32(f * 977);

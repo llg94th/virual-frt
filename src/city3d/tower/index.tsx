@@ -34,9 +34,21 @@ function useMats() {
     const solid = new THREE.MeshStandardMaterial({ color: '#ffffff', map: grainBox, roughness: 0.72, metalness: 0.04 });
     const inner = new THREE.MeshStandardMaterial({ color: '#dfe9e6', transparent: true, opacity: 0.08, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide });
     const screen = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+    const dispTex = (() => { // desktop wallpaper: blue bloom, one open window, icons, taskbar
+      if (typeof document === 'undefined') return null;
+      const c = document.createElement('canvas'); c.width = 256; c.height = 144; const g = c.getContext('2d')!;
+      const gr = g.createLinearGradient(0, 0, 256, 144); gr.addColorStop(0, '#0a2a6c'); gr.addColorStop(0.5, '#1c6fd1'); gr.addColorStop(1, '#6fc3ff'); g.fillStyle = gr; g.fillRect(0, 0, 256, 144);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.ellipse(170, 50, 90, 34, -0.5, 0, 7); g.fill();
+      g.fillStyle = '#eef2f7'; g.fillRect(40, 14, 150, 100); g.fillStyle = '#2b3a55'; g.fillRect(40, 14, 150, 9);
+      g.fillStyle = '#c9d3e2'; for (let i = 0; i < 7; i++) g.fillRect(48, 32 + i * 11, 40 + ((i * 37) % 70), 4);
+      g.fillStyle = '#4c8dff'; g.fillRect(140, 70, 40, 34); g.fillStyle = '#ffffff'; for (let i = 0; i < 4; i++) g.fillRect(8, 10 + i * 24, 16, 14);
+      g.fillStyle = '#141b2b'; g.fillRect(0, 132, 256, 12); g.fillStyle = '#4c8dff'; for (let i = 0; i < 5; i++) g.fillRect(8 + i * 14, 135, 9, 6);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+    })();
+    const display = new THREE.MeshBasicMaterial({ color: '#ffffff', map: dispTex, toneMapped: false });
     const led = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, transparent: true });
     const leaf = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
-    const slab = new THREE.MeshStandardMaterial({ color: '#f2f4f3', roughness: 0.7 });
+    const slab = new THREE.MeshStandardMaterial({ color: '#d9dcdb', roughness: 0.7 });
     const dots = (() => {
       if (typeof document === 'undefined') return null;
       const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
@@ -51,23 +63,22 @@ function useMats() {
       const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d')!; draw(g, 512);
       const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
     };
-    // sage carpet tiles (0.5 m tiles) with a faint weave
+    // charcoal-grey carpet tiles (0.5 m tiles, 4x4 per 2 m texture) with dye-lot variation, fibre speckle and dark seams
     const carpetMap = tex((g, n) => {
-      const h = n / 2, r = mulberry32(5);
-      // 2x2 tiles, each a slightly different dye lot
-      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { const v = (r() - 0.5) * 16; g.fillStyle = `rgb(${115 + v},${140 + v},${114 + v})`; g.fillRect(x * h, y * h, h, h); }
-      for (let i = 0; i < 9000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.07)' : 'rgba(0,30,0,0.09)'; g.fillRect(r() * n, r() * n, 1.5, 1.5 + r() * 3); }
-      g.strokeStyle = 'rgba(30,60,30,0.45)'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, n - 3, n - 3);
-      g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
-    }, 2);
+      const h = n / 4, r = mulberry32(5);
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const v = (r() - 0.5) * 14; g.fillStyle = `rgb(${66 + v},${70 + v},${75 + v})`; g.fillRect(x * h, y * h, h, h); }
+      for (let i = 0; i < 14000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)'; g.fillRect(r() * n, r() * n, 1.5, 1.5 + r() * 3); }
+      g.strokeStyle = 'rgba(20,22,25,0.6)'; g.lineWidth = 3;
+      for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * h, 0); g.lineTo(i * h, n); g.moveTo(0, i * h); g.lineTo(n, i * h); g.stroke(); }
+    }, 0.5);
     // greyscale pile bump (shared by carpet): fibre speckle + tile seams
     const carpetBump = tex((g, n) => {
-      const h = n / 2, r = mulberry32(6);
+      const h = n / 2, r = mulberry32(6); // (seams every n/4 px via h/2)
       g.fillStyle = '#808080'; g.fillRect(0, 0, n, n);
       for (let i = 0; i < 14000; i++) { const v = (r() * 255) | 0; g.fillStyle = `rgba(${v},${v},${v},0.55)`; g.fillRect(r() * n, r() * n, 1.5, 1.5 + r() * 2.5); }
-      g.strokeStyle = '#303030'; g.lineWidth = 4; g.strokeRect(2, 2, n - 4, n - 4);
-      g.beginPath(); g.moveTo(h, 0); g.lineTo(h, n); g.moveTo(0, h); g.lineTo(n, h); g.stroke();
-    }, 2);
+      g.strokeStyle = '#303030'; g.lineWidth = 4;
+      for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * h / 2, 0); g.lineTo(i * h / 2, n); g.moveTo(0, i * h / 2); g.lineTo(n, i * h / 2); g.stroke(); }
+    }, 0.5);
     // soft blotchy grain for all instanced furniture boxes / concrete: breaks up flat colour (multiplies instance colour)
     const grain = (rep: number, grid: boolean, seed: number) => tex((g, n) => {
       const r = mulberry32(seed);
@@ -90,7 +101,7 @@ function useMats() {
     const plate = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     const prop = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.75, metalness: 0.05 });
     const cabin = new THREE.MeshStandardMaterial({ color: '#cfe9e6', emissive: '#bff5ef', emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.4 });
-    return { glassFull, glassCut, solid, inner, screen, led, leaf, slab, cabin, fascia, corten, carpet, plate, prop, marble };
+    return { glassFull, glassCut, solid, inner, screen, display, led, leaf, slab, cabin, fascia, corten, carpet, plate, prop, marble };
   }, []);
 }
 type Mats = ReturnType<typeof useMats>;
@@ -221,6 +232,7 @@ const FloorStuff: React.FC<{ furn: Furn; mats: Mats; shadow: boolean; on: boolea
       {on && <InstBoxes list={furn.glass} material={mats.inner} />}
       {on && <InstBoxes list={screens} material={mats.screen} />}
       {on && <InstBoxes list={furn.leds} material={mats.led} />}
+      {on && <InstBoxes list={furn.disp} material={mats.display} />}
       {on && furn.plates.length > 0 && <Plates furn={furn} mat={mats.plate} />}
       {on && furn.decals.length > 0 && <BrandDecals furn={furn} />}
       {on && usingProps && <PropInstances list={furn.props} mats={mats} shadow={shadow} />}

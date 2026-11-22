@@ -27,10 +27,21 @@ function build(name: string, scene: THREE.Object3D): PropGeo {
     if (g.index) g = g.toNonIndexed();
     const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial;
     const col = mat.color ?? new THREE.Color('#cccccc'), n = g.attributes.position.count, c = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; }
+    const vc = g.attributes.color; // texture-baked per-triangle colours from tools/props/convert.mjs (multiplied by the material colour)
+    for (let i = 0; i < n; i++) { c[i * 3] = col.r * (vc ? vc.getX(i) : 1); c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1); c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1); }
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
     if (!g.attributes.normal) g.computeVertexNormals();
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    // degenerate source triangles give zero / NaN normals, which turn into NaN pixels that the bloom pass spreads over the whole frame
+    const nr = g.attributes.normal;
+    const pa = g.attributes.position, fa = new THREE.Vector3(), fb = new THREE.Vector3(), fc = new THREE.Vector3();
+    for (let t = 0; t + 2 < nr.count; t += 3) {
+      let bad = false; for (let k = 0; k < 3; k++) if (!(Math.hypot(nr.getX(t + k), nr.getY(t + k), nr.getZ(t + k)) > 1e-3)) bad = true;
+      if (!bad) continue;
+      fa.fromBufferAttribute(pa, t); fb.fromBufferAttribute(pa, t + 1); fc.fromBufferAttribute(pa, t + 2);
+      fb.sub(fa); fc.sub(fa); fb.cross(fc); if (!(fb.length() > 1e-12)) fb.set(0, 1, 0); fb.normalize();
+      for (let k = 0; k < 3; k++) nr.setXYZ(t + k, fb.x, fb.y, fb.z);
+    }
     // the screen's display face is the lone 2-triangle primitive: rendered separately as an emissive instance
     ((name === 'computerScreen' && n <= 6) ? glow : main).push(g);
   });

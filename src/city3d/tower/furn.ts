@@ -73,7 +73,7 @@ export class Furn {
   altBalls: Ball[] = [];
   private altMode = false;
   /** run procedural builders so their output lands in the fallback lists */
-  private alt(fn: () => void) { const prev = this.altMode; this.altMode = true; try { fn(); } finally { this.altMode = prev; } }
+  alt(fn: () => void) { const prev = this.altMode; this.altMode = true; try { fn(); } finally { this.altMode = prev; } }
   /** y = bottom above the walking surface; s = uniform scale or [sx,sy,sz] on top of the normalised model (bottom-centre origin, front +z) */
   prop(m: string, x: number, y: number, z: number, rot: number, s: number | V3, c?: string, t?: string) {
     this.props.push({ m, p: [x, FT + y, z], r: rot, s: typeof s === 'number' ? [s, s, s] : s, c, t });
@@ -342,7 +342,7 @@ function shell(F: Furn, f: number) {
     }
   });
 }
-function core(F: Furn) {
+function core(F: Furn, stairs = true) {
   const { x, z, w, d } = CORE;
   F.b(x, 0, z - d / 2, w, CLEAR, 0.2, '#cfd6d4');
   F.b(x - w / 2, 0, z, 0.2, CLEAR, d, '#cfd6d4');
@@ -355,8 +355,8 @@ function core(F: Furn) {
   F.scr(x, 1.3, z + d / 2 + 0.12, 0.3, 0.45, 0.04, '#ffb03a');
   // stairwell next to the south wall (rises one storey)
   const steps = 14;
-  for (let i = 0; i < steps; i++) F.b(6 + i * 0.7 + 0.35, 0, HZ - 1.8, 0.7, ((i + 1) * CLEAR) / steps, 1.6, '#c9cfcc');
-  F.g(11, 0.4, HZ - 0.9, 10, 1.0, 0.04);
+  if (stairs) for (let i = 0; i < steps; i++) F.b(6 + i * 0.7 + 0.35, 0, HZ - 1.8, 0.7, ((i + 1) * CLEAR) / steps, 1.6, '#c9cfcc');
+  if (stairs) F.g(11, 0.4, HZ - 0.9, 10, 1.0, 0.04);
 }
 function garden(F: Furn) {
   const rnd = mulberry32(2024);
@@ -484,6 +484,85 @@ function training(F: Furn) {
   F.sitSeats.push({ x: 6, z: -5.8, rot: 0 }, { x: 11, z: -5.8, rot: 0 });
   F.walkers.push({ a: [3, 5], b: [22, 5], speed: 1.0, id: 'f2-walk1' });
 }
+/** Personal clutter on one desk, deterministic per seat. Local frame: +lz = far side (monitor), -lz = towards the chair, +lx = right of the user. */
+function deskItems(S: Furn, x: number, z: number, th: number, r: () => number) {
+  const face = th + Math.PI, Y = 0.75;
+  const put = (m: string, lx: number, lz: number, rot: number, s: number | V3 = 1) => { const [px, pz] = S.lp(x, z, th, lx, lz); S.prop(m, px, Y, pz, face + rot, s); };
+  if (r() < 0.6) put('o:notebook', -0.46, -0.29, (r() - 0.5) * 0.7);
+  if (r() < 0.5) put('o:paper_stack', 0.5, -0.27, (r() - 0.5) * 0.9, 0.8 + r() * 0.4);
+  else if (r() < 0.45) put('o:books', 0.5, -0.24, r() * 6.28, 0.7);
+  if (r() < 0.3) put('o:binder', 0.28, 0.34, (r() - 0.5) * 0.4, 0.8);
+  if (r() < 0.25) put('o:tissue', -0.2, 0.33, (r() - 0.5) * 0.8);
+  if (r() < 0.35) put('o:sticky', 0.2, -0.02, (r() - 0.5) * 1.2);
+}
+/** column wrap + safety kit (alternating fire extinguisher / first-aid sign) */
+function pillarKit(S: Furn, x: number, z: number, i: number) {
+  S.b(x, 0, z, 0.76, 0.14, 0.76, '#8f989c'); S.b(x, CLEAR - 0.14, z, 0.76, 0.14, 0.76, '#8f989c');
+  const zf = z + 0.355;
+  if (i % 2 === 0) {
+    S.prop('o:extinguisher', x, 0.85, z + 0.35 + 0.15, 0, 1);
+    S.b(x, 1.55, zf, 0.32, 0.32, 0.012, '#c0392b'); S.b(x, 1.61, zf + 0.008, 0.06, 0.2, 0.006, '#ffffff'); S.b(x, 1.68, zf + 0.008, 0.2, 0.06, 0.006, '#ffffff');
+  } else {
+    S.b(x, 1.4, zf, 0.34, 0.34, 0.012, '#2f9e5b'); S.b(x, 1.47, zf + 0.008, 0.07, 0.2, 0.006, '#ffffff'); S.b(x, 1.54, zf + 0.008, 0.2, 0.07, 0.006, '#ffffff');
+  }
+}
+interface TeamCtx { x0: number; x1: number; zN: number; zS: number; CX: number; doorX: number; gl: number; gr: number }
+/** extra realism for the NHÀ THUỐC floor: solid back walls, pantry wall units, storage, signage, ceiling services, meeting room dressing */
+function teamDetail(S: Furn, c: TeamCtx) {
+  const { x0, x1, zN, zS, CX, doorX, gl, gr } = c;
+  const rd = mulberry32(2024);
+  const rail = '#5b676d', frost = '#f3f6f6';
+  // --- glass bay walls: frosted privacy band, base rail, top rail, door frame ---
+  const run = (cx: number, cz: number, w: number, d: number) => { S.b(cx, 0.72, cz, w, 0.14, d + 0.012, frost); S.b(cx, 0, cz, w, 0.09, d + 0.02, rail); S.b(cx, 1.4, cz, w, 0.04, d + 0.03, '#2b3338'); };
+  run((x0 + gl) / 2, zN, gl - x0, 0.05); run((gr + x1) / 2, zN, x1 - gr, 0.05); run(CX, zS, x1 - x0, 0.05); run(x1, 0, 0.05, zS - zN);
+  run(x0, (zN - 1.2) / 2, 0.05, -1.2 - zN); run(x0, (1.2 + zS) / 2, 0.05, zS - 1.2);
+  for (const px of [gl, gr]) S.b(px, 0, zN, 0.09, 2.2, 0.09, rail);
+  S.b(doorX, 2.2, zN, gr - gl + 0.09, 0.09, 0.09, rail);
+  S.prop('o:exit_sign', doorX, 2.3, zN + 0.04, 0, 1);
+  S.b(doorX, 0.012, zN + 1.0, gr - gl + 0.4, 0.012, 1.3, '#3d4b50'); // entrance mat
+  for (let i = 0; i < 5; i++) S.b(doorX, 0.024, zN + 0.55 + i * 0.2, gr - gl + 0.2, 0.004, 0.05, '#566a70');
+  // --- solid back wall behind the north service strip ---
+  const wz = -HZ + 0.5, wx0 = 1.0, wx1 = 21.4, wcx = (wx0 + wx1) / 2, wl = wx1 - wx0;
+  S.b(wcx, 0, wz, wl, 3.0, 0.12, '#ece8dd'); S.b(wcx, 0, wz + 0.07, wl, 0.12, 0.03, '#7b868b'); S.b(wcx, 1.05, wz + 0.065, wl, 0.05, 0.012, '#2e8f8a');
+  // storage: filing cabinets + archive boxes + sign
+  for (const cx of [4.8, 5.45, 6.1]) S.prop('o:cabinet', cx, 0, wz + 0.06 + 0.29, 0, 1);
+  S.prop('o:box', 4.95, 1.3, wz + 0.4, 0.2, 0.7); S.prop('o:box', 5.7, 1.3, wz + 0.4, -0.1, 0.6); S.prop('o:box', 5.35, 1.6, wz + 0.4, 0.5, 0.5);
+  S.label({ t: 'KHO • LƯU TRỮ', x: 5.45, y: 2.3, z: wz + 0.075, w: 1.9, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
+  // safety point beside the print corner
+  S.prop('o:extinguisher', 18.0, 0.9, wz + 0.2, 0, 1); S.b(18.0, 1.65, wz + 0.07, 0.32, 0.32, 0.012, '#c0392b'); S.b(18.0, 1.71, wz + 0.08, 0.06, 0.2, 0.006, '#fff'); S.b(18.0, 1.78, wz + 0.08, 0.2, 0.06, 0.006, '#fff');
+  S.prop('o:clock', 9.0, 2.45, wz + 0.07, 0, 1); S.prop('o:calendar', 17.2, 1.4, wz + 0.07, 0, 1);
+  S.prop('o:bin_small', 15.7, 0, -HZ + 1.3, 0, 1); S.prop('o:box', 15.6, 0, -HZ + 2.0, 0.4, 0.8);
+  // --- south strip: back wall behind lounge art + pantry ---
+  const sz = 21.05, sx0 = 4.2, sx1 = 21.4, scx = (sx0 + sx1) / 2, sl = sx1 - sx0, wf = sz - 0.1; // wf = wall front face
+  S.b(scx, 0, sz, sl, 2.9, 0.2, '#ece8dd'); S.b(scx, 0, wf - 0.015, sl, 0.12, 0.03, '#7b868b'); S.b(scx, 1.05, wf - 0.006, sl, 0.05, 0.012, '#e07a3a');
+  // pantry wall units, backsplash
+  S.b(18.4, 1.07, wf - 0.006, 5.0, 0.5, 0.012, '#dfe7e6');
+  S.b(18.4, 1.65, 20.78, 5.0, 0.7, 0.36, '#f1ede4');
+  for (let i = 0; i <= 5; i++) S.b(15.9 + i * 1.0, 1.65, 20.595, 0.015, 0.7, 0.01, '#c4beb0');
+  for (let i = 0; i < 5; i++) S.b(16.4 + i * 1.0 + 0.4, 1.78, 20.59, 0.03, 0.18, 0.015, '#8a949b');
+  S.b(18.4, 1.62, 20.78, 5.04, 0.04, 0.38, '#2e8f8a');
+  for (const [cx, k] of [[16.7, 'o:coffee_cup'], [17.5, 'o:mug'], [17.75, 'o:coffee_cup'], [18.6, 'o:tissue']] as [number, string][]) S.prop(k, cx, 1.05, 20.45, rd() * 6, 1);
+  S.prop('o:msgboard', 14.4, 1.45, wf - 0.05, Math.PI, 1);
+  S.prop('o:clock', 13.0, 2.15, wf, Math.PI, 1);
+  S.prop('o:bins3', 15.45, 0, 20.4, Math.PI, 1);
+  S.prop('o:extinguisher', 11.95, 0.9, wf - 0.15, Math.PI, 1); S.b(11.95, 1.65, wf - 0.008, 0.32, 0.32, 0.012, '#c0392b'); S.b(11.95, 1.71, wf - 0.016, 0.06, 0.2, 0.006, '#fff'); S.b(11.95, 1.78, wf - 0.016, 0.2, 0.06, 0.006, '#fff');
+  // lounge table dressing
+  S.prop('o:books', 2.5, 0.4, 18.6, 0.4, 0.8); S.prop('o:coffee_cup', 3.2, 0.4, 18.85, 1, 1); S.prop('o:mug', 2.95, 0.4, 18.5, 2, 1);
+  // --- meeting room dressing (room(-3.4,-16, 6x5): table 3.3 x 1.5) ---
+  for (let i = 0; i < 4; i++) for (const sd of [-1, 1]) {
+    const px = -3.4 - 1.2 + i * 0.8 + (rd() - 0.5) * 0.1, pz = -16 + sd * 0.45;
+    S.prop('o:notebook', px, 0.74, pz, sd < 0 ? 0 : Math.PI, 0.9); S.prop(rd() < 0.5 ? 'o:mug' : 'o:coffee_cup', px + 0.3, 0.74, pz + sd * 0.1, rd() * 6, 1);
+  }
+  S.prop('o:paper_stack', -3.4, 0.74, -16, 0.3, 1.1); S.b(-3.0, 0.74, -16.05, 0.2, 0.05, 0.2, '#1b2228');
+  S.prop('o:whiteboard', -6.33, 0.45, -16, Math.PI / 2, 1);
+  S.b(-3.4, 0.95, -18.34, 2.4, 1.4, 0.05, '#1b2228');
+  S.prop('o:plant_a', -6.0, 0, -18.1, 1, 1); S.prop('o:cabinet', -0.9, 0, -17.2, -Math.PI / 2, 1);
+  // --- ceiling services: AC diffusers, sprinkler heads, long supply ducts ---
+  for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) {
+    S.b(px + 3, CLEAR - 0.05, pz + 3, 0.6, 0.03, 0.6, '#d9dee0'); S.b(px + 3, CLEAR - 0.065, pz + 3, 0.44, 0.015, 0.44, '#b9c1c5'); S.b(px, CLEAR - 0.12, pz + 1.5, 0.04, 0.12, 0.04, '#c0392b');
+  }
+  for (const dx of [7, 13, 19]) S.b(dx, CLEAR - 0.3, 0, 0.5, 0.22, 27, '#c4ccd0');
+}
 function teamFloor(F: Furn, S: Furn) {
   void F;
   // The bay fills the east block (x 1.6..21, z +-14), authored directly in world metres (S = unsquashed structure group).
@@ -513,14 +592,17 @@ function teamFloor(F: Furn, S: Furn) {
     S.b(cx, 0.012, cz, 3.3, 0.01, d + 0.4, '#5f7d62'); // island rug
     S.g(cx, 0.75, cz, 0.04, 0.45, d);
     S.b(cx, 1.2, cz, 0.05, 0.03, d, '#2b3338'); // cable tray / partition top rail
+    S.b(cx, 0.92, cz, 0.052, 0.12, d - 0.1, '#f3f6f6'); // frosted privacy band on the glass divider
+    S.b(cx, 0.745, cz, 0.06, 0.03, d, '#2b3338'); // divider base rail
   });
   // lighter aisle strips between island columns / rows
   const cs = [...cols].sort((a, b) => a - b), rs = [...rows].sort((a, b) => a - b);
   for (let i = 0; i + 1 < cs.length; i++) S.b((cs[i] + cs[i + 1]) / 2, 0.011, 0, 1.4, 0.01, bd - 1.0, '#859e83');
   for (let i = 0; i + 1 < rs.length; i++) S.b(CX, 0.011, (rs[i] + rs[i + 1]) / 2, bw - 1.0, 0.01, 1.4, '#859e83');
+  let pi = 0;
   for (const q of NHA_THUOC_SEAT_SLOTS) {
     const x = mx(q.wx), z = mz(q.wy);
-    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); continue; }
+    if (q.kind === 'PILLAR') { S.b(x, 0, z, 0.7, CLEAR, 0.7, '#e6e8e6'); pillarKit(S, x, z, pi++); continue; }
     const th = q.side === 'LEFT' ? Math.PI / 2 : -Math.PI / 2;
     const emp = q.assignedEmployeeId && EMPLOYEE_BY_ID[q.assignedEmployeeId] ? q.assignedEmployeeId : undefined;
     const occupied = q.kind === 'OCCUPIED';
@@ -529,6 +611,7 @@ function teamFloor(F: Furn, S: Furn) {
       top: q.highlight === 'red' ? '#d94a4a' : q.highlight === 'yellow' ? '#e8c24a' : '#efe9dc',
       tint: q.highlight === 'red' ? '#ff7a7a' : q.highlight === 'yellow' ? '#ffd84a' : undefined,
     });
+    deskItems(S, x, z, th, mulberry32(Math.floor(Math.abs(x * 131 + z * 17) * 100) + 7));
     if (occupied) S.slots.push({ id: q.id, seatCode: q.seatCode, account: q.account, deskId: q.deskId, assigned: q.assignedEmployeeId, x: seat.x, z: seat.z, rot: th });
     if (emp) S.team.push({ emp, x: seat.x, z: seat.z, rot: th });
     else if (occupied) S.extraTeam.push({ ...seat, id: q.seatCode });
@@ -536,7 +619,7 @@ function teamFloor(F: Furn, S: Furn) {
   TEAM_SEATS.length = 0; TEAM_SEATS.push(...S.team);
 
   // --- north strip: kanban wall, whiteboard, network cabinets, printer ---
-  const zk = -HZ + 1.1;
+  const zk = -HZ + 0.62;
   S.b(11, 0.8, zk, 9, 2.0, 0.08, '#f5f5f2');
   S.label({ t: 'SPRINT BOARD', x: 11, y: 3.05, z: zk + 0.06, w: 4.2, h: 0.5, rot: 0, fg: '#ffffff', bg: '#2e8f8a' });
   const stick = ['#f7d154', '#7ac7f0', '#b6e07a', '#f29bbb'], cnt = [5, 4, 3, 6], kr = mulberry32(88);
@@ -546,21 +629,22 @@ function teamFloor(F: Furn, S: Furn) {
     S.label({ t, x: cx, y: 2.65, z: zk + 0.06, w: 1.6, h: 0.3, rot: 0, fg: '#33403d', bg: 'rgba(255,255,255,0)' });
     for (let k = 0; k < cnt[i]; k++) S.b(cx - 0.55 + (k % 2) * 1.0 + (kr() - 0.5) * 0.08, 1.0 + Math.floor(k / 2) * 0.5, zk + 0.05, 0.42, 0.32, 0.01, stick[i], (kr() - 0.5) * 0.15);
   });
-  S.b(3.6, 0.9, zk, 3.4, 1.2, 0.06, '#ffffff'); S.b(3.6, 0.88, zk, 3.5, 0.03, 0.08, '#8a949b');
+  S.b(2.9, 0.9, zk, 3.0, 1.2, 0.06, '#ffffff'); S.b(2.9, 0.88, zk, 3.1, 0.03, 0.08, '#8a949b');
   S.table(16.6, -HZ + 1.8, 1.2, 0.6, '#e9e2d3', 0.75);
-  S.b(16.6, 0.75, -HZ + 1.8, 0.75, 0.35, 0.5, '#f2f2f2'); S.b(16.6, 1.1, -HZ + 1.8, 0.6, 0.04, 0.4, '#d9d9d9'); S.scr(16.6, 0.95, -HZ + 1.56, 0.18, 0.05, 0.02, '#38d96a');
+  S.alt(() => { S.b(16.6, 0.75, -HZ + 1.8, 0.75, 0.35, 0.5, '#f2f2f2'); S.b(16.6, 1.1, -HZ + 1.8, 0.6, 0.04, 0.4, '#d9d9d9'); });
+  S.prop('o:printer', 16.6, 0.75, -HZ + 1.8, 0, 0.5); S.scr(16.75, 0.9, -HZ + 1.55, 0.05, 0.03, 0.01, '#38d96a');
   const lr = mulberry32(61);
   for (const cx of [19.2, 20.2]) {
-    S.b(cx, 0, -HZ + 1.5, 0.8, 2.1, 0.9, '#1b2228');
-    for (let k = 0; k < 10; k++) S.led(cx - 0.28 + (k % 5) * 0.14, 0.4 + Math.floor(k / 5) * 0.6 + lr() * 0.5, -HZ + 1.5 + 0.46, lr() < 0.7 ? '#33ff88' : '#3aa0ff');
+    S.b(cx, 0, -HZ + 1.05, 0.8, 2.1, 0.9, '#1b2228');
+    for (let k = 0; k < 10; k++) S.led(cx - 0.28 + (k % 5) * 0.14, 0.4 + Math.floor(k / 5) * 0.6 + lr() * 0.5, -HZ + 1.05 + 0.46, lr() < 0.7 ? '#33ff88' : '#3aa0ff');
   }
-  S.label({ t: 'NETWORK', x: 19.7, y: 2.4, z: -HZ + 1.0, w: 1.8, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
+  S.label({ t: 'NETWORK', x: 19.7, y: 2.4, z: -HZ + 0.58, w: 1.8, h: 0.3, rot: 0, fg: '#fff', bg: '#34495e' });
   // --- south strip: lounge + pantry ---
   S.sofa(2.8, 17.4, Math.PI, 2.6); S.sofa(2.8, 20, 0, 2.6); S.table(2.8, 18.7, 1.4, 0.7, '#e9e2d3', 0.4);
   S.counter(18.4, HZ - 1.6, 5, 0.75, '#f1ede4', '#2e8f8a', Math.PI);
   S.prop('kitchenCoffeeMachine', 16.4, 1.0, HZ - 1.6, Math.PI, 2); S.prop('kitchenMicrowave', 19.4, 1.0, HZ - 1.6, Math.PI, 2); S.bookcase(-6.7, -12, Math.PI / 2); S.bookcase(-6.7, 12, Math.PI / 2); S.bookcase(-4.5, -HZ + 0.6, 0); S.bookcase(-3.6, -HZ + 0.6, 0);
   S.b(16.4, 1.05, HZ - 1.6, 0.5, 0.4, 0.5, '#b9c1c5'); S.fridge(21, HZ - 1.6, Math.PI);
-  S.label({ t: 'PANTRY', x: 18.4, y: 2.7, z: HZ - 1.2 - 0.5, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
+  S.label({ t: 'PANTRY', x: 18.4, y: 2.75, z: 20.9, w: 2.8, h: 0.6, rot: Math.PI, fg: '#fff', bg: '#e07a3a' });
   for (const px of [17, 19.5]) { S.table(px, 17.6, 0.9, 0.9, '#e9e2d3', 1.0); S.stool(px - 0.7, 17.6); S.stool(px + 0.7, 17.6); }
   for (const [px, pz] of [[1.2, -14.8], [21, -14.8], [-6.5, 8], [-6.5, -8], [-6.5, 20], [-6.5, -20], [1.4, 14.9], [21, 14.9], [-1, 7], [-1, -7]]) S.plant(px, pz, 1.4);
   // points of interest for the living office
@@ -580,7 +664,13 @@ function teamFloor(F: Furn, S: Furn) {
   for (const [px, pz, k] of [[1.4, -12, 0], [21, -9, 1], [21, 9, 0], [1.4, 12, 1], [-1, 3, 0], [-1, -3, 1]] as [number, number, number][]) S.prop(k ? 'o:plant_white' : 'o:plant_a', px, 0, pz, px * 3.1, 1);
   S.prop('o:floor_light', 4.7, 0, 17.2, 0, 1); S.prop('o:floor_light', 0.9, 0, 21, 0, 1);
   S.prop('o:coat_rack', -1.2, 0, -HZ + 1.0, 0, 1);
-  [['o:art2', 5.2], ['o:art3', 7.0], ['o:art5', 8.8]].forEach(([m, x]) => S.prop(m as string, x as number, 1.3, HZ - 0.25, Math.PI, 1));
+  // framed abstract prints (the pack's wall-art models render near-black, so they are drawn from boxes instead)
+  { const ar = mulberry32(515), pal = [['#e07a3a', '#2e8f8a', '#f2c14e'], ['#c0392b', '#34495e', '#ecf0f1'], ['#59b36a', '#2c3e50', '#f29bbb']];
+    [5.2, 7.0, 8.8].forEach((x, k) => {
+      S.b(x, 1.2, 20.94, 0.72, 1.1, 0.02, '#2b3338'); S.b(x, 1.25, 20.92, 0.62, 1.0, 0.02, '#f6f3ea');
+      for (let n = 0; n < 4; n++) { const w = 0.12 + ar() * 0.3, h = 0.15 + ar() * 0.4; S.b(x + (ar() - 0.5) * (0.5 - w), 1.3 + ar() * (0.9 - h), 20.9, w, h, 0.012, pal[k][n % 3]); }
+    }); }
+  teamDetail(S, { x0, x1, zN, zS, CX, doorX, gl, gr });
   // ceiling light panels (soft, evenly spaced, deliberately dim so bloom stays calm)
   for (let px = 4; px <= 21; px += 6) for (let pz = -18; pz <= 20; pz += 6) S.scr(px, CLEAR - 0.05, pz, 1.1, 0.04, 0.4, '#8f927e');
 }
@@ -729,7 +819,7 @@ export function getFloor(f: number): FloorData {
     if (f === -1) { str.solid = true; basement(lay); }
     if (f === 0) garden(str);
     shell(str, f);
-    core(str);
+    core(str, dept?.role !== 'TEAM'); // the decorative stairwell would sit inside the NHÀ THUỐC pantry
     switch (dept?.role) {
       case 'COMMON': if (f === commons[0]) lobby(lay, str); else training(lay); break;
       case 'TEAM': teamFloor(lay, str); break;

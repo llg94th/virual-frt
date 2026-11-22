@@ -6,6 +6,7 @@ import {
 import { OfficeCanvas2D } from './components/OfficeCanvas2D';
 
 const CityApp = lazy(() => import('./city3d/CityApp'));
+import { LoadingScreen } from './city3d/LoadingScreen';
 import { JiraControlPanel } from './components/JiraControlPanel';
 import { LiveActivityFeed } from './components/LiveActivityFeed';
 import { AssigneeHistoryOverlay } from './components/AssigneeHistoryOverlay';
@@ -108,7 +109,7 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
   const [isHudHidden, setIsHudHidden] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   // Chế độ 3D City (GTA-style) — phím tắt `G`
-  const [is3D, setIs3D] = useState<boolean>(false);
+  const [is3D, setIs3D] = useState<boolean>(true); // mặc định mở chế độ 3D (overview văn phòng)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -219,7 +220,7 @@ const VirtualFrtOfficeWorkspace: React.FC = () => {
         🏙️ 3D F-TOWN 3
       </button>
       {is3D && (
-        <Suspense fallback={<div className="fixed inset-0 z-50 bg-black text-white flex items-center justify-center text-sm">Đang tải thành phố 3D…</div>}>
+        <Suspense fallback={<LoadingScreen progress={null} />}>
           <CityApp onExit={() => setIs3D(false)} />
         </Suspense>
       )}

@@ -158,6 +158,13 @@ export const CameraRig: React.FC = () => {
     const m = s.mode; s.time += dt; s.enterT += dt;
     const c = controls.current;
     let wantFov = 55;
+    if (live.debugCam) {
+      const d = live.debugCam; if (c) c.enabled = false;
+      cam.position.set(d.pos[0], d.pos[1], d.pos[2]); cam.lookAt(d.target[0], d.target[1], d.target[2]);
+      s.look.set(d.target[0], d.target[1], d.target[2]);
+      if (cam.fov !== (d.fov ?? 40)) { cam.fov = d.fov ?? 40; cam.updateProjectionMatrix(); }
+      return;
+    }
 
     if (m === 'orbit' || m === 'cutaway') {
       if (!c) return;

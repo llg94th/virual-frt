@@ -126,7 +126,9 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
     if (!startLeg(s.legs[0][0], s.legs[0][1])) { s.legs = []; s.tExcursion = rnd(20, 40); }
   };
 
-  useFrame((_, dt0) => {
+  const lod = useRef({ shadow: true, shown: true });
+  const shadowOn = quality !== 'low';
+  useFrame((state, dt0) => {
     const s = b.current, dt = Math.min(dt0, 0.1);
     const pd = live.playerFloor === f.floor ? Math.hypot(live.player.x - s.x, live.player.z - s.z) : 99;
     const want = pd < 4 || hover.current;
@@ -168,7 +170,15 @@ const Figure: React.FC<{ f: FigureSpot; quality: Quality }> = ({ f, quality }) =
       let diff = targetYaw - s.yaw; diff -= Math.PI * 2 * Math.round(diff / (Math.PI * 2)); s.yaw += diff * Math.min(1, dt * 4);
     }
     figWalk.set(f.id, s.mode === 'walk' ? 1 : 0);
-    if (g.current) { g.current.position.set(s.x, y0, s.z); g.current.rotation.y = s.yaw; }
+    if (g.current) {
+      g.current.position.set(s.x, y0, s.z); g.current.rotation.y = s.yaw;
+      // perf LOD: skinned bounds are unreliable (frustumCulled=false) so cull by hand, and drop the shadow pass when far from the camera
+      const cam = state.camera.position, dd = Math.hypot(cam.x - s.x, cam.y - (y0 + 1), cam.z - s.z);
+      const vis = dd < 3 || inView(s.x, y0 + 0.9, s.z);
+      const sh = dd < 24;
+      if (vis !== lod.current.shown) { lod.current.shown = vis; g.current.visible = vis; }
+      if (sh !== lod.current.shadow && shadowOn) { lod.current.shadow = sh; g.current.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = sh; }); }
+    }
     if (s.x !== f.x || s.z !== f.z) moveFigure(f, s.x, s.z);
   });
 

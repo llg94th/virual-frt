@@ -79,8 +79,9 @@ export interface CityState {
   /** Mutable live player position (read each frame via getPlayerPos; no re-render). */
 }
 const initial: CityState = {
-  timeOfDay: 18.2, autoTime: true, timeScale: 6, weather: 'clear', quality: 'medium',
-  cameraMode: 'orbit', selectedFloor: null, playerMode: 'none', muted: true,
+  timeOfDay: 11.5, autoTime: false, timeScale: 6, weather: 'clear', quality: 'medium',
+  // default: daytime, office overview (cutaway on F2 where the team sits), no player until the user picks walk/drive in the panel
+  cameraMode: 'cutaway', selectedFloor: 1, playerMode: 'none', muted: true,
 };
 let state = initial;
 const listeners = new Set<() => void>();
@@ -103,6 +104,8 @@ export const live = {
   rain: 0,
   /** Floor index (-1..TOWER_FLOORS-1) the player is currently standing in inside F-Town 3, or null when outside. Written by Player. */
   playerFloor: null as number | null,
+  /** Debug/QA only: when set, CameraRig pins the camera here (see window.__city3dDebug.shot). */
+  debugCam: null as null | { pos: [number, number, number]; target: [number, number, number]; fov?: number },
 };
 
 // ---------- Tower interior registry (filled by tower/, read by characters/ Player) ----------

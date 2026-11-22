@@ -10,10 +10,10 @@ import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.j
 import type { CharacterAppearance, CharacterPose } from '../shared';
 import { safeTop } from './color';
 
-export const RIG_URL = '/models/quaternius/UAL1_Standard.glb';
-export const RIG_RADIUS = 35; // metres: rigged only inside this distance
-export const RIG_RADIUS_OUT = 42; // hysteresis
-export const RIG_MAX = 24;
+export const RIG_URL = `${(import.meta as any).env?.BASE_URL ?? '/'}models/quaternius/UAL1_Standard.glb`;
+export const RIG_RADIUS = 22; // metres: rigged only inside this distance
+export const RIG_RADIUS_OUT = 27; // hysteresis
+export const RIG_MAX = 12;
 const FADE = 0.25;
 
 export const CLIP: Record<CharacterPose, string> = {
@@ -79,7 +79,7 @@ export function readGltf(url: string): G {
   if (c.v) return c.v;
   throw c.p;
 }
-export const BASE_DIR = '/models/quaternius/base/';
+export const BASE_DIR = `${(import.meta as any).env?.BASE_URL ?? '/'}models/quaternius/base/`;
 function preloadAll() {
   loadGltf(RIG_URL);
   loadGltf(`${BASE_DIR}Superhero_Male_FullBody.gltf`);

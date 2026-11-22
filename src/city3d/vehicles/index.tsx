@@ -845,7 +845,7 @@ const ShipperProp: React.FC<{ shipper: KitVariant | null }> = ({ shipper }) => {
 
 export const Traffic: React.FC = () => {
   const quality = useCity((s) => s.quality);
-  const n = quality === 'low' ? 40 : quality === 'medium' ? 120 : 260;
+  const n = quality === 'low' ? 8 : quality === 'medium' ? 18 : 36;
   const plain = <KitTier n={n} quality={quality} shipper={null} />;
   return (
     <>

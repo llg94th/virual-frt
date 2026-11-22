@@ -527,7 +527,7 @@ function pickMove(p: Ped, rnd: () => number) {
 }
 const signalOk = (axis: 1 | 2, time: number) => (Math.floor(time / SIG) % 2 === 0) === (axis === 1);
 
-const COUNT: Record<string, number> = { low: 40, medium: 120, high: 250 };
+const COUNT: Record<string, number> = { low: 12, medium: 28, high: 56 };
 
 // instanced part definitions: [geometry, pivot(x,y,z), kind]
 type PartKind = 'torso' | 'head' | 'hair' | 'legL' | 'legR' | 'armL' | 'armR' | 'shoeL' | 'shoeR';

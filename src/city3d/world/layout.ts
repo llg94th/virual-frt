@@ -44,11 +44,14 @@ function makeTiers(r: () => number, cx: number, cz: number, w: number, d: number
   return [t0, t1, mk(t1, rndRange(r, 0.6, 0.75), f2, floors)];
 }
 
+/** blocks farther than this (Chebyshev, in blocks) from the tower carry no buildings, trees or lamps */
+const CITY_KEEP = 2;
 (function generate() {
   let id = 0;
   for (let i = -GRID_HALF; i <= GRID_HALF; i++) {
     for (let j = -GRID_HALF; j <= GRID_HALF; j++) {
       if (blockKind(i, j) !== 'city') continue;
+      if (Math.max(Math.abs(i), Math.abs(j)) > CITY_KEEP) continue; // trimmed outskirts: budget goes to the tower
       const r = mulberry32(CITY_SEED + (i + 9) * 131 + (j + 9) * 7919);
       const dist = Math.max(Math.abs(i), Math.abs(j));
       const rr = Math.hypot(i, j);
@@ -181,6 +184,7 @@ export const POND = { x: PARK_BLOCK[0] * PITCH + 9, z: PARK_BLOCK[1] * PITCH - 8
   const green = (): [number, number, number] => [0.12 + r() * 0.12, 0.35 + r() * 0.2, 0.1 + r() * 0.1];
   for (let i = -GRID_HALF; i <= GRID_HALF; i++) {
     for (let j = -GRID_HALF; j <= GRID_HALF; j++) {
+      if (Math.max(Math.abs(i), Math.abs(j)) > CITY_KEEP) continue;
       const bx = i * PITCH, bz = j * PITCH;
       const L = HALF_INNER + SIDEWALK_W - 0.8;
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {

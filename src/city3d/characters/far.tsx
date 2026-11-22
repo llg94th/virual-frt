@@ -185,7 +185,7 @@ function makeBucket(pose: CharacterPose, shadow: boolean, meshy: boolean): Bucke
 export const FarHost: React.FC<{ meshy?: boolean }> = ({ meshy = false }) => {
   const buckets = useMemo(() => {
     const m = new Map<string, Bucket>();
-    for (const p of POSES) for (const s of [true, false]) m.set(`${p}${s ? 1 : 0}`, makeBucket(p, s, meshy));
+    for (const p of POSES) for (const s of [true, false]) m.set(`${p}${s ? 1 : 0}`, makeBucket(p, s, meshy && p !== 'walk' && p !== 'run')); // moving figures use the Quaternius body (auto-rigged Meshy deforms badly in walk cycles)
     return m;
   }, [meshy]);
   useEffect(() => () => { buckets.forEach((b) => { b.mesh.geometry.dispose(); b.mesh.dispose(); }); }, [buckets]);

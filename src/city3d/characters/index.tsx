@@ -302,7 +302,7 @@ export const Character3D: React.FC<Character3DProps> = (props) => {
           </RigBoundary>}>
           <React.Suspense fallback={null}>
             <group visible={ready}>
-              {NPC_MESHY && !priority ? (
+              {NPC_MESHY && !priority && pose !== 'walk' && pose !== 'run' ? (
                 <RigBoundary fallback={<OfficeCharacter appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />}>
                   <MeshyCharacter kind={npcKindFor(appearance)} appearance={appearance} pose={pose} height={height} castShadow={quality !== 'low'} onReady={() => setReady(true)} />
                 </RigBoundary>
